@@ -1,0 +1,7 @@
+bin/
+obj/
+*.user
+.vs/
+darts.db
+darts.db-*
+[Pp]lugins/
