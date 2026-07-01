@@ -1,0 +1,107 @@
+# Darts Platform — Task Tracker
+
+Mirrors the phases in `PLAN.md`. Check items off as they land; don't reorder phases without updating `PLAN.md` too. Each phase's "Done when" is its deliverable/verification line from `PLAN.md`.
+
+---
+
+## Phase 0 — Scaffold
+
+- [ ] Run `new-dotnet-project` DDD scaffold in place at `C:\Projects\Darts`
+- [ ] Swap `Microsoft.EntityFrameworkCore.SqlServer` → `Microsoft.EntityFrameworkCore.Sqlite`
+- [ ] Add `Darts.GameSdk` project (zero project references, BCL + `System.Text.Json` only)
+- [ ] Add `src/Games/Darts.Games.X01` + `tests/Games/Darts.Games.X01.UnitTests`
+- [ ] `dotnet build` succeeds
+- [ ] Commit scaffold
+
+**Done when:** solution builds with the layout in PLAN.md's "Solution layout".
+
+---
+
+## Phase 1 — Domain + GameSdk + X01 plugin + mock detection (no UI)
+
+**Sequence: GameSdk + X01 state machine + its tests land and pass *first*, before the plumbing below.**
+
+### GameSdk contracts
+- [ ] `DetectedThrow`, `DetectionEventType`, `GameSetup`, `GameStateSnapshot`
+- [ ] `IGameFactory`, `IGame` (async-returning, pull-based), `GameRuleViolationException`
+
+### X01 game plugin
+- [ ] `X01Game.cs` state machine: turn/leg/set progression, bust rules (incl. double-bull finish), undo
+- [ ] Unit tests: bust, checkout, leg/set progression, undo across a leg boundary, undo of a busting dart, win
+
+### Domain + Application plumbing
+- [ ] Domain entities/value objects
+- [ ] In-house dispatcher (`IRequest`, `IRequestHandler`, `INotification`, `INotificationHandler`, `IDispatcher`, `Dispatcher.cs`, `AddDartsDispatcher`)
+- [ ] Dispatcher unit tests (routes correctly, unregistered request errors clearly, notification fan-out, `ErrorOr` passthrough)
+- [ ] `PluginLoadContext` + `PluginGameLoader` (ALC, shared-assembly resolution fix)
+- [ ] `GameCatalog` (`ListAvailable`, `Resolve`)
+- [ ] `GameSessionManager` (per-`matchId` lock, `BoardId → MatchId` routing)
+- [ ] `MockDetectionSource`
+- [ ] SQLite `DartsDbContext` + configurations + repositories + first migration
+- [ ] `RecordDetectedThrowCommand`, `RecordEndOfTurnCommand`, `UndoLastThrowCommand` + handlers
+- [ ] `DetectionEndpoints`: `manual-throw`, `manual-end-turn`, `undo`
+- [ ] `Match.InputSource` + manual `BoardId` binding on manual-match start
+- [ ] X01 post-build target copying DLL into `Darts.Api/plugins/Darts.Games.X01/`
+
+### Verification
+- [ ] Bare API endpoints exercised via Scalar/curl
+- [ ] Integration test: full mock 501 leg end-to-end (commands → `IGame` → persisted `ThrowRecord`s)
+- [ ] Integration test: full manual 501 leg (throws + `Miss` + early end-turn + undo of a busting dart across a leg boundary), **no streaming source running**
+- [ ] Confirm plugin loading is genuinely dynamic: delete/rebuild plugin DLL independently, confirm host picks it up from `plugins/` without a solution-wide rebuild
+
+**Done when:** a full 501 leg is playable and asserted via API + tests — from both mock stream and pure manual entry, zero hardware — with the plugin genuinely loaded from a `plugins/` folder DLL, before any UI exists.
+
+---
+
+## Phase 2 — Web UI + SignalR
+
+- [ ] `GameHub` (`JoinMatch`)
+- [ ] `IGameNotifier` / `GameHubNotifier`
+- [ ] `wwwroot/index.html` + `scoreboard.js` (players, remaining score, current visit, last N throws, leg/set score, winner banner, start-match form incl. input-source selector)
+- [ ] `dartboard.js` — clickable SVG board (wedges + bull) + Miss/Undo/End-turn controls
+- [ ] Minimal player create/list
+- [ ] `Program.cs` wiring: `AddSignalR()`, `UseStaticFiles()`, `MapHub`, `AddDartsDispatcher()`, endpoint groups
+
+**Done when:** manually drive a match through the browser — start a `Manual` match, click segments/rings, confirm live SignalR updates, leg/match completion banner — with no tracker connected.
+
+---
+
+## Phase 3 — AutoDarts adapter
+
+### Gate — resolve before building the adapter
+- [ ] Confirm local board-manager exposes real-time throw events (vs. cloud-only) — hard gate on the "no cloud" constraint
+- [ ] Confirm throw event schema + notation (segment/ring shape)
+- [ ] Confirm turn-boundary / match-state signal → maps to `DetectionEventType.EndOfTurn`
+- [ ] Confirm one fused throw per physical dart (not per-camera duplicated)
+- [ ] Decide correction/retract event handling (map to `UndoLastThrow`, or ignore in v1)
+- [ ] Capture real sample frames from a live board manager
+
+### Build
+- [ ] `AutoDartsDetectionSource.cs` + exponential-backoff reconnect
+- [ ] `Detection:Mode` DI switch (`AutoDarts` / `Mock`)
+- [ ] Local test server in `Infrastructure.IntegrationTests` replaying canned frames
+
+**Done when:** adapter runs against the replayed-frame test server, reconnects correctly after a dropped connection, and the wire-format gate above was resolved with real captured samples — before ever touching real hardware.
+
+---
+
+## Phase 4 — Hardening
+
+- [ ] Logging
+- [ ] Board connected/disconnected UI indicator
+- [ ] Reconnect resilience
+- [ ] `appsettings` profiles
+- [ ] Startup script launching `Darts.Api` on the target device (assumes AutoDarts already running; points `Detection:AutoDarts:*` at it)
+
+---
+
+## Phase 5 — Stretch (not required for "v1 done")
+
+- [ ] Second game plugin (e.g. Around the Clock) — validates the plugin architecture claim end-to-end with zero core changes
+
+---
+
+## Standing checks (every phase)
+
+- [ ] `dotnet build` passes
+- [ ] `dotnet test` (all layers) passes
