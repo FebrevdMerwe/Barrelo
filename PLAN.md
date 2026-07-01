@@ -42,12 +42,33 @@ tests/
 ```
 
 **Deviations from the default scaffold:**
+- **No MediatR.** MediatR moved to a commercial license (v13, 2025 — paid above a revenue threshold). Since this is built toward a real commercial product, the scaffold's MediatR dependency and `AddMediatR(...)` registration are dropped in favour of a tiny in-house dispatcher (see "Request dispatcher" below). No other library in the stack carries a commercial-licensing obligation, so removing this one keeps v1 — and any later commercial release — free of runtime licensing fees. `ErrorOr` (MIT) is kept.
 - Infrastructure: swap `Microsoft.EntityFrameworkCore.SqlServer` → `Microsoft.EntityFrameworkCore.Sqlite` (single-device local deployment, no server needed).
-- `Darts.GameSdk`: **zero** project references, no MediatR/EF/ErrorOr — BCL + `System.Text.Json` only. This is the only assembly a game plugin author (including a future third party) needs to reference.
+- `Darts.GameSdk`: **zero** project references, no dispatcher/EF/ErrorOr — BCL + `System.Text.Json` only. This is the only assembly a game plugin author (including a future third party) needs to reference.
 - `Darts.Application` references `Darts.GameSdk` in addition to `Darts.Domain`. `Darts.Domain` does **not** reference GameSdk — keep the domain model pure; GameSdk is a sibling contracts library.
 - `Darts.Api` also references `Darts.GameSdk` (hosts the plugin loader, shapes SignalR payloads).
 - `Darts.Games.X01` references **only** `Darts.GameSdk` — this is what proves the plugin boundary is real, not aspirational.
 - No separate SPA/front-end project for v1 — the web UI is static files served from `Darts.Api/wwwroot` (see UI section for why).
+
+---
+
+## Request dispatcher (in-house, replaces MediatR)
+
+A ~1-file mediator living in `Darts.Application/Common/Dispatch/`. It covers exactly the two features the plan actually uses — request/response commands+queries and fire-and-forget notifications — and nothing else. No pipeline-behavior framework, no assembly-scanning magic beyond a single registration helper.
+
+**Contracts (Application, dependency-free):**
+- `IRequest<TResponse>` — marker for a command/query returning `TResponse` (typically `ErrorOr<T>`).
+- `IRequestHandler<TRequest, TResponse>` — `Task<TResponse> Handle(TRequest request, CancellationToken ct)`.
+- `INotification` + `INotificationHandler<TNotification>` — for `GameStateChangedEvent` fan-out (0..n handlers).
+- `IDispatcher` — `Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken ct)` and `Task Publish(INotification notification, CancellationToken ct)`.
+
+**Implementation (`Dispatcher.cs`):**
+- Resolves the handler from `IServiceProvider` by constructing the closed generic `IRequestHandler<,>` type from the runtime request type, then invokes `Handle`. One cached `MethodInfo`/delegate per request type via a `ConcurrentDictionary<Type, Func<...>>` so reflection cost is paid once, not per call. Send is single-handler (throws if zero/many); Publish resolves `IEnumerable<INotificationHandler<T>>` and awaits each (sequential, exceptions aggregated).
+- `AddDartsDispatcher(this IServiceCollection)` registers `IDispatcher` as singleton and scans the Application assembly for `IRequestHandler<,>`/`INotificationHandler<>` implementations, registering each as scoped/transient. This is the only reflection-scan; handlers themselves are plain classes.
+
+**Why this is safe to hand-roll:** the surface MediatR gave us here is small and stable, all first-party handlers (no third-party pipeline plugins), and the boundary is already an interface (`IDispatcher`) — so if a future need outgrows it, swapping the implementation is localized. Keeping the `IRequest`/`IRequestHandler` shape close to MediatR's also means handler code reads familiarly and the migration cost (in either direction) stays near zero.
+
+**Unit tests (`Darts.Application.UnitTests`):** dispatch routes to the correct handler; unregistered request throws a clear error; notification reaches all registered handlers; response (incl. `ErrorOr` failure) is returned unchanged.
 
 ---
 
@@ -60,7 +81,7 @@ tests/
 ### `Darts.GameSdk` contents
 - `DetectedThrow` — canonical throw event, shared verbatim between the detection subsystem and game logic (no mapping layer needed since both sit on the same "outer, replaceable" side of the boundary relative to Domain).
 - `DetectionEventType` (`Throw | EndOfTurn`) — OpenDartboard's wire protocol has an explicit `"END"` marker for visit-complete, so the contract needs a real turn-boundary signal, not "3 throws = turn."
-- `DetectionEvent` (Application-side wrapper, not GameSdk) — a discriminated envelope: `DetectionEventType Type` + a nullable `DetectedThrow Throw` (populated only when `Type == Throw`). `IDetectionSource.EventsAsync` yields these; the listener switches on `Type` to dispatch `RecordDetectedThrowCommand` vs `RecordEndOfTurnCommand`. Stated explicitly here because the split-command design otherwise leaves the on-the-wire event shape implicit.
+- `DetectionEvent` (Application-side wrapper, not GameSdk) — a discriminated envelope: `DetectionEventType Type` + a nullable `DetectedThrow Throw` (populated only when `Type == Throw`). `IDetectionSource.EventsAsync` yields these; the listener switches on `Type` to send `RecordDetectedThrowCommand` vs `RecordEndOfTurnCommand` through the dispatcher. Stated explicitly here because the split-command design otherwise leaves the on-the-wire event shape implicit.
 - `IGameFactory` — `GameDescriptor Describe()` + `IGame Create(GameSetup setup)`. Split from `IGame` so the host can list available games without instantiating one.
 - `GameSetup` — ordered player list + a loosely-typed options blob (`IReadOnlyDictionary<string,string>` or JSON) that only the plugin interprets (e.g. X01's `startingScore`, `doubleOut`, `legsToWin`). This is what makes "new game, different config shape, zero core changes" literally true.
 - `IGame` — **pull-based, not event-based**: `ReceiveThrow(...)`, `ReceiveEvent(EndOfTurn)`, `UndoLastThrow()` (required, not optional — scoring UIs need this), `GetState() → GameStateSnapshot`, `IsComplete`, `GetResult()`. Pull-based deliberately: an `IGame` in a collectible ALC raising .NET events back into host code creates cross-boundary delegate references that block ALC unloading and create lifetime bugs. Synchronous call-in/pull-out keeps the plugin passive and the host in control of when state gets pushed to SignalR.
@@ -72,13 +93,26 @@ tests/
 - `PluginGameLoader.cs` — scans `Plugins:Directory` (default `./plugins`) for `*.dll` on startup, loads each into its own context, reflects for `IGameFactory` implementations.
 - `GameCatalog.cs` — implements `IGameCatalog` (Application): `ListAvailable()`, `Resolve(gameId)`.
 - `GameSessionManager.cs` — implements `IGameSessionManager` (Application): holds live `IGame` instances per in-progress match in a `ConcurrentDictionary<Guid, IGame>`. **Explicit v1 limitation:** not persisted/rehydrated across process restart — an interrupted match is lost. Resumability would require every `IGame` to support state serialize/deserialize, which is real design weight with no current requirement driving it.
-  - **Per-match serialization of `IGame` access.** `IGame` is stateful and synchronous/passive, and multiple producers can target the same match concurrently: the manual-throw REST endpoint runs a MediatR command on a request thread while `DetectionListenerService` may be mid-throw on the background thread, and Phase 4 explicitly wants live manual correction alongside a real board (two active sources at once). The dictionary makes concurrent matches structurally possible, so all mutation of a given `IGame` must be serialized. `GameSessionManager` owns a per-`matchId` async lock (or funnels every producer through a single-writer channel per match); command handlers acquire it before calling `ReceiveThrow`/`ReceiveEvent`/`UndoLastThrow`. This keeps the "plugin is passive, host controls timing" contract true regardless of how many producers exist.
+  - **Per-match serialization of `IGame` access.** `IGame` is stateful and synchronous/passive, and multiple producers can target the same match concurrently: the manual-throw REST endpoint runs a dispatched command on a request thread while `DetectionListenerService` may be mid-throw on the background thread, and Phase 4 explicitly wants live manual correction alongside a real board (two active sources at once). The dictionary makes concurrent matches structurally possible, so all mutation of a given `IGame` must be serialized. `GameSessionManager` owns a per-`matchId` async lock (or funnels every producer through a single-writer channel per match); command handlers acquire it before calling `ReceiveThrow`/`ReceiveEvent`/`UndoLastThrow`. This keeps the "plugin is passive, host controls timing" contract true regardless of how many producers exist.
   - **Detection event → match routing.** A `DetectedThrow` carries a `BoardId`, not a `MatchId`, so the manager also owns the `BoardId → active MatchId` binding, established when a match starts. **v1 rule:** a board hosts at most one active match at a time; the listener resolves the incoming throw's `BoardId` to that match, and throws for a board with no active match are dropped (logged). Mock/manual sources use a well-known default `BoardId`. This is the routing step the data flow below depends on — without it "resolve the match's `IGame`" has no key.
 - `Darts.Games.X01.csproj` gets a post-build target copying its DLL into `Darts.Api/plugins/Darts.Games.X01/`, so `dotnet build` produces a working plugins folder automatically while still proving dynamic loading (not a project reference) is what's happening at runtime.
 
 ---
 
 ## Detection abstraction
+
+### Decision: fork OpenDartboard, do not rewrite (and if ever rewritten, not necessarily in .NET)
+
+For v1 the detection engine is the **forked OpenDartboard C++/OpenCV binary**, consumed as a black box over the WebSocket boundary. A from-scratch rewrite — in particular a .NET port — was considered and deliberately rejected for now:
+
+- **The cost is in the CV, not the language.** OpenDartboard's value is multi-camera calibration, board-geometry/perspective transforms, dart-landing (motion/difference) detection, occlusion handling, and — most of all — empirical tuning against real boards. A rewrite discards that tuning and restarts it from zero. The language is the cheapest part of that work.
+- **Hardware fit favours native.** The target is a Pi Zero 2 W (512 MB RAM, quad A53). Real-time 3-camera CV is exactly the memory/per-watt-bound workload where native C++/OpenCV keeps headroom that .NET on that box would be fighting for.
+- **A .NET rewrite doesn't cleanly win on licensing either.** The mature .NET OpenCV binding (Emgu.CV) is dual GPL/**commercial (paid)**; staying free would mean OpenCvSharp (Apache-2.0). Meanwhile the GPL obligation we'd be "escaping" is tiny — the network boundary keeps copyleft out of the .NET code, leaving only the duty to offer source of our own public fork. Not a reason to rewrite.
+- **Detection is the highest-risk part of the system.** Rewriting it, in a less-suited language, on constrained hardware, *before any hardware exists to validate against*, is the worst possible sequencing.
+
+**When to revisit:** only if hardware reveals concrete OpenDartboard limitations we can't fix in the fork, full-stack commercial ownership of detection becomes a hard requirement, or OpenDartboard stalls. Even then, a modern from-scratch detector would more likely be **ML-based** (YOLO-style) than a classical-CV port, and the CV workload still favours C++/Python.
+
+**Crucially, none of this is a core change.** A future custom detector — .NET or otherwise — is just **another `IDetectionSource` implementation** behind the same abstraction and (optionally) the same WebSocket contract. It can be built in parallel and A/B'd against the same board before any switchover; the platform never has a big-bang detection replacement. This is the whole payoff of putting detection behind `IDetectionSource` + a network boundary.
 
 `IDetectionSource` in `Application/Common/Interfaces/Services/`:
 ```
@@ -106,7 +140,7 @@ Task<bool> IsConnectedAsync();
 - **`ManualEntryDetectionSource.cs`** — driven by `POST /api/detection/manual-throw`, feeding the *same* `IDetectionSource` shape. Deliberately not a bolted-on "manual mode" special case — it's just another producer of the abstraction, which is what makes it a legitimate permanent fallback (no-hardware operation, or live correction alongside a real board) with no special-casing elsewhere.
 
 ### Data flow
-`DetectionListenerService : BackgroundService` (Infrastructure) does `await foreach` over the active source → dispatches MediatR command (`RecordDetectedThrowCommand` / `RecordEndOfTurnCommand`) → handler resolves the match's `IGame` via `IGameSessionManager`, calls it (catching `GameRuleViolationException` → `ErrorOr`), persists a `ThrowRecord`, publishes `GameStateChangedEvent` → an Api-side handler forwards the fresh `GameStateSnapshot` to SignalR.
+`DetectionListenerService : BackgroundService` (Infrastructure) does `await foreach` over the active source → dispatches a command (`RecordDetectedThrowCommand` / `RecordEndOfTurnCommand`) via the in-house dispatcher → handler resolves the match's `IGame` via `IGameSessionManager`, calls it (catching `GameRuleViolationException` → `ErrorOr`), persists a `ThrowRecord`, publishes `GameStateChangedEvent` → an Api-side handler forwards the fresh `GameStateSnapshot` to SignalR.
 
 ---
 
@@ -128,7 +162,7 @@ Simplest state machine that still exercises the whole `IGame` contract (turn/leg
 - `Api/Hubs/GameHub.cs` — `JoinMatch(matchId)` joins group `match-{id}`; no client→server score input via the hub (scores only flow from detection/REST).
 - `IGameNotifier` (Application interface) implemented by `Api/Hubs/GameHubNotifier.cs`, pushing `GameStateSnapshot` via `hubContext.Clients.Group(...).SendAsync("GameStateUpdated", snapshot)` — keeps SignalR types out of Application.
 - `Api/wwwroot/index.html` + `scoreboard.js` (SignalR client via CDN script tag, no npm/build pipeline) rendering: players + remaining score, current visit's darts, last N throws, leg/set score, winner banner, minimal start-match form (`GET /api/games` for the catalog, `POST /api/matches`), plus the manual-throw entry panel.
-- `Program.cs`: `AddSignalR()`, `UseStaticFiles()`, `MapHub<GameHub>("/hubs/game")`, MediatR-backed minimal-API endpoint groups under `Api/Endpoints/` (`MatchEndpoints`, `PlayerEndpoints`, `DetectionEndpoints`, `GameEndpoints`).
+- `Program.cs`: `AddSignalR()`, `UseStaticFiles()`, `MapHub<GameHub>("/hubs/game")`, `AddDartsDispatcher()` (registers the in-house dispatcher + scans for handlers), minimal-API endpoint groups under `Api/Endpoints/` (`MatchEndpoints`, `PlayerEndpoints`, `DetectionEndpoints`, `GameEndpoints`) that resolve `IDispatcher` and send requests.
 
 **Why not Blazor Server:** it would keep everything in C#, but ties rendering to a stateful per-tab circuit owned by the Api process, muddying the boundary between "the platform's network API" and "this particular UI." REST + a purpose-built SignalR hub keeps `Darts.Api` a clean surface that future consumers (mobile companion app, spectator/TV display — both explicitly in the long-term vision) can hit without caring how the reference web scoreboard is built. It also mirrors the same network-boundary philosophy already forced onto the OpenDartboard integration.
 
@@ -152,7 +186,7 @@ EF: `Infrastructure/Persistence/Configurations/{Player,Match,ThrowRecord}Configu
 
 **Phase 0 — Scaffold.** Run the DDD scaffold in place at `C:\Projects\Darts`; swap SqlServer→Sqlite; add `Darts.GameSdk` and `src/Games/Darts.Games.X01` (+ test projects) with the reference rules above; `dotnet build`; `git init` + initial commit.
 
-**Phase 1 — Domain + GameSdk + X01 plugin + mock detection, no UI (earliest demoable slice).** Large phase; sequence it internally so the **`GameSdk` contracts and the `Darts.Games.X01` state machine + its unit tests land and pass first** (bust incl. double-bull finish, checkout, leg/set progression, undo across a leg boundary, undo of a busting dart, win), *before* the plumbing that asserts against them: domain entities/value objects; plugin loader + `GameCatalog`/`GameSessionManager` (incl. per-`matchId` serialization + `BoardId`→match routing); `MockDetectionSource`; SQLite context + repositories + first migration; MediatR commands/handlers; bare Api endpoints exercised via Scalar/curl plus an integration test scripting a full mock 501 leg end-to-end. **Deliverable: a full 501 leg playable and asserted via API + tests, with the plugin genuinely loaded from a `plugins/` folder DLL — before any UI or hardware exists.**
+**Phase 1 — Domain + GameSdk + X01 plugin + mock detection, no UI (earliest demoable slice).** Large phase; sequence it internally so the **`GameSdk` contracts and the `Darts.Games.X01` state machine + its unit tests land and pass first** (bust incl. double-bull finish, checkout, leg/set progression, undo across a leg boundary, undo of a busting dart, win), *before* the plumbing that asserts against them: domain entities/value objects; plugin loader + `GameCatalog`/`GameSessionManager` (incl. per-`matchId` serialization + `BoardId`→match routing); `MockDetectionSource`; SQLite context + repositories + first migration; the in-house dispatcher + commands/handlers; bare Api endpoints exercised via Scalar/curl plus an integration test scripting a full mock 501 leg end-to-end. **Deliverable: a full 501 leg playable and asserted via API + tests, with the plugin genuinely loaded from a `plugins/` folder DLL — before any UI or hardware exists.**
 
 **Phase 2 — Web UI + SignalR.** `GameHub`, `GameHubNotifier`, `wwwroot` scoreboard + start-match form + manual-throw panel, minimal player create/list.
 
@@ -172,7 +206,7 @@ EF: `Infrastructure/Persistence/Configurations/{Player,Match,ThrowRecord}Configu
 - `src/Darts.Infrastructure/Persistence/DartsDbContext.cs` + `Persistence/Configurations/*` — SQLite schema.
 
 ## Verification
-- Phase 1 end-to-end integration test (script a full mock 501 leg through the MediatR commands / Api endpoints, assert final `GameStateSnapshot` and persisted `ThrowRecord`s) is the primary correctness gate before any UI work starts.
+- Phase 1 end-to-end integration test (script a full mock 501 leg through the dispatched commands / Api endpoints, assert final `GameStateSnapshot` and persisted `ThrowRecord`s) is the primary correctness gate before any UI work starts.
 - `dotnet build` and `dotnet test` (all layers) must pass at the end of every phase.
 - Phase 1's plugin-loading must be verified as genuinely dynamic: delete/rebuild the plugin DLL independently and confirm the host picks it up from `plugins/` without a solution-wide rebuild.
 - Phase 2: manually drive a match through the browser UI (start match → manual-throw panel → confirm live scoreboard updates via SignalR → leg/match completion banner).
