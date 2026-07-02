@@ -22,32 +22,32 @@ Mirrors the phases in `PLAN.md`. Check items off as they land; don't reorder pha
 **Sequence: GameSdk + X01 state machine + its tests land and pass *first*, before the plumbing below.**
 
 ### GameSdk contracts
-- [ ] `DetectedThrow`, `DetectionEventType`, `GameSetup`, `GameStateSnapshot`
-- [ ] `IGameFactory`, `IGame` (async-returning, pull-based), `GameRuleViolationException`
+- [x] `DetectedThrow`, `DetectionEventType`, `GameSetup`, `GameStateSnapshot`
+- [x] `IGameFactory`, `IGame` (async-returning, pull-based), `GameRuleViolationException`
 
 ### X01 game plugin
-- [ ] `X01Game.cs` state machine: turn/leg/set progression, bust rules (incl. double-bull finish), undo
-- [ ] Unit tests: bust, checkout, leg/set progression, undo across a leg boundary, undo of a busting dart, win
+- [x] `X01Game.cs` state machine: turn/leg/set progression, bust rules (incl. double-bull finish), undo
+- [x] Unit tests: bust, checkout, leg/set progression, undo across a leg boundary, undo of a busting dart, win
 
 ### Domain + Application plumbing
-- [ ] Domain entities/value objects
-- [ ] In-house dispatcher (`IRequest`, `IRequestHandler`, `INotification`, `INotificationHandler`, `IDispatcher`, `Dispatcher.cs`, `AddDartsDispatcher`)
-- [ ] Dispatcher unit tests (routes correctly, unregistered request errors clearly, notification fan-out, `ErrorOr` passthrough)
-- [ ] `PluginLoadContext` + `PluginGameLoader` (ALC, shared-assembly resolution fix)
-- [ ] `GameCatalog` (`ListAvailable`, `Resolve`)
-- [ ] `GameSessionManager` (per-`matchId` lock, `BoardId → MatchId` routing)
-- [ ] `MockDetectionSource`
-- [ ] SQLite `DartsDbContext` + configurations + repositories + first migration
-- [ ] `RecordDetectedThrowCommand`, `RecordEndOfTurnCommand`, `UndoLastThrowCommand` + handlers
-- [ ] `DetectionEndpoints`: `manual-throw`, `manual-end-turn`, `undo`
-- [ ] `Match.InputSource` + manual `BoardId` binding on manual-match start
-- [ ] X01 post-build target copying DLL into `Darts.Api/plugins/Darts.Games.X01/`
+- [x] Domain entities/value objects
+- [x] In-house dispatcher (`IRequest`, `IRequestHandler`, `INotification`, `INotificationHandler`, `IDispatcher`, `Dispatcher.cs`, `AddDartsDispatcher`)
+- [x] Dispatcher unit tests (routes correctly, unregistered request errors clearly, notification fan-out, `ErrorOr` passthrough)
+- [x] `PluginLoadContext` + `PluginGameLoader` (ALC, shared-assembly resolution fix)
+- [x] `GameCatalog` (`ListAvailable`, `Resolve`)
+- [x] `GameSessionManager` (per-`matchId` lock, `BoardId → MatchId` routing)
+- [x] `MockDetectionSource`
+- [x] SQLite `DartsDbContext` + configurations + repositories + first migration
+- [x] `RecordDetectedThrowCommand`, `RecordEndOfTurnCommand`, `UndoLastThrowCommand` + handlers
+- [x] `DetectionEndpoints`: `manual-throw`, `manual-end-turn`, `undo`
+- [x] `Match.InputSource` + manual `BoardId` binding on manual-match start
+- [x] X01 post-build target copying DLL into `Darts.Api/plugins/Darts.Games.X01/`
 
 ### Verification
-- [ ] Bare API endpoints exercised via Scalar/curl
-- [ ] Integration test: full mock 501 leg end-to-end (commands → `IGame` → persisted `ThrowRecord`s)
-- [ ] Integration test: full manual 501 leg (throws + `Miss` + early end-turn + undo of a busting dart across a leg boundary), **no streaming source running**
-- [ ] Confirm plugin loading is genuinely dynamic: delete/rebuild plugin DLL independently, confirm host picks it up from `plugins/` without a solution-wide rebuild
+- [x] Bare API endpoints exercised via Scalar/curl
+- [x] Integration test: full mock 501 leg end-to-end (commands → `IGame` → persisted `ThrowRecord`s)
+- [x] Integration test: full manual 501 leg (throws + `Miss` + early end-turn + undo of a busting dart across a leg boundary), **no streaming source running**
+- [x] Confirm plugin loading is genuinely dynamic: delete/rebuild plugin DLL independently, confirm host picks it up from `plugins/` without a solution-wide rebuild
 
 **Done when:** a full 501 leg is playable and asserted via API + tests — from both mock stream and pure manual entry, zero hardware — with the plugin genuinely loaded from a `plugins/` folder DLL, before any UI exists.
 
@@ -106,5 +106,5 @@ Mirrors the phases in `PLAN.md`. Check items off as they land; don't reorder pha
 
 ## Standing checks (every phase)
 
-- [ ] `dotnet build` passes
-- [ ] `dotnet test` (all layers) passes
+- [x] `dotnet build` passes
+- [x] `dotnet test` (all layers) passes

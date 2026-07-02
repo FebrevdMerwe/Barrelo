@@ -4,3 +4,4 @@ obj/
 .vs/
 darts.db
 darts.db-*
+src/Darts.Api/plugins/

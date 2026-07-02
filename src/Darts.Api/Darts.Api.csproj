@@ -15,6 +15,15 @@
     <ProjectReference Include="..\Darts.Infrastructure\Darts.Infrastructure.csproj" />
     <ProjectReference Include="..\Darts.Application\Darts.Application.csproj" />
     <ProjectReference Include="..\Darts.GameSdk\Darts.GameSdk.csproj" />
+    <!-- build-order only, NOT a compile dependency: forces X01's post-build plugin copy to run before
+         this project's own copy-to-output step below. ReferenceOutputAssembly=false means it contributes
+         nothing to this project's compiled dependency closure, so the runtime load stays genuinely
+         dynamic via the plugin loader, not a project reference. -->
+    <ProjectReference Include="..\Games\Darts.Games.X01\Darts.Games.X01.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="plugins\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

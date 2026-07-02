@@ -10,4 +10,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <Target Name="CopyPluginToApi" AfterTargets="Build">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MSBuildThisFileDirectory)..\..\Darts.Api\plugins\Darts.Games.X01\" />
+  </Target>
+
 </Project>

@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Darts.Application\Darts.Application.csproj" />
+    <ProjectReference Include="..\Darts.GameSdk\Darts.GameSdk.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -10,6 +11,8 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.9" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -24,4 +24,8 @@
     <ProjectReference Include="..\..\src\Darts.Api\Darts.Api.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\..\src\Darts.Api\plugins\**" LinkBase="plugins" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
