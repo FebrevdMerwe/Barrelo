@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Oché — Start a match</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800;900&family=Archivo:ital,wght@0,400;0,500;0,600;0,700;1,500&family=Caveat:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="scene" id="scene">
+
+  <header class="rail">
+    <div class="rail-left">
+      <div class="wordmark">Oché<small>start a match</small></div>
+    </div>
+    <div class="meta">
+      <span class="legmeta">a platform for interactive dart experiences</span>
+    </div>
+  </header>
+
+  <section class="hero">
+    <h1 class="hero-line">Step up to the oche.</h1>
+    <p class="hero-sub">Pick a game, add your players, start throwing.</p>
+  </section>
+
+  <form class="setup-form" action="match.html" method="get">
+
+    <fieldset class="field-block">
+      <legend class="section-label">Game</legend>
+      <div class="game-cards">
+        <label class="game-card">
+          <input type="radio" name="game" value="x01" checked>
+          <span class="gc-visual">
+            <span class="gc-name">501</span>
+            <span class="gc-tagline">Race to zero. Finish on a double — or the bull.</span>
+            <span class="gc-meta">2 players · double out · best of 5 legs</span>
+          </span>
+        </label>
+        <label class="game-card">
+          <input type="radio" name="game" value="cricket">
+          <span class="gc-visual">
+            <span class="gc-name">Cricket</span>
+            <span class="gc-tagline">Close 20 down to 15 and bull. Outscore the table before they close you out.</span>
+            <span class="gc-meta">2 players · 20–15 &amp; bull · best of 3 legs</span>
+          </span>
+        </label>
+        <label class="game-card">
+          <input type="radio" name="game" value="topcorner">
+          <span class="gc-visual">
+            <span class="gc-name">Top Corner</span>
+            <span class="gc-tagline">Kick where you throw. Only the frame beats the keeper.</span>
+            <span class="gc-meta">2 players · corners only · best of 3 legs</span>
+          </span>
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset class="field-block">
+      <legend class="section-label">Players</legend>
+      <div class="field-row">
+        <label class="field-group">
+          <span class="field-label">Player 1</span>
+          <input class="text-input" type="text" name="p1" value="Febre" maxlength="20" required>
+        </label>
+        <label class="field-group">
+          <span class="field-label">Player 2</span>
+          <input class="text-input" type="text" name="p2" value="Sam" maxlength="20" required>
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset class="field-block">
+      <legend class="section-label">Input</legend>
+      <div class="source-toggle">
+        <label class="source-pill-option">
+          <input type="radio" name="source" value="manual" checked>
+          <span>Manual entry</span>
+        </label>
+        <label class="source-pill-option disabled">
+          <input type="radio" name="source" value="board" disabled>
+          <span>Board <em>— pair a board to enable</em></span>
+        </label>
+      </div>
+    </fieldset>
+
+    <button class="pull-btn go start-cta" type="submit">Start match</button>
+  </form>
+
+</div>
+
+<script>
+  document.getElementById("scene").classList.add("is-ready");
+</script>
+</body>
+</html>
