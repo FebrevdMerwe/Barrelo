@@ -15,10 +15,10 @@
       meta: "2 players · 20–15 & bull · best of 3 legs"
     },
     {
-      id: "topcorner",
-      name: "Top Corner",
-      tagline: "Kick where you throw. Only the frame beats the keeper.",
-      meta: "2 players · corners only · best of 3 legs"
+      id: "kickoff",
+      name: "Kickoff",
+      tagline: "One ball, one pitch. Miss the frame and it's their throw-in.",
+      meta: "2 players · one shared ball · best of 3 legs"
     }
   ];
 })(window);
