@@ -6,12 +6,12 @@ Mirrors the phases in `PLAN.md`. Check items off as they land; don't reorder pha
 
 ## Phase 0 — Scaffold
 
-- [ ] Run `new-dotnet-project` DDD scaffold in place at `C:\Projects\Darts`
-- [ ] Swap `Microsoft.EntityFrameworkCore.SqlServer` → `Microsoft.EntityFrameworkCore.Sqlite`
-- [ ] Add `Darts.GameSdk` project (zero project references, BCL + `System.Text.Json` only)
-- [ ] Add `src/Games/Darts.Games.X01` + `tests/Games/Darts.Games.X01.UnitTests`
-- [ ] `dotnet build` succeeds
-- [ ] Commit scaffold
+- [x] Run `new-dotnet-project` DDD scaffold in place at `C:\Projects\Darts`
+- [x] Swap `Microsoft.EntityFrameworkCore.SqlServer` → `Microsoft.EntityFrameworkCore.Sqlite`
+- [x] Add `Darts.GameSdk` project (zero project references, BCL + `System.Text.Json` only)
+- [x] Add `src/Games/Darts.Games.X01` + `tests/Games/Darts.Games.X01.UnitTests`
+- [x] `dotnet build` succeeds
+- [x] Commit scaffold
 
 **Done when:** solution builds with the layout in PLAN.md's "Solution layout".
 
