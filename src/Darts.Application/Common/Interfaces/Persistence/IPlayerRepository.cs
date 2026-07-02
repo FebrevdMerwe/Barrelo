@@ -9,4 +9,6 @@ public interface IPlayerRepository
     Task<Player?> GetById(Guid id, CancellationToken ct);
 
     Task<IReadOnlyList<Player>> GetByIds(IReadOnlyList<Guid> ids, CancellationToken ct);
+
+    Task<IReadOnlyList<Player>> GetAll(CancellationToken ct);
 }

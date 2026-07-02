@@ -1,7 +1,9 @@
 using System.Text.Json.Serialization;
 using Darts.Api.Endpoints;
+using Darts.Api.Hubs;
 using Darts.Application;
 using Darts.Application.Common.Dispatch;
+using Darts.Application.Common.Interfaces.Services;
 using Darts.Infrastructure;
 using Darts.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +18,9 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddDartsDispatcher();
 builder.Services.AddOpenApi();
+builder.Services.AddSignalR().AddJsonProtocol(options =>
+    options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddScoped<IGameNotifier, GameHubNotifier>();
 
 var app = builder.Build();
 
@@ -31,10 +36,14 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 app.MapGameEndpoints();
 app.MapMatchEndpoints();
 app.MapDetectionEndpoints();
+app.MapPlayerEndpoints();
+app.MapHub<GameHub>("/hubs/game");
 
 app.Run();
 

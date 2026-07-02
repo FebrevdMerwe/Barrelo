@@ -55,14 +55,14 @@ Mirrors the phases in `PLAN.md`. Check items off as they land; don't reorder pha
 
 ## Phase 2 — Web UI + SignalR
 
-- [ ] `GameHub` (`JoinMatch`)
-- [ ] `IGameNotifier` / `GameHubNotifier`
-- [ ] `wwwroot/index.html` + `scoreboard.js` (players, remaining score, current visit, last N throws, leg/set score, winner banner, start-match form incl. input-source selector) — chrome only
-- [ ] `<div id="game-board">` region in `index.html` + default fallback renderer in `scoreboard.js` (generic `payload` dump when a game ships no `render.js`)
-- [ ] Per-game `ui/render.js` post-build copy target convention (`ui/` folder → `Darts.Api/wwwroot/plugins/{gameId}/`), wired for `Darts.Games.X01` even if it ships no custom renderer
-- [ ] `dartboard.js` — clickable SVG board (wedges + bull) + Miss/Undo/End-turn controls
-- [ ] Minimal player create/list
-- [ ] `Program.cs` wiring: `AddSignalR()`, `UseStaticFiles()`, `MapHub`, `AddDartsDispatcher()`, endpoint groups
+- [x] `GameHub` (`JoinMatch`)
+- [x] `IGameNotifier` / `GameHubNotifier`
+- [x] `wwwroot/index.html` + `scoreboard.js` (players, remaining score, current visit, last N throws, leg/set score, winner banner, start-match form incl. input-source selector) — chrome only
+- [x] `<div id="game-board">` region in `index.html` + default fallback renderer in `scoreboard.js` (generic `payload` dump when a game ships no `render.js`)
+- [x] Per-game `ui/render.js` post-build copy target convention (`ui/` folder → `Darts.Api/wwwroot/plugins/{gameId}/`), wired for `Darts.Games.X01` even if it ships no custom renderer
+- [x] `dartboard.js` — clickable SVG board (wedges + bull) + Miss/Undo/End-turn controls
+- [x] Minimal player create/list
+- [x] `Program.cs` wiring: `AddSignalR()`, `UseStaticFiles()`, `MapHub`, `AddDartsDispatcher()`, endpoint groups
 
 **Done when:** manually drive a match through the browser — start a `Manual` match, click segments/rings, confirm live SignalR updates, leg/match completion banner, and the default board-region fallback rendering — with no tracker connected.
 

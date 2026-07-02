@@ -14,4 +14,11 @@
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MSBuildThisFileDirectory)..\..\Darts.Api\plugins\Darts.Games.X01\" />
   </Target>
 
+  <Target Name="CopyUiToApi" AfterTargets="Build">
+    <ItemGroup>
+      <UiAssets Include="ui\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(UiAssets)" DestinationFolder="$(MSBuildThisFileDirectory)..\..\Darts.Api\wwwroot\plugins\x01\%(RecursiveDir)" />
+  </Target>
+
 </Project>

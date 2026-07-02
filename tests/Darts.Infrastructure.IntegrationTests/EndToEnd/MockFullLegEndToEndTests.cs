@@ -8,6 +8,7 @@ using Darts.Domain.Entities;
 using Darts.GameSdk;
 using Darts.Games.X01;
 using Darts.Infrastructure.External.GamePlugins;
+using Darts.Infrastructure.External.Notifications;
 using Darts.Infrastructure.Persistence;
 using Darts.Infrastructure.Persistence.Repositories;
 using ErrorOr;
@@ -45,6 +46,7 @@ public class MockFullLegEndToEndTests : IAsyncLifetime
         services.AddSingleton<IUnitOfWork, UnitOfWork>();
         services.AddSingleton<IGameSessionManager, GameSessionManager>();
         services.AddSingleton<IGameCatalog>(new GameCatalog([new X01GameFactory()]));
+        services.AddSingleton<IGameNotifier, NullGameNotifier>();
 
         var provider = services.BuildServiceProvider();
         _dispatcher = provider.GetRequiredService<IDispatcher>();

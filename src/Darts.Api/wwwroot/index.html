@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Oché — Start a match</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800;900&family=Archivo:ital,wght@0,400;0,500;0,600;0,700;1,500&family=Caveat:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="scene" id="scene">
+
+  <header class="rail">
+    <div class="rail-left">
+      <div class="wordmark">Oché<small>start a match</small></div>
+    </div>
+    <div class="meta">
+      <span class="legmeta">a platform for interactive dart experiences</span>
+    </div>
+  </header>
+
+  <section class="hero">
+    <h1 class="hero-line">Step up to the oche.</h1>
+    <p class="hero-sub">Pick a game, add your players, start throwing.</p>
+  </section>
+
+  <form class="setup-form" id="setupForm">
+
+    <fieldset class="field-block">
+      <legend class="section-label">Game</legend>
+      <div class="game-cards" id="gameCards">
+        <p class="hero-sub" id="gameCardsEmpty">Loading games&hellip;</p>
+      </div>
+    </fieldset>
+
+    <fieldset class="field-block">
+      <legend class="section-label">Players</legend>
+      <div class="field-row">
+        <label class="field-group">
+          <span class="field-label">Player 1</span>
+          <input class="text-input" type="text" name="p1" id="p1" maxlength="20" required>
+        </label>
+        <label class="field-group">
+          <span class="field-label">Player 2</span>
+          <input class="text-input" type="text" name="p2" id="p2" maxlength="20" required>
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset class="field-block">
+      <legend class="section-label">Input</legend>
+      <div class="source-toggle">
+        <label class="source-pill-option">
+          <input type="radio" name="source" value="manual" checked>
+          <span>Manual entry</span>
+        </label>
+        <label class="source-pill-option disabled">
+          <input type="radio" name="source" value="board" disabled>
+          <span>Board <em>— pair a board to enable</em></span>
+        </label>
+      </div>
+    </fieldset>
+
+    <button class="pull-btn go start-cta" type="submit" id="startBtn">Start match</button>
+  </form>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var gameCardsEl = document.getElementById("gameCards");
+  var gameCardsEmptyEl = document.getElementById("gameCardsEmpty");
+  var form = document.getElementById("setupForm");
+  var startBtn = document.getElementById("startBtn");
+
+  function renderGameCards(games) {
+    gameCardsEl.innerHTML = "";
+    if (!games.length) {
+      gameCardsEmptyEl.textContent = "No games available — is the API running with a plugin loaded?";
+      gameCardsEl.appendChild(gameCardsEmptyEl);
+      startBtn.disabled = true;
+      return;
+    }
+    games.forEach(function (game, idx) {
+      var label = document.createElement("label");
+      label.className = "game-card";
+      label.innerHTML =
+        '<input type="radio" name="game" value="' + game.gameId + '"' + (idx === 0 ? " checked" : "") + '>' +
+        '<span class="gc-visual">' +
+          '<span class="gc-name">' + game.displayName + '</span>' +
+          '<span class="gc-tagline">' + game.description + '</span>' +
+        '</span>';
+      gameCardsEl.appendChild(label);
+    });
+  }
+
+  async function fetchGames() {
+    try {
+      var res = await fetch("/api/games");
+      if (!res.ok) throw new Error("GET /api/games failed: " + res.status);
+      renderGameCards(await res.json());
+    } catch (err) {
+      gameCardsEmptyEl.textContent = "Couldn't load games — is the API running?";
+      console.error(err);
+    }
+  }
+
+  async function resolvePlayerId(name, existingPlayers) {
+    var trimmed = name.trim();
+    var match = existingPlayers.find(function (p) {
+      return p.name.toLowerCase() === trimmed.toLowerCase();
+    });
+    if (match) return match.id;
+
+    var res = await fetch("/api/players", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: trimmed }),
+    });
+    if (!res.ok) throw new Error("POST /api/players failed: " + res.status);
+    var created = await res.json();
+    return created.id;
+  }
+
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    startBtn.disabled = true;
+    startBtn.textContent = "Starting…";
+
+    try {
+      var gameId = form.querySelector('input[name="game"]:checked').value;
+      var p1Name = document.getElementById("p1").value;
+      var p2Name = document.getElementById("p2").value;
+
+      var playersRes = await fetch("/api/players");
+      if (!playersRes.ok) throw new Error("GET /api/players failed: " + playersRes.status);
+      var existingPlayers = await playersRes.json();
+
+      var p1Id = await resolvePlayerId(p1Name, existingPlayers);
+      var p2Id = await resolvePlayerId(p2Name, existingPlayers);
+
+      var matchRes = await fetch("/api/matches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gameId: gameId,
+          playerIds: [p1Id, p2Id],
+          options: {},
+          inputSource: "Manual",
+        }),
+      });
+      if (!matchRes.ok) throw new Error("POST /api/matches failed: " + matchRes.status);
+      var started = await matchRes.json();
+
+      window.location.href = "match.html?matchId=" + encodeURIComponent(started.matchId);
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't start the match — is the API running? See console for details.");
+      startBtn.disabled = false;
+      startBtn.textContent = "Start match";
+    }
+  });
+
+  fetchGames();
+  document.getElementById("scene").classList.add("is-ready");
+})();
+</script>
+</body>
+</html>

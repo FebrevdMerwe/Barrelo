@@ -2,6 +2,7 @@ using Darts.Application.Common.Interfaces.Persistence;
 using Darts.Application.Common.Interfaces.Services;
 using Darts.Infrastructure.External.Detection;
 using Darts.Infrastructure.External.GamePlugins;
+using Darts.Infrastructure.External.Notifications;
 using Darts.Infrastructure.Persistence;
 using Darts.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -33,6 +34,8 @@ public static class DependencyInjection
 
         services.AddSingleton<MockDetectionSource>();
         services.AddSingleton<IDetectionSource>(sp => sp.GetRequiredService<MockDetectionSource>());
+
+        services.AddScoped<IGameNotifier, NullGameNotifier>();
 
         return services;
     }

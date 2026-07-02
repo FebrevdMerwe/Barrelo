@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Oché — Live Scoreboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800;900&family=Archivo:ital,wght@0,400;0,500;0,600;0,700;1,500&family=Caveat:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="scene" id="scene">
+
+  <header class="rail">
+    <div class="rail-left">
+      <a class="back-link" href="index.html">&lsaquo; Change game</a>
+      <div class="wordmark">Oché<small>live scoreboard</small></div>
+    </div>
+    <div class="meta">
+      <span class="game-pill" id="gameLabel">—</span>
+      <span class="legmeta" id="legMeta">Leg 1 · Set 1</span>
+      <span class="source-pill manual"><span class="dot"></span>Manual entry — no board connected</span>
+    </div>
+  </header>
+
+  <div class="game-board-wrap">
+    <div id="game-board"></div>
+  </div>
+
+  <footer class="ledger">
+    <span class="ledger-label">This leg, dart by dart</span>
+    <div class="ledger-strip" id="ledgerStrip"></div>
+  </footer>
+
+</div>
+
+<div class="input-drawer" id="inputDrawer">
+  <button class="drawer-peek" id="drawerPeek" type="button">
+    <span class="dp-copy">
+      <span class="dp-turn" id="peekTurn">—</span>
+      <span class="dp-sub" id="peekSub">Dart 1 of 3 · tap to throw</span>
+    </span>
+    <span class="dp-chevron">&#9650;</span>
+  </button>
+
+  <div class="drawer-open" id="drawerOpenPanel">
+    <div class="do-head">
+      <span class="do-title" id="openTitle">Dart 1 of 3</span>
+      <button class="do-collapse" id="btnCollapseDrawer" type="button" aria-label="Collapse board">&#9662;</button>
+    </div>
+    <div class="dart-slots" id="visitSlots"></div>
+    <div class="board-wrap">
+      <svg id="dartboard" role="group" aria-label="Interactive dartboard, click a segment to record a throw"></svg>
+      <div class="flourish" id="flourish"></div>
+    </div>
+    <div class="controls">
+      <button class="pull-btn warn" id="btnMiss">Miss</button>
+      <button class="pull-btn" id="btnUndo">Undo last dart</button>
+      <button class="pull-btn go" id="btnEndTurn">End turn</button>
+    </div>
+  </div>
+</div>
+
+<div class="win-banner" id="winBanner">
+  <div class="win-card">
+    <h2 id="winTitle">Game shot!</h2>
+    <p id="winSub">Sam wins the match 3–0.</p>
+    <button class="pull-btn go" id="btnRack">Back to start</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+<script src="dartboard.js"></script>
+<script src="scoreboard.js"></script>
+</body>
+</html>
