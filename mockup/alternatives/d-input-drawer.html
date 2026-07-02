@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Oché — Alt D: On-demand input drawer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800;900&family=Archivo:ital,wght@0,400;0,500;0,600;0,700;1,500&family=Caveat:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../plugins/x01/style.css">
+<link rel="stylesheet" href="alt.css">
+</head>
+<body class="alt-body">
+<div class="scene is-ready" style="min-height:auto;">
+
+  <div class="concept-nav">
+    <a class="crumb" href="index.html">&lsaquo; All alternatives</a>
+    <span class="game-pill">Alt D — Input drawer (mine)</span>
+  </div>
+
+  <p class="state-frame-note">Most aggressive space win, single screen: the game view owns the whole viewport always. The board only exists as a bottom sheet, and only fully opens while it's actually your turn to throw.</p>
+
+  <div class="state-frame">
+    <span class="state-frame-label">Idle — nobody's throwing</span>
+    <div class="drawer-shell">
+      <div class="drawer-game-area">
+        <div class="x01-board">
+          <div class="x01-panel active">
+            <div class="x01-name">Febre</div>
+            <div class="x01-remaining">261</div>
+            <div class="tallies"><span class="tally-group">legs<span class="tally-marks"><span class="chalk-tick"></span></span></span></div>
+          </div>
+          <div class="x01-panel">
+            <div class="x01-name">Sam</div>
+            <div class="x01-remaining">402</div>
+            <div class="tallies"><span class="tally-group">legs<span class="tally-marks"></span></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="drawer-peek">
+        <div>
+          <div class="dp-turn">Febre's turn</div>
+          <div class="dp-sub">Dart 1 of 3 · tap to throw</div>
+        </div>
+        <span class="dp-chevron">▲</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="state-frame">
+    <span class="state-frame-label">Open — mid-visit</span>
+    <div class="drawer-shell">
+      <div class="drawer-game-area">
+        <div class="drawer-backdrop-note"></div>
+        <div class="x01-board">
+          <div class="x01-panel active">
+            <div class="x01-name">Febre</div>
+            <div class="x01-remaining">261</div>
+            <div class="tallies"><span class="tally-group">legs<span class="tally-marks"><span class="chalk-tick"></span></span></span></div>
+          </div>
+          <div class="x01-panel">
+            <div class="x01-name">Sam</div>
+            <div class="x01-remaining">402</div>
+            <div class="tallies"><span class="tally-group">legs<span class="tally-marks"></span></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="drawer-open">
+        <div class="do-title">Dart 2 of 3</div>
+        <div class="board-wrap">
+          <svg id="drawerBoard" role="group" aria-label="Interactive dartboard"></svg>
+        </div>
+        <div class="controls">
+          <button class="pull-btn warn">Miss</button>
+          <button class="pull-btn">Undo</button>
+          <button class="pull-btn go">End turn</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script src="../dartboard.js"></script>
+<script>createDartboard(document.getElementById('drawerBoard'));</script>
+</body>
+</html>

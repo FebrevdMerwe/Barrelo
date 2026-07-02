@@ -25,44 +25,6 @@
     </div>
   </header>
 
-  <div class="table">
-    <section class="scorecard" data-player="0">
-      <div class="hook"></div>
-      <div class="player-row">
-        <h2 class="player-name">Febre</h2>
-        <span class="oche-badge">on the oche</span>
-      </div>
-      <div class="visit">
-        <span class="visit-label">This visit</span>
-        <div class="dart-slots" data-el="visit"></div>
-      </div>
-    </section>
-
-    <div class="board-stage">
-      <div class="board-wrap">
-        <svg id="dartboard" role="group" aria-label="Interactive dartboard, click a segment to record a throw"></svg>
-        <div class="flourish" id="flourish"></div>
-      </div>
-      <div class="controls">
-        <button class="pull-btn warn" id="btnMiss">Miss</button>
-        <button class="pull-btn" id="btnUndo">Undo last dart</button>
-        <button class="pull-btn go" id="btnEndTurn">End turn</button>
-      </div>
-    </div>
-
-    <section class="scorecard" data-player="1">
-      <div class="hook"></div>
-      <div class="player-row">
-        <h2 class="player-name">Sam</h2>
-        <span class="oche-badge">on the oche</span>
-      </div>
-      <div class="visit">
-        <span class="visit-label">This visit</span>
-        <div class="dart-slots" data-el="visit"></div>
-      </div>
-    </section>
-  </div>
-
   <div class="game-board-wrap">
     <div id="gameBoard"></div>
   </div>
@@ -72,6 +34,33 @@
     <div class="ledger-strip" id="ledgerStrip"></div>
   </footer>
 
+</div>
+
+<div class="input-drawer" id="inputDrawer">
+  <button class="drawer-peek" id="drawerPeek" type="button">
+    <span class="dp-copy">
+      <span class="dp-turn" id="peekTurn">—</span>
+      <span class="dp-sub" id="peekSub">Dart 1 of 3 · tap to throw</span>
+    </span>
+    <span class="dp-chevron">&#9650;</span>
+  </button>
+
+  <div class="drawer-open" id="drawerOpenPanel">
+    <div class="do-head">
+      <span class="do-title" id="openTitle">Dart 1 of 3</span>
+      <button class="do-collapse" id="btnCollapseDrawer" type="button" aria-label="Collapse board">&#9662;</button>
+    </div>
+    <div class="dart-slots" id="visitSlots"></div>
+    <div class="board-wrap">
+      <svg id="dartboard" role="group" aria-label="Interactive dartboard, click a segment to record a throw"></svg>
+      <div class="flourish" id="flourish"></div>
+    </div>
+    <div class="controls">
+      <button class="pull-btn warn" id="btnMiss">Miss</button>
+      <button class="pull-btn" id="btnUndo">Undo last dart</button>
+      <button class="pull-btn go" id="btnEndTurn">End turn</button>
+    </div>
+  </div>
 </div>
 
 <div class="win-banner" id="winBanner">

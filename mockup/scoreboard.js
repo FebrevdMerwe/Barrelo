@@ -19,9 +19,6 @@
 
   document.title = "Oché — " + descriptor.name;
   document.getElementById("gameLabel").textContent = descriptor.name;
-  players.forEach(function (name, idx) {
-    document.querySelectorAll('[data-player="' + idx + '"] .player-name')[0].textContent = name;
-  });
 
   var history = [];
 
@@ -31,32 +28,53 @@
     return s;
   }
 
-  var cards = Array.prototype.slice.call(document.querySelectorAll(".scorecard"));
+  var sceneEl = document.getElementById("scene");
   var flourishEl = document.getElementById("flourish");
   var ledgerStrip = document.getElementById("ledgerStrip");
   var winBanner = document.getElementById("winBanner");
   var gameBoardEl = document.getElementById("gameBoard");
   var legMetaEl = document.getElementById("legMeta");
 
+  var inputDrawer = document.getElementById("inputDrawer");
+  var drawerPeek = document.getElementById("drawerPeek");
+  var btnCollapseDrawer = document.getElementById("btnCollapseDrawer");
+  var visitSlotsEl = document.getElementById("visitSlots");
+  var peekTurnEl = document.getElementById("peekTurn");
+  var peekSubEl = document.getElementById("peekSub");
+  var openTitleEl = document.getElementById("openTitle");
+
   var dartboard = createDartboard(document.getElementById("dartboard"));
 
-  function renderCardChrome(card, idx, state) {
-    var isActive = state.currentPlayer === idx && !state.complete;
-    card.classList.toggle("active", isActive);
+  var drawerOpen = false;
+  var lastCurrentPlayer = null;
 
-    var visitEl = card.querySelector('[data-el="visit"]');
-    visitEl.innerHTML = "";
-    var visitThrows = state.currentPlayer === idx ? state.visit : [];
+  function setDrawerOpen(open) {
+    drawerOpen = open;
+    inputDrawer.classList.toggle("open", open);
+    sceneEl.classList.toggle("drawer-open", open);
+  }
+
+  function renderVisitSlots(state) {
+    visitSlotsEl.innerHTML = "";
     for (var i = 0; i < 3; i++) {
       var slot = document.createElement("div");
       slot.className = "dart-slot";
-      var t = visitThrows[i];
+      var t = state.visit[i];
       if (t) {
         slot.classList.add("filled");
         slot.textContent = t.notation;
       }
-      visitEl.appendChild(slot);
+      visitSlotsEl.appendChild(slot);
     }
+  }
+
+  function updateDrawerCopy(state) {
+    var name = players[state.currentPlayer];
+    var dartNum = Math.min(state.visit.length + 1, 3);
+    peekTurnEl.textContent = state.complete ? "Match complete" : name + "'s turn";
+    peekSubEl.textContent = state.complete ? "Tap Rack again to start a new leg" : "Dart " + dartNum + " of 3 · tap to throw";
+    openTitleEl.textContent = "Dart " + dartNum + " of 3";
+    drawerPeek.disabled = state.complete;
   }
 
   function renderLedger() {
@@ -93,9 +111,12 @@
   }
 
   function render(state) {
-    cards.forEach(function (card) {
-      renderCardChrome(card, parseInt(card.getAttribute("data-player"), 10), state);
-    });
+    var turnChanged = state.currentPlayer !== lastCurrentPlayer;
+    if (turnChanged || state.complete) setDrawerOpen(false);
+    lastCurrentPlayer = state.currentPlayer;
+
+    renderVisitSlots(state);
+    updateDrawerCopy(state);
     renderLedger();
     plugin.renderGameBoard(gameBoardEl, state, players);
     dartboard.setDisabled(state.complete);
@@ -140,11 +161,17 @@
     history = [];
     render(simulate());
   });
+  drawerPeek.addEventListener("click", function () {
+    setDrawerOpen(true);
+  });
+  btnCollapseDrawer.addEventListener("click", function () {
+    setDrawerOpen(false);
+  });
 
   render(simulate());
   requestAnimationFrame(function () {
     requestAnimationFrame(function () {
-      document.getElementById("scene").classList.add("is-ready");
+      sceneEl.classList.add("is-ready");
     });
   });
 })();

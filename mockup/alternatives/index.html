@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Oché — Layout alternatives</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800;900&family=Archivo:ital,wght@0,400;0,500;0,600;0,700;1,500&family=Caveat:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="alt.css">
+</head>
+<body class="alt-body">
+<div class="scene is-ready" style="min-height:auto;">
+
+  <div class="gallery-head">
+    <p class="hero-line">Same problem, five layouts</p>
+    <p class="hero-sub">The board+scorecards eat too much space above the game area. Each alternative below solves that a different way — pick one to build, not to admire.</p>
+  </div>
+
+  <div class="gallery-grid">
+
+    <a class="concept-card is-baseline" href="b-scorer-page.html">
+      <span class="concept-tag">Previously today</span>
+      <h2 class="concept-title">Fixed split</h2>
+      <p class="concept-body">Board + scorecards always on top, game panel always on the bottom. Simple, but the board is "on" even when nobody's about to throw. Superseded — this reference now only lives here, since <code>match.html</code> was rebuilt.</p>
+      <span class="concept-tradeoff">Baseline for comparison (retired)</span>
+    </a>
+
+    <a class="concept-card" href="a-collapsed-rail.html">
+      <span class="concept-tag">Alt A</span>
+      <h2 class="concept-title">Collapsed input rail</h2>
+      <p class="concept-body">Board+scorecards shrink to a slim strip at rest and only expand to full size while a dart is being entered. Single screen, no new architecture.</p>
+      <span class="concept-tradeoff">Space win vs. a bit more interaction (tap to expand)</span>
+    </a>
+
+    <a class="concept-card" href="b-scorer-page.html">
+      <span class="concept-tag">Alt B</span>
+      <h2 class="concept-title">Scorer + spectator split</h2>
+      <p class="concept-body">Two screens: a scorer device with only the board/input, and a spectator/TV page with only the game view, full-bleed. Matches the mobile-companion / TV-display use case already in the plan.</p>
+      <span class="concept-tradeoff">Biggest space win, but needs a second device + live sync</span>
+    </a>
+
+    <a class="concept-card" href="c-injectable-widgets.html">
+      <span class="concept-tag">Alt C</span>
+      <h2 class="concept-title">Injectable widgets</h2>
+      <p class="concept-body">Dartboard and player-round become self-contained, reusable widgets (events in, state out) that each game composes into its own layout — same look, different position.</p>
+      <span class="concept-tradeoff">Max layout freedom vs. every plugin now owns composition</span>
+    </a>
+
+    <div class="concept-card">
+      <span class="concept-tag">Alt D · mine, now built</span>
+      <h2 class="concept-title">On-demand input drawer</h2>
+      <p class="concept-body">Game view owns the whole screen, always. The board lives in a bottom sheet that's a thin "your turn" handle by default and only fully opens mid-throw. This is the one that got picked.</p>
+      <span class="concept-tradeoff">Live prototype — try it</span>
+      <div class="concept-links">
+        <a href="../match.html">Open live prototype →</a>
+        <a href="d-input-drawer.html">Static comparison version</a>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</body>
+</html>

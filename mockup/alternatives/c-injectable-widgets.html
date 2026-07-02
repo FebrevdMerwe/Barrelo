@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Oché — Alt C: Injectable widgets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800;900&family=Archivo:ital,wght@0,400;0,500;0,600;0,700;1,500&family=Caveat:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../plugins/cricket/style.css">
+<link rel="stylesheet" href="alt.css">
+</head>
+<body class="alt-body">
+<div class="scene is-ready" style="min-height:auto;">
+
+  <div class="concept-nav">
+    <a class="crumb" href="index.html">&lsaquo; All alternatives</a>
+    <span class="game-pill">Alt C — Injectable widgets</span>
+  </div>
+
+  <p class="state-frame-note">Same two widgets — dartboard and player-round — dropped into two completely different compositions. Each widget still owns its own look; a game only decides where to put it and what it hears back from it (throw events in, score/leg state out). Nothing is torn apart or re-skinned per game.</p>
+
+  <div class="widget-columns">
+
+    <div class="widget-panel">
+      <div class="widget-panel-head">
+        <span class="wp-game">X01 layout</span>
+        <span class="wp-note">board centered, player-round widgets flank it — today's composition</span>
+      </div>
+      <div class="layout-x01-composition">
+        <div class="player-round-widget active">
+          <span class="prw-name">Febre</span>
+          <span>261</span>
+        </div>
+        <div class="dartboard-widget" id="widgetBoardX01"></div>
+        <div class="player-round-widget">
+          <span class="prw-name">Sam</span>
+          <span>402</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="widget-panel">
+      <div class="widget-panel-head">
+        <span class="wp-game">Cricket layout</span>
+        <span class="wp-note">player-round widgets stacked as a top rail, board shrunk into a corner — same components, different call site</span>
+      </div>
+      <div class="layout-cricket-composition">
+        <div class="rail-top">
+          <div class="player-round-widget active">
+            <span class="prw-name">Febre</span>
+            <span>34</span>
+          </div>
+          <div class="player-round-widget">
+            <span class="prw-name">Sam</span>
+            <span>19</span>
+          </div>
+        </div>
+        <div class="cricket-board" style="background:transparent; border:none; padding:0; width:auto;">
+          <table class="cricket-grid">
+            <tbody>
+              <tr><td class="mark-cell"><svg viewBox="0 0 24 24" class="mark-glyph"><line x1="5" y1="19" x2="19" y2="5" class="mark-stroke"/><line x1="5" y1="5" x2="19" y2="19" class="mark-stroke"/><circle cx="12" cy="12" r="10" class="mark-ring"/></svg></td><td class="target-cell">20</td><td class="mark-cell"><svg viewBox="0 0 24 24" class="mark-glyph"><line x1="5" y1="19" x2="19" y2="5" class="mark-stroke"/></svg></td></tr>
+              <tr><td class="mark-cell"><svg viewBox="0 0 24 24" class="mark-glyph"><line x1="5" y1="19" x2="19" y2="5" class="mark-stroke"/><line x1="5" y1="5" x2="19" y2="19" class="mark-stroke"/></svg></td><td class="target-cell">19</td><td class="mark-cell"></td></tr>
+              <tr><td class="mark-cell"></td><td class="target-cell">18</td><td class="mark-cell"></td></tr>
+              <tr><td class="mark-cell"></td><td class="target-cell">BULL</td><td class="mark-cell"></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dartboard-widget small" id="widgetBoardCricket"></div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+<script src="../dartboard.js"></script>
+<script>
+  createDartboard(document.getElementById('widgetBoardX01'));
+  createDartboard(document.getElementById('widgetBoardCricket'));
+</script>
+</body>
+</html>
