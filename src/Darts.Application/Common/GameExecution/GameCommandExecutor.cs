@@ -104,6 +104,7 @@ public sealed class GameCommandExecutor(
         DetectionSourceType.AutoDarts => DomainSource.AutoDarts,
         DetectionSourceType.Mock => DomainSource.Mock,
         DetectionSourceType.Manual => DomainSource.Manual,
+        DetectionSourceType.Simulator => DomainSource.Simulator,
         _ => throw new ArgumentOutOfRangeException(nameof(source), source, null),
     };
 }

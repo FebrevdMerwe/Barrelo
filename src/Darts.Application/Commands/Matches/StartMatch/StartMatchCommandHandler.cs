@@ -53,6 +53,8 @@ public sealed class StartMatchCommandHandler(
 
         if (request.InputSource == InputSource.Manual)
             sessionManager.BindBoard(WellKnownBoardIds.Manual, match.Id);
+        else if (request.InputSource == InputSource.Board)
+            sessionManager.BindBoard(WellKnownBoardIds.Simulator, match.Id);
 
         var state = await game.GetState();
         var stamped = state with { MatchId = match.Id };

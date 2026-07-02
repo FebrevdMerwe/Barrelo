@@ -11,10 +11,10 @@ public sealed class MockDetectionSource : IDetectionSource
     private readonly Channel<DetectionEvent> _channel = Channel.CreateUnbounded<DetectionEvent>();
 
     public void SimulateThrow(DetectedThrow detectedThrow) =>
-        _channel.Writer.TryWrite(new DetectionEvent(DetectionEventType.Throw, detectedThrow));
+        _channel.Writer.TryWrite(new DetectionEvent(DetectionEventType.Throw, detectedThrow.BoardId, detectedThrow));
 
-    public void SimulateEndOfTurn() =>
-        _channel.Writer.TryWrite(new DetectionEvent(DetectionEventType.EndOfTurn, null));
+    public void SimulateEndOfTurn(string boardId) =>
+        _channel.Writer.TryWrite(new DetectionEvent(DetectionEventType.EndOfTurn, boardId, null));
 
     public IAsyncEnumerable<DetectionEvent> EventsAsync(CancellationToken ct) => _channel.Reader.ReadAllAsync(ct);
 

@@ -1,3 +1,4 @@
+using Darts.Application.Common.Constants;
 using Darts.Application.Common.Interfaces.Persistence;
 using Darts.Application.Common.Interfaces.Services;
 using Darts.Infrastructure.External.Detection;
@@ -32,8 +33,24 @@ public static class DependencyInjection
             return new GameCatalog(factories);
         });
 
-        services.AddSingleton<MockDetectionSource>();
-        services.AddSingleton<IDetectionSource>(sp => sp.GetRequiredService<MockDetectionSource>());
+        var detectionMode = configuration["Detection:Mode"] ?? "Mock";
+        if (string.Equals(detectionMode, "Simulator", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddSingleton(sp =>
+            {
+                var url = configuration["Detection:Simulator:Url"] ?? "ws://localhost:5250/stream";
+                var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger<BoardSimulatorDetectionSource>();
+                return new BoardSimulatorDetectionSource(new Uri(url), WellKnownBoardIds.Simulator, logger);
+            });
+            services.AddSingleton<IDetectionSource>(sp => sp.GetRequiredService<BoardSimulatorDetectionSource>());
+        }
+        else
+        {
+            services.AddSingleton<MockDetectionSource>();
+            services.AddSingleton<IDetectionSource>(sp => sp.GetRequiredService<MockDetectionSource>());
+        }
+
+        services.AddHostedService<DetectionListenerService>();
 
         services.AddScoped<IGameNotifier, NullGameNotifier>();
 

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Darts Board Simulator</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="sim-wrap">
+  <header class="sim-header">
+    <h1>Board simulator</h1>
+    <span id="status" class="status-pill">checking&hellip;</span>
+  </header>
+
+  <svg id="dartboard" class="dartboard"></svg>
+
+  <div class="controls">
+    <button id="btnMiss">Miss</button>
+    <button id="btnEndTurn">End turn</button>
+    <button id="btnDisconnect" class="warn">Simulate disconnect</button>
+  </div>
+
+  <p id="lastEvent" class="last-event"></p>
+</div>
+
+<script src="dartboard.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var statusEl = document.getElementById("status");
+  var lastEventEl = document.getElementById("lastEvent");
+  var dartboard = window.createDartboard(document.getElementById("dartboard"));
+
+  async function post(url, body) {
+    var res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body || {}),
+    });
+    if (!res.ok) console.error("POST " + url + " failed: " + res.status);
+    return res.ok;
+  }
+
+  dartboard.onThrow(function (ring, segment) {
+    var notation = window.DartScoring.notationFor(ring, segment);
+    post("/simulate/throw", { segment: segment, ring: ring }).then(function (ok) {
+      lastEventEl.textContent = ok ? "Sent: " + notation : "Failed to send: " + notation;
+    });
+  });
+
+  document.getElementById("btnMiss").addEventListener("click", function () {
+    post("/simulate/throw", { segment: 0, ring: "Miss" }).then(function (ok) {
+      lastEventEl.textContent = ok ? "Sent: MISS" : "Failed to send: MISS";
+    });
+  });
+
+  document.getElementById("btnEndTurn").addEventListener("click", function () {
+    post("/simulate/end-turn", {}).then(function (ok) {
+      lastEventEl.textContent = ok ? "Sent: end of turn" : "Failed to send end of turn";
+    });
+  });
+
+  document.getElementById("btnDisconnect").addEventListener("click", function () {
+    post("/simulate/disconnect", {}).then(function (ok) {
+      lastEventEl.textContent = ok ? "Dropped the platform connection" : "Failed to disconnect";
+    });
+  });
+
+  async function pollStatus() {
+    try {
+      var res = await fetch("/simulate/status");
+      var data = await res.json();
+      statusEl.textContent = data.connected ? "Platform connected" : "Platform not connected";
+      statusEl.classList.toggle("ok", data.connected);
+      statusEl.classList.toggle("bad", !data.connected);
+    } catch (err) {
+      statusEl.textContent = "Status check failed";
+    }
+  }
+
+  pollStatus();
+  setInterval(pollStatus, 2000);
+})();
+</script>
+</body>
+</html>

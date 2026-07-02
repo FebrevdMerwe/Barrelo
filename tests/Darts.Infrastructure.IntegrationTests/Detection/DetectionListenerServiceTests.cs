@@ -1,0 +1,142 @@
+using Darts.Application;
+using Darts.Application.Commands.Matches.StartMatch;
+using Darts.Application.Common.Constants;
+using Darts.Application.Common.Dispatch;
+using Darts.Application.Common.Interfaces.Persistence;
+using Darts.Application.Common.Interfaces.Services;
+using Darts.Domain.Entities;
+using Darts.GameSdk;
+using Darts.Games.X01;
+using Darts.Infrastructure.External.Detection;
+using Darts.Infrastructure.External.GamePlugins;
+using Darts.Infrastructure.External.Notifications;
+using Darts.Infrastructure.Persistence;
+using Darts.Infrastructure.Persistence.Repositories;
+using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using InputSource = Darts.Domain.Enums.InputSource;
+
+namespace Darts.Infrastructure.IntegrationTests.Detection;
+
+/// <summary>
+/// Before this service existed, no streaming IDetectionSource had a consumer anywhere in the running app —
+/// only the manual REST path actually drove gameplay. This proves DetectionListenerService is that missing
+/// consumer: a real match, driven end-to-end purely by pushing events onto a MockDetectionSource.
+/// </summary>
+public class DetectionListenerServiceTests : IAsyncLifetime
+{
+    private readonly SqliteTestDatabase _database = new();
+    private IDispatcher _dispatcher = null!;
+    private IMatchRepository _matchRepository = null!;
+    private IGameSessionManager _sessionManager = null!;
+    private MockDetectionSource _detectionSource = null!;
+    private DetectionListenerService _listener = null!;
+    private Guid _p1;
+    private Guid _p2;
+
+    public async Task InitializeAsync()
+    {
+        await _database.InitializeAsync();
+
+        var context = _database.CreateContext();
+        var services = new ServiceCollection();
+        services.AddApplication();
+        services.AddDartsDispatcher();
+        services.AddSingleton(context);
+        services.AddSingleton<IPlayerRepository, PlayerRepository>();
+        services.AddSingleton<IMatchRepository, MatchRepository>();
+        services.AddSingleton<IUnitOfWork, UnitOfWork>();
+        services.AddSingleton<IGameSessionManager, GameSessionManager>();
+        services.AddSingleton<IGameCatalog>(new GameCatalog([new X01GameFactory()]));
+        services.AddSingleton<IGameNotifier, NullGameNotifier>();
+
+        _detectionSource = new MockDetectionSource();
+        services.AddSingleton<IDetectionSource>(_detectionSource);
+
+        var provider = services.BuildServiceProvider();
+        _dispatcher = provider.GetRequiredService<IDispatcher>();
+        _matchRepository = provider.GetRequiredService<IMatchRepository>();
+        _sessionManager = provider.GetRequiredService<IGameSessionManager>();
+
+        var playerRepository = provider.GetRequiredService<IPlayerRepository>();
+        var p1 = Player.Create("P1").Value;
+        var p2 = Player.Create("P2").Value;
+        await playerRepository.Add(p1, CancellationToken.None);
+        await playerRepository.Add(p2, CancellationToken.None);
+        await provider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(CancellationToken.None);
+        _p1 = p1.Id;
+        _p2 = p2.Id;
+
+        _listener = new DetectionListenerService(
+            _detectionSource,
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<DetectionListenerService>.Instance);
+        await _listener.StartAsync(CancellationToken.None);
+    }
+
+    public async Task DisposeAsync()
+    {
+        await _listener.StopAsync(CancellationToken.None);
+        await _database.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Streamed_throw_and_end_of_turn_events_drive_a_real_match()
+    {
+        var startResult = await _dispatcher.Send(
+            new StartMatchCommand(
+                "x01",
+                [_p1, _p2],
+                new Dictionary<string, string> { ["legsToWin"] = "1", ["setsToWin"] = "1" },
+                InputSource.Manual),
+            CancellationToken.None);
+        startResult.IsError.Should().BeFalse();
+        var matchId = startResult.Value.MatchId;
+
+        var detectedThrow = new DetectedThrow(
+            ThrowId: Guid.NewGuid(),
+            Segment: 20,
+            Ring: Ring.Triple,
+            Score: DartScoring.Score(Ring.Triple, 20),
+            RawNotation: DartScoring.Notation(Ring.Triple, 20),
+            Position: null,
+            Confidence: null,
+            BoardId: WellKnownBoardIds.Manual,
+            CameraIndex: null,
+            DetectedAtUtc: DateTimeOffset.UtcNow,
+            Source: DetectionSourceType.Mock);
+
+        _detectionSource.SimulateThrow(detectedThrow);
+
+        await WaitUntil(async () => (await _matchRepository.GetThrowRecords(matchId, CancellationToken.None)).Count == 1);
+
+        var records = await _matchRepository.GetThrowRecords(matchId, CancellationToken.None);
+        records.Should().ContainSingle();
+        records[0].RawNotation.Should().Be("T20");
+        records[0].Score.Should().Be(60);
+        records[0].PlayerId.Should().Be(_p1);
+
+        _detectionSource.SimulateEndOfTurn(WellKnownBoardIds.Manual);
+
+        await WaitUntil(async () =>
+        {
+            var game = await _sessionManager.TryGetAsync(matchId);
+            var state = await game!.GetState();
+            return state.CurrentPlayerId == _p2;
+        });
+    }
+
+    private static async Task WaitUntil(Func<Task<bool>> condition)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (await condition())
+                return;
+            await Task.Delay(20);
+        }
+
+        throw new TimeoutException("Condition was not met within the timeout.");
+    }
+}

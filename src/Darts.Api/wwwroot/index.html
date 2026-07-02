@@ -57,9 +57,9 @@
           <input type="radio" name="source" value="manual" checked>
           <span>Manual entry</span>
         </label>
-        <label class="source-pill-option disabled">
-          <input type="radio" name="source" value="board" disabled>
-          <span>Board <em>— pair a board to enable</em></span>
+        <label class="source-pill-option">
+          <input type="radio" name="source" value="board">
+          <span>Board <em>— a detector or simulator drives the throws</em></span>
         </label>
       </div>
     </fieldset>
@@ -134,6 +134,8 @@
 
     try {
       var gameId = form.querySelector('input[name="game"]:checked').value;
+      var source = form.querySelector('input[name="source"]:checked').value;
+      var inputSource = source === "board" ? "Board" : "Manual";
       var p1Name = document.getElementById("p1").value;
       var p2Name = document.getElementById("p2").value;
 
@@ -151,7 +153,7 @@
           gameId: gameId,
           playerIds: [p1Id, p2Id],
           options: {},
-          inputSource: "Manual",
+          inputSource: inputSource,
         }),
       });
       if (!matchRes.ok) throw new Error("POST /api/matches failed: " + matchRes.status);

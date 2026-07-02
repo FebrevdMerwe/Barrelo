@@ -19,4 +19,7 @@
   <Folder Name="/tests/Games/">
     <Project Path="tests/Games/Darts.Games.X01.UnitTests/Darts.Games.X01.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Darts.BoardSimulator/Darts.BoardSimulator.csproj" />
+  </Folder>
 </Solution>

@@ -6,4 +6,5 @@ public enum DetectionSource
     AutoDarts,
     Mock,
     Manual,
+    Simulator,
 }
