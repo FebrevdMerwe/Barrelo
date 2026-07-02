@@ -254,6 +254,7 @@ body{
   background: radial-gradient(circle, rgba(237,230,214,.14), transparent 65%);
   filter: blur(18px);
   z-index:0;
+  pointer-events:none;
 }
 #dartboard{
   position:relative; z-index:1;

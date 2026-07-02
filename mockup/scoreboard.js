@@ -122,15 +122,20 @@
     dartboard.setDisabled(state.complete);
     dartboard.setDeadTargets(state.deadTargets);
 
-    var legsPlayed = (state.legs ? state.legs[0] + state.legs[1] : 0);
-    legMetaEl.textContent = state.complete
-      ? "Match complete"
-      : "Leg " + (legsPlayed + 1) + " · Set " + ((state.sets ? state.sets[0] + state.sets[1] : 0) + 1);
+    if (state.meta) {
+      legMetaEl.textContent = state.complete ? "Match complete" : state.meta;
+    } else {
+      var legsPlayed = (state.legs ? state.legs[0] + state.legs[1] : 0);
+      legMetaEl.textContent = state.complete
+        ? "Match complete"
+        : "Leg " + (legsPlayed + 1) + " · Set " + ((state.sets ? state.sets[0] + state.sets[1] : 0) + 1);
+    }
 
     if (state.complete) {
-      document.getElementById("winTitle").textContent = "Game shot!";
-      document.getElementById("winSub").textContent =
-        players[state.winner] + " wins the match " + state.legs[state.winner] + "–" + state.legs[1 - state.winner] + ".";
+      document.getElementById("winTitle").textContent = state.winTitle || "Game shot!";
+      document.getElementById("winSub").textContent = state.winText
+        ? state.winText
+        : players[state.winner] + " wins the match " + state.legs[state.winner] + "–" + state.legs[1 - state.winner] + ".";
       winBanner.classList.add("show");
     } else {
       winBanner.classList.remove("show");

@@ -19,6 +19,12 @@
       name: "Kickoff",
       tagline: "One ball, one pitch. Miss the frame and it's their throw-in.",
       meta: "2 players · one shared ball · best of 3 legs"
+    },
+    {
+      id: "puttputt",
+      name: "Putt-Putt",
+      tagline: "Nine holes, lowest total putts wins. Aim your putt off the dartboard and bounce it home.",
+      meta: "2 players · 9 holes · fewest putts wins"
     }
   ];
 })(window);
