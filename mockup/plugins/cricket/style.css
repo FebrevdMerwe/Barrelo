@@ -1,0 +1,44 @@
+/* cricket board: shared chalk grid */
+.cricket-board{
+  width:min(560px, 92vw);
+  padding: 18px 22px 20px;
+  border:1px solid var(--slate-line);
+  border-radius:8px;
+  background: rgba(0,0,0,.14);
+}
+.cricket-head{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:12px;
+}
+.cricket-player{
+  font-family:'Caveat', cursive; font-weight:700; font-size:22px; color: var(--chalk-dim);
+  padding-bottom:3px; border-bottom:2px solid transparent;
+}
+.cricket-player.active{ color: var(--brass-bright); border-color: var(--brass-bright); }
+.cricket-title{
+  font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:.18em; text-transform:uppercase;
+  color: var(--chalk-dim);
+}
+.cricket-grid{ width:100%; border-collapse:collapse; }
+.cricket-grid td{ padding:6px 4px; border-bottom:1px solid var(--slate-line); }
+.mark-cell{ width:38%; text-align:center; }
+.target-cell{
+  width:24%; text-align:center;
+  font-family:'Big Shoulders Display', sans-serif; font-weight:800; font-size:20px;
+  color: var(--chalk);
+}
+tr.dead-row .target-cell{ color: var(--chalk-dim); }
+.mark-glyph{ width:26px; height:26px; }
+.mark-stroke{ stroke: var(--chalk); stroke-width:2.4; stroke-linecap:round; }
+.mark-ring{ stroke: var(--brass-bright); stroke-width:2.2; fill:none; }
+.cricket-score-row td{
+  padding-top:10px; border-bottom:none;
+  font-family:'Big Shoulders Display', sans-serif; font-weight:700; font-size:15px;
+  text-align:center; color: var(--brass-bright); letter-spacing:.04em;
+}
+.cricket-score-row td:nth-child(2){ font-family:'JetBrains Mono', monospace; font-size:10px; color: var(--chalk-dim); font-weight:500; text-transform:uppercase; letter-spacing:.16em; }
+.cricket-tallies{
+  display:flex; justify-content:space-between; margin-top:12px;
+  font-family:'JetBrains Mono', monospace; font-size:10.5px; color: var(--chalk-dim);
+  text-transform:uppercase; letter-spacing:.06em;
+}

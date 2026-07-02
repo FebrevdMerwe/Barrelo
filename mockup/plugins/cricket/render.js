@@ -5,6 +5,19 @@
 (function (global) {
   "use strict";
 
+  /* Self-contained: pulls in its own stylesheet, so the shell never needs to
+     know this plugin's CSS filename. Relies on document.currentScript, which
+     only resolves during synchronous <script src> execution — fine here
+     since match.html loads plugins as plain, non-deferred scripts. */
+  (function loadStyles() {
+    var href = document.currentScript.src.replace(/render\.js(\?.*)?$/, "style.css");
+    if (document.querySelector('link[href="' + href + '"]')) return;
+    var link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    document.head.appendChild(link);
+  })();
+
   var TARGET_NUMBERS = [20, 19, 18, 17, 16, 15];
   var TARGET_LABELS = ["20", "19", "18", "17", "16", "15", "BULL"];
   var POINT_VALUES = [20, 19, 18, 17, 16, 15, 25];

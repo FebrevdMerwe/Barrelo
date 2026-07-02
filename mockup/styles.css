@@ -315,101 +315,10 @@ body{
 }
 .scene.is-ready .game-board-wrap{ opacity:1; transform:none; transition: opacity .7s ease .08s, transform .7s ease .08s; }
 
-/* x01 board: two chalk numeral panels */
-.x01-board{ display:flex; gap: clamp(14px, 3vw, 28px); flex-wrap:wrap; justify-content:center; }
-.x01-panel{
-  min-width:170px;
-  text-align:center;
-  padding:16px 22px;
-  border:1px solid var(--slate-line);
-  border-radius:8px;
-  background: rgba(0,0,0,.14);
-  transition: border-color .3s ease, background .3s ease;
-}
-.x01-panel.active{ border-color: var(--brass-bright); background: rgba(233,194,106,.06); }
-.x01-name{
-  font-family:'Caveat', cursive; font-weight:600; font-size:18px; color: var(--chalk-dim);
-  margin-bottom:2px;
-}
-.x01-remaining{
-  font-family:'Big Shoulders Display', sans-serif;
-  font-weight:900;
-  font-size: clamp(52px, 9vw, 78px);
-  line-height:.9;
-  color: var(--chalk);
-  letter-spacing: -1px;
-  margin: 2px 0 10px;
-  font-variant-numeric: tabular-nums;
-}
-.x01-remaining.pulse{ animation: pulse .38s ease; }
-@keyframes pulse{ 0%{ transform:scale(1); } 40%{ transform:scale(1.08); color:var(--brass-bright);} 100%{ transform:scale(1);} }
-
-/* cricket board: shared chalk grid */
-.cricket-board{
-  width:min(560px, 92vw);
-  padding: 18px 22px 20px;
-  border:1px solid var(--slate-line);
-  border-radius:8px;
-  background: rgba(0,0,0,.14);
-}
-.cricket-head{
-  display:flex; align-items:center; justify-content:space-between;
-  margin-bottom:12px;
-}
-.cricket-player{
-  font-family:'Caveat', cursive; font-weight:700; font-size:22px; color: var(--chalk-dim);
-  padding-bottom:3px; border-bottom:2px solid transparent;
-}
-.cricket-player.active{ color: var(--brass-bright); border-color: var(--brass-bright); }
-.cricket-title{
-  font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:.18em; text-transform:uppercase;
-  color: var(--chalk-dim);
-}
-.cricket-grid{ width:100%; border-collapse:collapse; }
-.cricket-grid td{ padding:6px 4px; border-bottom:1px solid var(--slate-line); }
-.mark-cell{ width:38%; text-align:center; }
-.target-cell{
-  width:24%; text-align:center;
-  font-family:'Big Shoulders Display', sans-serif; font-weight:800; font-size:20px;
-  color: var(--chalk);
-}
-tr.dead-row .target-cell{ color: var(--chalk-dim); }
-.mark-glyph{ width:26px; height:26px; }
-.mark-stroke{ stroke: var(--chalk); stroke-width:2.4; stroke-linecap:round; }
-.mark-ring{ stroke: var(--brass-bright); stroke-width:2.2; fill:none; }
-.cricket-score-row td{
-  padding-top:10px; border-bottom:none;
-  font-family:'Big Shoulders Display', sans-serif; font-weight:700; font-size:15px;
-  text-align:center; color: var(--brass-bright); letter-spacing:.04em;
-}
-.cricket-score-row td:nth-child(2){ font-family:'JetBrains Mono', monospace; font-size:10px; color: var(--chalk-dim); font-weight:500; text-transform:uppercase; letter-spacing:.16em; }
-.cricket-tallies{
-  display:flex; justify-content:space-between; margin-top:12px;
-  font-family:'JetBrains Mono', monospace; font-size:10.5px; color: var(--chalk-dim);
-  text-transform:uppercase; letter-spacing:.06em;
-}
-
-/* Kickoff board: one shared pitch, one ball — not a panel per player.
-   Ball position reuses the dartboard's own polar geometry (angle from
-   segment, distance from ring) as a movement vector across the pitch. */
-.pitch-board{ display:flex; flex-direction:column; align-items:center; gap:14px; width:min(320px, 90vw); margin:0 auto; }
-.pitch-diagram{ width:100%; max-width:280px; height:auto; }
-.pitch-outline{ fill:none; stroke: var(--brass-dim); stroke-width:2; }
-.pitch-line{ stroke: var(--brass-dim); stroke-width:1.4; }
-.pitch-box{ fill:none; stroke: rgba(237,230,214,.12); stroke-width:1.2; }
-.goal-frame{ fill:none; stroke: var(--brass); stroke-width:3.5; transition: stroke .3s ease, filter .3s ease; }
-.goal-frame.attacking{ stroke: var(--brass-bright); filter: drop-shadow(0 0 4px rgba(233,194,106,.6)); }
-.goal-label{ font-family:'JetBrains Mono', monospace; font-size:8px; letter-spacing:.08em; text-transform:uppercase; fill: var(--chalk-dim); text-anchor:middle; }
-.ball-trail{ fill:none; stroke: var(--chalk-dim); stroke-width:1.4; stroke-dasharray:2 3; opacity:.4; }
-.ball{ fill: var(--chalk); stroke: var(--brass-dim); stroke-width:1.2; }
-.pitch-scoreline{ display:flex; align-items:baseline; gap:14px; }
-.pitch-team{ font-family:'Caveat', cursive; font-weight:600; font-size:17px; color: var(--chalk-dim); }
-.pitch-score{ font-family:'Big Shoulders Display', sans-serif; font-weight:900; font-size:30px; color: var(--chalk); letter-spacing:.02em; }
-.pitch-tallies{
-  display:flex; justify-content:space-between; gap:20px; width:100%;
-  font-family:'JetBrains Mono', monospace; font-size:10.5px; color: var(--chalk-dim);
-  text-transform:uppercase; letter-spacing:.06em;
-}
+/* Per-game board styling now lives with each plugin:
+   plugins/x01/style.css, plugins/cricket/style.css, plugins/kickoff/style.css.
+   Each plugin's render.js self-injects its own stylesheet — this file only
+   owns shell chrome shared by every game. */
 
 /* ---------- ledger ---------- */
 .ledger{ margin-top: clamp(28px, 5vw, 48px); opacity:0; transform: translateY(10px); }
