@@ -19,6 +19,8 @@ public interface IMatchRepository
         Ring ring,
         int score,
         string rawNotation,
+        double positionX,
+        double positionY,
         DetectionSource source,
         DateTimeOffset detectedAtUtc,
         CancellationToken ct);

@@ -56,7 +56,7 @@ app.Map("/stream", async (HttpContext context) =>
 
 app.MapPost("/simulate/throw", async (ThrowRequest request) =>
 {
-    await BroadcastAsync(sockets, new { type = "throw", segment = request.Segment, ring = request.Ring });
+    await BroadcastAsync(sockets, new { type = "throw", segment = request.Segment, ring = request.Ring, x = request.X, y = request.Y });
     return Results.Ok();
 });
 
@@ -105,4 +105,4 @@ static async Task BroadcastAsync(ConcurrentDictionary<Guid, WebSocket> sockets, 
     }
 }
 
-record ThrowRequest(int Segment, string Ring);
+record ThrowRequest(int Segment, string Ring, double? X, double? Y);

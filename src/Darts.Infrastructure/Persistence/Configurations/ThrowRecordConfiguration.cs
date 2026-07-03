@@ -14,6 +14,8 @@ public sealed class ThrowRecordConfiguration : IEntityTypeConfiguration<ThrowRec
         builder.Property(t => t.Ring).HasConversion<string>().IsRequired();
         builder.Property(t => t.Source).HasConversion<string>().IsRequired();
         builder.Property(t => t.RawNotation).IsRequired().HasMaxLength(20);
+        builder.Property(t => t.PositionX).IsRequired();
+        builder.Property(t => t.PositionY).IsRequired();
         builder.HasIndex(t => new { t.MatchId, t.Sequence });
     }
 }

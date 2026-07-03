@@ -26,7 +26,7 @@ public sealed class RecordDetectedThrowCommandHandler(
             Ring: request.Ring,
             Score: DartScoring.Score(request.Ring, request.Segment),
             RawNotation: DartScoring.Notation(request.Ring, request.Segment),
-            Position: null,
+            Position: BoardGeometry.CenterOf(request.Segment, request.Ring),
             Confidence: null,
             BoardId: boardId,
             CameraIndex: null,

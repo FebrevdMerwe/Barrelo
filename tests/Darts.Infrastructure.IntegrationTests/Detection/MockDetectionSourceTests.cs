@@ -12,7 +12,7 @@ public class MockDetectionSourceTests
     {
         var source = new MockDetectionSource();
         var detectedThrow = new DetectedThrow(
-            Guid.NewGuid(), 20, Ring.Triple, 60, "T20", null, null, "mock-board", null, DateTimeOffset.UtcNow, DetectionSourceType.Mock);
+            Guid.NewGuid(), 20, Ring.Triple, 60, "T20", BoardGeometry.CenterOf(20, Ring.Triple), null, "mock-board", null, DateTimeOffset.UtcNow, DetectionSourceType.Mock);
 
         source.SimulateThrow(detectedThrow);
         source.SimulateEndOfTurn("mock-board");

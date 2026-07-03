@@ -43,9 +43,9 @@ public class MatchRepositoryTests : IAsyncLifetime
         await using var context = _database.CreateContext();
         var repo = new MatchRepository(context);
 
-        var first = await repo.AddThrowRecord(matchId, playerId, 1, 1, 20, Ring.Triple, 60, "T20", DetectionSource.Mock, DateTimeOffset.UtcNow, CancellationToken.None);
+        var first = await repo.AddThrowRecord(matchId, playerId, 1, 1, 20, Ring.Triple, 60, "T20", 0, 1, DetectionSource.Mock, DateTimeOffset.UtcNow, CancellationToken.None);
         await context.SaveChangesAsync();
-        var second = await repo.AddThrowRecord(matchId, playerId, 1, 1, 20, Ring.Double, 40, "D20", DetectionSource.Mock, DateTimeOffset.UtcNow, CancellationToken.None);
+        var second = await repo.AddThrowRecord(matchId, playerId, 1, 1, 20, Ring.Double, 40, "D20", 0, 1, DetectionSource.Mock, DateTimeOffset.UtcNow, CancellationToken.None);
         await context.SaveChangesAsync();
 
         first.Sequence.Should().Be(1);
@@ -61,9 +61,9 @@ public class MatchRepositoryTests : IAsyncLifetime
         await using (var context = _database.CreateContext())
         {
             var repo = new MatchRepository(context);
-            await repo.AddThrowRecord(matchId, playerId, 1, 1, 20, Ring.Triple, 60, "T20", DetectionSource.Mock, DateTimeOffset.UtcNow, CancellationToken.None);
+            await repo.AddThrowRecord(matchId, playerId, 1, 1, 20, Ring.Triple, 60, "T20", 0, 1, DetectionSource.Mock, DateTimeOffset.UtcNow, CancellationToken.None);
             await context.SaveChangesAsync();
-            await repo.AddThrowRecord(matchId, playerId, 1, 1, 20, Ring.Double, 40, "D20", DetectionSource.Mock, DateTimeOffset.UtcNow, CancellationToken.None);
+            await repo.AddThrowRecord(matchId, playerId, 1, 1, 20, Ring.Double, 40, "D20", 0, 1, DetectionSource.Mock, DateTimeOffset.UtcNow, CancellationToken.None);
             await context.SaveChangesAsync();
         }
 

@@ -44,9 +44,11 @@
     return res.ok;
   }
 
-  dartboard.onThrow(function (ring, segment) {
+  dartboard.onThrow(function (ring, segment, position) {
     var notation = window.DartScoring.notationFor(ring, segment);
-    post("/simulate/throw", { segment: segment, ring: ring }).then(function (ok) {
+    var body = { segment: segment, ring: ring };
+    if (position) { body.x = position.x; body.y = position.y; }
+    post("/simulate/throw", body).then(function (ok) {
       lastEventEl.textContent = ok ? "Sent: " + notation : "Failed to send: " + notation;
     });
   });

@@ -21,6 +21,8 @@ public sealed class MatchRepository(DartsDbContext context) : IMatchRepository
         Ring ring,
         int score,
         string rawNotation,
+        double positionX,
+        double positionY,
         DetectionSource source,
         DateTimeOffset detectedAtUtc,
         CancellationToken ct)
@@ -32,7 +34,7 @@ public sealed class MatchRepository(DartsDbContext context) : IMatchRepository
 
         var record = ThrowRecord.Create(
             matchId, playerId, setNumber, legNumber, lastSequence + 1,
-            segment, ring, score, rawNotation, source, detectedAtUtc);
+            segment, ring, score, rawNotation, positionX, positionY, source, detectedAtUtc);
 
         await context.ThrowRecords.AddAsync(record, ct);
         return record;

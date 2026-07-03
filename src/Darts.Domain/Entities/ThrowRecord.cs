@@ -23,6 +23,10 @@ public sealed class ThrowRecord : Entity<Guid>
 
     public string RawNotation { get; private set; } = string.Empty;
 
+    public double PositionX { get; private set; }
+
+    public double PositionY { get; private set; }
+
     public DetectionSource Source { get; private set; }
 
     public DateTimeOffset DetectedAtUtc { get; private set; }
@@ -41,6 +45,8 @@ public sealed class ThrowRecord : Entity<Guid>
         Ring ring,
         int score,
         string rawNotation,
+        double positionX,
+        double positionY,
         DetectionSource source,
         DateTimeOffset detectedAtUtc) => new()
     {
@@ -54,6 +60,8 @@ public sealed class ThrowRecord : Entity<Guid>
         Ring = ring,
         Score = score,
         RawNotation = rawNotation,
+        PositionX = positionX,
+        PositionY = positionY,
         Source = source,
         DetectedAtUtc = detectedAtUtc,
     };

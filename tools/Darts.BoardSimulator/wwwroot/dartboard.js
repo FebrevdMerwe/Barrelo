@@ -1,6 +1,9 @@
 /* Shared dartboard geometry + scoring helpers.
-   Copied verbatim from Darts.Api/wwwroot/dartboard.js — this app deliberately has zero references to the
-   platform, so it carries its own copy rather than a shared assembly/static-file link. */
+   Originally copied from Darts.Api/wwwroot/dartboard.js — this app deliberately has zero references to
+   the platform, so it carries its own copy rather than a shared assembly/static-file link. This copy now
+   intentionally diverges: it also captures and reports the real SVG click position (svgPointFromEvent),
+   since this is the one place in the codebase with access to a genuine click coordinate rather than a
+   resolved segment/ring. The other two copies (mockup, Darts.Api) do not need this and stay unchanged. */
 (function (global) {
   "use strict";
 
@@ -12,6 +15,17 @@
     return { x: r * Math.sin(rad), y: -r * Math.cos(rad) };
   }
   function fmt(n) { return Math.round(n * 100) / 100; }
+  function svgPointFromEvent(svgEl, evt) {
+    var pt = svgEl.createSVGPoint();
+    pt.x = evt.clientX;
+    pt.y = evt.clientY;
+    var ctm = svgEl.getScreenCTM();
+    if (!ctm) return null;
+    var local = pt.matrixTransform(ctm.inverse());
+    // local is in SVG user-space (the -118..118 viewBox units polar()/fmt() work in).
+    // Convert to normalized board space: divide by R.doubleOut, and flip Y (SVG is y-down, board space is y-up).
+    return { x: local.x / R.doubleOut, y: -local.y / R.doubleOut };
+  }
   function annularSector(r1, r2, a1, a2) {
     var p1 = polar(r1, a1), p2 = polar(r2, a1), p3 = polar(r2, a2), p4 = polar(r1, a2);
     return "M " + fmt(p1.x) + " " + fmt(p1.y) +
@@ -107,23 +121,23 @@
     svgEl.appendChild(rim);
     svgEl.appendChild(gNumbers);
 
-    function handleActivate(target) {
+    function handleActivate(target, position) {
       var ring = target.getAttribute("data-ring");
       var segment = parseInt(target.getAttribute("data-segment"), 10);
       if (!ring || !activateCb) return;
-      activateCb(ring, segment);
+      activateCb(ring, segment, position);
     }
 
     svgEl.addEventListener("click", function (e) {
       var t = e.target;
-      if (t.hasAttribute && t.hasAttribute("data-ring")) handleActivate(t);
+      if (t.hasAttribute && t.hasAttribute("data-ring")) handleActivate(t, svgPointFromEvent(svgEl, e));
     });
     svgEl.addEventListener("keydown", function (e) {
       if (e.key !== "Enter" && e.key !== " ") return;
       var t = e.target;
       if (t.hasAttribute && t.hasAttribute("data-ring")) {
         e.preventDefault();
-        handleActivate(t);
+        handleActivate(t, null);
       }
     });
 

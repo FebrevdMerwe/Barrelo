@@ -10,7 +10,7 @@ internal static class TestThrow
         Ring: ring,
         Score: DartScoring.Score(ring, segment),
         RawNotation: DartScoring.Notation(ring, segment),
-        Position: null,
+        Position: BoardGeometry.CenterOf(segment, ring),
         Confidence: null,
         BoardId: "test-board",
         CameraIndex: null,

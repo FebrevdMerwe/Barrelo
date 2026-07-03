@@ -16,6 +16,7 @@ public class ThrowRecordTests
         var record = ThrowRecord.Create(
             matchId, playerId, setNumber: 1, legNumber: 2, sequence: 3,
             segment: 20, ring: Ring.Triple, score: 60, rawNotation: "T20",
+            positionX: 0.1, positionY: 0.91,
             source: DetectionSource.Manual, detectedAtUtc: detectedAt);
 
         record.Id.Should().NotBeEmpty();
@@ -28,6 +29,8 @@ public class ThrowRecordTests
         record.Ring.Should().Be(Ring.Triple);
         record.Score.Should().Be(60);
         record.RawNotation.Should().Be("T20");
+        record.PositionX.Should().Be(0.1);
+        record.PositionY.Should().Be(0.91);
         record.Source.Should().Be(DetectionSource.Manual);
         record.DetectedAtUtc.Should().Be(detectedAt);
     }

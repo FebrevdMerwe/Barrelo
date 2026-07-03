@@ -7,7 +7,7 @@ public sealed record DetectedThrow(
     Ring Ring,
     int Score,
     string RawNotation,
-    BoardPosition? Position,
+    BoardPosition Position,
     double? Confidence,
     string BoardId,
     int? CameraIndex,

@@ -13,7 +13,9 @@ namespace Darts.Infrastructure.External.Detection;
 /// Connects to the standalone Darts.BoardSimulator app over WebSocket, standing in for a real detector
 /// (e.g. a future AutoDartsDetectionSource) behind the same IDetectionSource contract. The simulator's wire
 /// protocol is our own invention (not a guess at AutoDarts' undocumented API) — a tiny JSON envelope:
-/// {"type":"throw","segment":20,"ring":"Triple"} or {"type":"endOfTurn"}.
+/// {"type":"throw","segment":20,"ring":"Triple","x":0.13,"y":0.91} or {"type":"endOfTurn"}. x/y are the
+/// real SVG click position when available (omitted for keyboard activation or the Miss button), and fall
+/// back to a deterministic BoardGeometry-fabricated center point when absent.
 /// </summary>
 public sealed class BoardSimulatorDetectionSource : IDetectionSource, IAsyncDisposable
 {
@@ -134,13 +136,16 @@ public sealed class BoardSimulatorDetectionSource : IDetectionSource, IAsyncDisp
     {
         var ring = Enum.Parse<Ring>(message.Ring!, ignoreCase: true);
         var segment = message.Segment ?? 0;
+        var position = message.X is { } x && message.Y is { } y
+            ? new BoardPosition(x, y)
+            : BoardGeometry.CenterOf(segment, ring);
         var detectedThrow = new DetectedThrow(
             ThrowId: Guid.NewGuid(),
             Segment: segment,
             Ring: ring,
             Score: DartScoring.Score(ring, segment),
             RawNotation: DartScoring.Notation(ring, segment),
-            Position: null,
+            Position: position,
             Confidence: null,
             BoardId: _boardId,
             CameraIndex: null,
@@ -166,5 +171,5 @@ public sealed class BoardSimulatorDetectionSource : IDetectionSource, IAsyncDisp
         _cts.Dispose();
     }
 
-    private sealed record SimulatorMessage(string Type, int? Segment, string? Ring);
+    private sealed record SimulatorMessage(string Type, int? Segment, string? Ring, double? X, double? Y);
 }

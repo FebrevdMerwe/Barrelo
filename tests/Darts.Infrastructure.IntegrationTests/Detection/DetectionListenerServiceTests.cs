@@ -100,7 +100,7 @@ public class DetectionListenerServiceTests : IAsyncLifetime
             Ring: Ring.Triple,
             Score: DartScoring.Score(Ring.Triple, 20),
             RawNotation: DartScoring.Notation(Ring.Triple, 20),
-            Position: null,
+            Position: BoardGeometry.CenterOf(20, Ring.Triple),
             Confidence: null,
             BoardId: WellKnownBoardIds.Manual,
             CameraIndex: null,

@@ -38,6 +38,8 @@ public sealed class GameCommandExecutor(
                     MapRing(detectedThrow.Ring),
                     detectedThrow.Score,
                     detectedThrow.RawNotation,
+                    detectedThrow.Position.X,
+                    detectedThrow.Position.Y,
                     MapSource(detectedThrow.Source),
                     detectedThrow.DetectedAtUtc,
                     c);

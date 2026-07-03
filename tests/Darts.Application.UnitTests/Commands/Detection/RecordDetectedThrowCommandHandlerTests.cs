@@ -34,9 +34,9 @@ public class RecordDetectedThrowCommandHandlerTests
         _sessionManager.Setup(s => s.TryGetAsync(_matchId)).ReturnsAsync(_game.Object);
         _matchRepository.Setup(r => r.AddThrowRecord(
                 It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<Domain.Enums.Ring>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<Domain.Enums.DetectionSource>(),
+                It.IsAny<Domain.Enums.Ring>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<Domain.Enums.DetectionSource>(),
                 It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ThrowRecord.Create(_matchId, _playerId, 1, 1, 1, 20, Domain.Enums.Ring.Triple, 60, "T20", Domain.Enums.DetectionSource.Manual, DateTimeOffset.UtcNow));
+            .ReturnsAsync(ThrowRecord.Create(_matchId, _playerId, 1, 1, 1, 20, Domain.Enums.Ring.Triple, 60, "T20", 0, 1, Domain.Enums.DetectionSource.Manual, DateTimeOffset.UtcNow));
         _unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
     }
 
@@ -57,8 +57,9 @@ public class RecordDetectedThrowCommandHandlerTests
         result.IsError.Should().BeFalse();
         result.Value.MatchId.Should().Be(_matchId);
         _game.Verify(g => g.ReceiveThrow(It.Is<DetectedThrow>(t => t.Segment == 20 && t.Ring == Ring.Triple && t.Score == 60), It.IsAny<CancellationToken>()), Times.Once);
+        var expectedPosition = BoardGeometry.CenterOf(20, Ring.Triple);
         _matchRepository.Verify(r => r.AddThrowRecord(
-            _matchId, _playerId, 1, 1, 20, Domain.Enums.Ring.Triple, 60, "T20", Domain.Enums.DetectionSource.Manual, It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Once);
+            _matchId, _playerId, 1, 1, 20, Domain.Enums.Ring.Triple, 60, "T20", expectedPosition.X, expectedPosition.Y, Domain.Enums.DetectionSource.Manual, It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         _dispatcher.Verify(d => d.Publish(It.Is<GameStateChangedEvent>(e => e.MatchId == _matchId), It.IsAny<CancellationToken>()), Times.Once);
     }
