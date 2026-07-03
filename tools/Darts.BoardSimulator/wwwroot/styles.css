@@ -58,6 +58,7 @@ body {
 .dartboard [data-ring] { cursor: pointer; }
 .dartboard.disabled { pointer-events: none; opacity: 0.5; }
 .dartboard .dead { opacity: 0.3; }
+.dartboard .num-ring text { fill: var(--chalk); }
 
 .controls {
   display: flex;
