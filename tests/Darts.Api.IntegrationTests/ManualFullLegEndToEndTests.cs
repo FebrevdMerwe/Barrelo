@@ -6,7 +6,6 @@ using Darts.Application.Common.Interfaces.Persistence;
 using Darts.GameSdk;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using InputSource = Darts.Domain.Enums.InputSource;
 
 namespace Darts.Api.IntegrationTests;
 
@@ -25,13 +24,14 @@ public class ManualFullLegEndToEndTests(DartsApiFactory factory) : IClassFixture
         var p1 = playerIds[0];
         var p2 = playerIds[1];
 
+        var playerGroups = playerIds.Select((id, index) => (id, index)).ToDictionary(x => x.id, x => x.index);
         var startResponse = await client.PostAsJsonAsync(
             "/api/matches",
             new StartMatchRequest(
                 "x01",
                 playerIds,
                 new Dictionary<string, string> { ["startingScore"] = "41", ["legsToWin"] = "2", ["setsToWin"] = "1" },
-                InputSource.Manual),
+                playerGroups),
             JsonTestOptions.Options);
         startResponse.EnsureSuccessStatusCode();
         var matchId = (await startResponse.Content.ReadFromJsonAsync<StartMatchResult>(JsonTestOptions.Options))!.MatchId;
@@ -52,7 +52,7 @@ public class ManualFullLegEndToEndTests(DartsApiFactory factory) : IClassFixture
 
         var afterUndoBust = await Undo(); // undo the busting dart
         afterUndoBust.CurrentPlayerId.Should().Be(p1); // turn ownership reverts
-        X01StatePayload(afterUndoBust).Single(p => p.PlayerId == p1).RemainingScore.Should().Be(40);
+        GroupFor(afterUndoBust, p1).RemainingScore.Should().Be(40);
 
         // Finish leg 1.
         var afterCheckout = await Throw(20, Ring.Double); // 40 -> 0, valid double-out
@@ -63,7 +63,7 @@ public class ManualFullLegEndToEndTests(DartsApiFactory factory) : IClassFixture
         var afterLegBoundaryUndo = await Undo();
         afterLegBoundaryUndo.LegNumber.Should().Be(1);
         afterLegBoundaryUndo.CurrentPlayerId.Should().Be(p1);
-        X01StatePayload(afterLegBoundaryUndo).Single(p => p.PlayerId == p1).LegsWon.Should().Be(0);
+        GroupFor(afterLegBoundaryUndo, p1).LegsWon.Should().Be(0);
 
         // Re-finish leg 1 for real.
         var legOneWon = await Throw(20, Ring.Double);
@@ -81,7 +81,7 @@ public class ManualFullLegEndToEndTests(DartsApiFactory factory) : IClassFixture
 
         final.IsComplete.Should().BeTrue();
         final.Status.Should().Be(GameStatus.Complete);
-        final.WinnerPlayerId.Should().Be(p1);
+        final.WinnerPlayerIds.Should().BeEquivalentTo([p1]);
         final.CurrentPlayerId.Should().BeNull();
 
         using var scope = factory.Services.CreateScope();
@@ -99,30 +99,31 @@ public class ManualFullLegEndToEndTests(DartsApiFactory factory) : IClassFixture
 
         async Task<GameStateSnapshot> Throw(int segment, Ring ring)
         {
-            var response = await client.PostAsJsonAsync("/api/detection/manual-throw", new ManualThrowRequest(null, segment, ring), JsonTestOptions.Options);
+            var response = await client.PostAsJsonAsync("/api/detection/manual-throw", new ManualThrowRequest(segment, ring), JsonTestOptions.Options);
             response.EnsureSuccessStatusCode();
             return (await response.Content.ReadFromJsonAsync<GameStateSnapshot>(JsonTestOptions.Options))!;
         }
 
         async Task<GameStateSnapshot> EndTurn()
         {
-            var response = await client.PostAsJsonAsync("/api/detection/manual-end-turn", new ManualEndTurnRequest(null), JsonTestOptions.Options);
+            var response = await client.PostAsync("/api/detection/manual-end-turn", null);
             response.EnsureSuccessStatusCode();
             return (await response.Content.ReadFromJsonAsync<GameStateSnapshot>(JsonTestOptions.Options))!;
         }
 
         async Task<GameStateSnapshot> Undo()
         {
-            var response = await client.PostAsJsonAsync("/api/detection/undo", new UndoRequest(null), JsonTestOptions.Options);
+            var response = await client.PostAsync("/api/detection/undo", null);
             response.EnsureSuccessStatusCode();
             return (await response.Content.ReadFromJsonAsync<GameStateSnapshot>(JsonTestOptions.Options))!;
         }
 
-        static List<X01PlayerScoreDto> X01StatePayload(GameStateSnapshot snapshot) =>
+        static X01GroupScoreDto GroupFor(GameStateSnapshot snapshot, Guid playerId) =>
             ((JsonElement)snapshot.Payload!)
-            .GetProperty("players")
-            .Deserialize<List<X01PlayerScoreDto>>(JsonTestOptions.Options)!;
+            .GetProperty("groups")
+            .Deserialize<List<X01GroupScoreDto>>(JsonTestOptions.Options)!
+            .Single(g => g.PlayerIds.Contains(playerId));
     }
 
-    private sealed record X01PlayerScoreDto(Guid PlayerId, int RemainingScore, int LegsWon, int SetsWon);
+    private sealed record X01GroupScoreDto(int GroupIndex, IReadOnlyList<Guid> PlayerIds, int RemainingScore, int LegsWon, int SetsWon);
 }

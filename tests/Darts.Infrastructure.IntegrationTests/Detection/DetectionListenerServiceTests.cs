@@ -15,7 +15,6 @@ using Darts.Infrastructure.Persistence.Repositories;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using InputSource = Darts.Domain.Enums.InputSource;
 
 namespace Darts.Infrastructure.IntegrationTests.Detection;
 
@@ -89,7 +88,7 @@ public class DetectionListenerServiceTests : IAsyncLifetime
                 "x01",
                 [_p1, _p2],
                 new Dictionary<string, string> { ["legsToWin"] = "1", ["setsToWin"] = "1" },
-                InputSource.Manual),
+                new Dictionary<Guid, int> { [_p1] = 0, [_p2] = 1 }),
             CancellationToken.None);
         startResult.IsError.Should().BeFalse();
         var matchId = startResult.Value.MatchId;

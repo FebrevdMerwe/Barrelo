@@ -18,8 +18,6 @@ public sealed class RecordDetectedThrowCommandHandler(
         if (!validation.IsValid)
             return validation.Errors.Select(e => Error.Validation(e.PropertyName, e.ErrorMessage)).ToList();
 
-        var boardId = request.BoardId ?? WellKnownBoardIds.Manual;
-
         var detectedThrow = new DetectedThrow(
             ThrowId: Guid.NewGuid(),
             Segment: request.Segment,
@@ -28,11 +26,11 @@ public sealed class RecordDetectedThrowCommandHandler(
             RawNotation: DartScoring.Notation(request.Ring, request.Segment),
             Position: BoardGeometry.CenterOf(request.Segment, request.Ring),
             Confidence: null,
-            BoardId: boardId,
+            BoardId: WellKnownBoardIds.Manual,
             CameraIndex: null,
             DetectedAtUtc: DateTimeOffset.UtcNow,
             Source: DetectionSourceType.Manual);
 
-        return await executor.RecordThrow(boardId, detectedThrow, ct);
+        return await executor.RecordThrow(detectedThrow, ct);
     }
 }

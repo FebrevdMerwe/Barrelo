@@ -27,9 +27,9 @@ public class RecordDetectedThrowCommandHandlerTests
         return new RecordDetectedThrowCommandHandler(executor, new RecordDetectedThrowCommandValidator());
     }
 
-    private void BindBoardToMatch()
+    private void ActivateMatch()
     {
-        _sessionManager.Setup(s => s.ResolveMatchForBoard("manual")).Returns(_matchId);
+        _sessionManager.Setup(s => s.TryGetActiveMatchIdAsync()).ReturnsAsync(_matchId);
         _sessionManager.Setup(s => s.LockAsync(_matchId, It.IsAny<CancellationToken>())).ReturnsAsync(Mock.Of<IAsyncDisposable>());
         _sessionManager.Setup(s => s.TryGetAsync(_matchId)).ReturnsAsync(_game.Object);
         _matchRepository.Setup(r => r.AddThrowRecord(
@@ -46,11 +46,11 @@ public class RecordDetectedThrowCommandHandlerTests
     [Fact]
     public async Task Valid_throw_records_the_throw_and_publishes_the_updated_state()
     {
-        BindBoardToMatch();
+        ActivateMatch();
         _game.SetupSequence(g => g.GetState())
             .ReturnsAsync(Snapshot()) // pre-state: captures the throwing player
             .ReturnsAsync(Snapshot()); // post-state: returned to the caller
-        var command = new RecordDetectedThrowCommand(null, 20, Ring.Triple);
+        var command = new RecordDetectedThrowCommand(20, Ring.Triple);
 
         var result = await CreateHandler().Handle(command, CancellationToken.None);
 
@@ -67,11 +67,11 @@ public class RecordDetectedThrowCommandHandlerTests
     [Fact]
     public async Task Rule_violation_from_the_plugin_maps_to_a_validation_error_and_does_not_persist()
     {
-        BindBoardToMatch();
+        ActivateMatch();
         _game.Setup(g => g.GetState()).ReturnsAsync(Snapshot());
         _game.Setup(g => g.ReceiveThrow(It.IsAny<DetectedThrow>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new GameRuleViolationException("game already finished"));
-        var command = new RecordDetectedThrowCommand(null, 20, Ring.Triple);
+        var command = new RecordDetectedThrowCommand(20, Ring.Triple);
 
         var result = await CreateHandler().Handle(command, CancellationToken.None);
 
@@ -82,26 +82,26 @@ public class RecordDetectedThrowCommandHandlerTests
     }
 
     [Fact]
-    public async Task Unbound_board_returns_error_without_locking_or_touching_the_game()
+    public async Task No_active_match_returns_error_without_locking_or_touching_the_game()
     {
-        _sessionManager.Setup(s => s.ResolveMatchForBoard("manual")).Returns((Guid?)null);
-        var command = new RecordDetectedThrowCommand(null, 20, Ring.Triple);
+        _sessionManager.Setup(s => s.TryGetActiveMatchIdAsync()).ReturnsAsync((Guid?)null);
+        var command = new RecordDetectedThrowCommand(20, Ring.Triple);
 
         var result = await CreateHandler().Handle(command, CancellationToken.None);
 
         result.IsError.Should().BeTrue();
-        result.FirstError.Code.Should().Be("Match.BoardNotBound");
+        result.FirstError.Code.Should().Be("Match.NoActiveMatch");
         _sessionManager.Verify(s => s.LockAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task Invalid_segment_fails_validation_before_resolving_the_board()
+    public async Task Invalid_segment_fails_validation_before_checking_for_an_active_match()
     {
-        var command = new RecordDetectedThrowCommand(null, 25, Ring.Inner);
+        var command = new RecordDetectedThrowCommand(25, Ring.Inner);
 
         var result = await CreateHandler().Handle(command, CancellationToken.None);
 
         result.IsError.Should().BeTrue();
-        _sessionManager.Verify(s => s.ResolveMatchForBoard(It.IsAny<string>()), Times.Never);
+        _sessionManager.Verify(s => s.TryGetActiveMatchIdAsync(), Times.Never);
     }
 }

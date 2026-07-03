@@ -7,16 +7,19 @@ public sealed class MatchParticipant
 
     public int Order { get; private set; }
 
+    public int GroupIndex { get; private set; }
+
     public int? FinalPosition { get; private set; }
 
     private MatchParticipant()
     {
     }
 
-    internal MatchParticipant(Guid playerId, int order)
+    internal MatchParticipant(Guid playerId, int order, int groupIndex)
     {
         PlayerId = playerId;
         Order = order;
+        GroupIndex = groupIndex;
     }
 
     internal void SetFinalPosition(int position) => FinalPosition = position;

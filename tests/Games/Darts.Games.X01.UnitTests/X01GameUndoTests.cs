@@ -15,7 +15,7 @@ public class X01GameUndoTests
         await game.UndoLastThrow(CancellationToken.None);
 
         var payload = await game.Payload();
-        payload.Players.Single().RemainingScore.Should().Be(100);
+        payload.Groups.Single().RemainingScore.Should().Be(100);
         payload.CurrentVisitThrows.Should().BeEmpty();
     }
 
@@ -42,8 +42,8 @@ public class X01GameUndoTests
         state.CurrentPlayerId.Should().Be(p1);
         state.IsComplete.Should().BeFalse();
         var payload = (X01StatePayload)state.Payload!;
-        payload.Players.Single(p => p.PlayerId == p1).RemainingScore.Should().Be(40);
-        payload.Players.Single(p => p.PlayerId == p1).LegsWon.Should().Be(0);
+        payload.GroupFor(p1).RemainingScore.Should().Be(40);
+        payload.GroupFor(p1).LegsWon.Should().Be(0);
     }
 
     [Fact]
@@ -58,14 +58,14 @@ public class X01GameUndoTests
 
         var busted = await game.GetState();
         busted.CurrentPlayerId.Should().Be(p2);
-        ((X01StatePayload)busted.Payload!).Players.Single(p => p.PlayerId == p1).RemainingScore.Should().Be(25);
+        ((X01StatePayload)busted.Payload!).GroupFor(p1).RemainingScore.Should().Be(25);
 
         await game.UndoLastThrow(CancellationToken.None); // undo the busting dart
 
         var state = await game.GetState();
         state.CurrentPlayerId.Should().Be(p1); // turn ownership reverts, not advanced to P2
         var payload = (X01StatePayload)state.Payload!;
-        payload.Players.Single(p => p.PlayerId == p1).RemainingScore.Should().Be(5); // dart 1's effect restored
+        payload.GroupFor(p1).RemainingScore.Should().Be(5); // dart 1's effect restored
         payload.CurrentVisitThrows.Should().HaveCount(1);
     }
 
@@ -87,7 +87,7 @@ public class X01GameUndoTests
 
         var state = await game.GetState();
         state.IsComplete.Should().BeFalse();
-        state.WinnerPlayerId.Should().BeNull();
+        state.WinnerPlayerIds.Should().BeNull();
     }
 
     [Fact]

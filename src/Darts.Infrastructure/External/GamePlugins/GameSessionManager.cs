@@ -11,12 +11,29 @@ public sealed class GameSessionManager : IGameSessionManager
 {
     private readonly ConcurrentDictionary<Guid, IGame> _sessions = new();
     private readonly ConcurrentDictionary<Guid, SemaphoreSlim> _locks = new();
-    private readonly ConcurrentDictionary<string, Guid> _boardBindings = new();
+    private readonly object _activeMatchGate = new();
+    private Guid? _activeMatchId;
 
-    public Task StartSessionAsync(Guid matchId, IGame game)
+    public Task<Guid?> TryGetActiveMatchIdAsync()
     {
+        lock (_activeMatchGate)
+        {
+            return Task.FromResult(_activeMatchId);
+        }
+    }
+
+    public Task<bool> TryStartSessionAsync(Guid matchId, IGame game)
+    {
+        lock (_activeMatchGate)
+        {
+            if (_activeMatchId is not null)
+                return Task.FromResult(false);
+
+            _activeMatchId = matchId;
+        }
+
         _sessions[matchId] = game;
-        return Task.CompletedTask;
+        return Task.FromResult(true);
     }
 
     public Task<IGame?> TryGetAsync(Guid matchId) =>
@@ -29,10 +46,16 @@ public sealed class GameSessionManager : IGameSessionManager
         return new Releaser(semaphore);
     }
 
-    public void BindBoard(string boardId, Guid matchId) => _boardBindings[boardId] = matchId;
+    public Task EndActiveSessionAsync(Guid matchId)
+    {
+        lock (_activeMatchGate)
+        {
+            if (_activeMatchId == matchId)
+                _activeMatchId = null;
+        }
 
-    public Guid? ResolveMatchForBoard(string boardId) =>
-        _boardBindings.TryGetValue(boardId, out var matchId) ? matchId : null;
+        return Task.CompletedTask;
+    }
 
     private sealed class Releaser(SemaphoreSlim semaphore) : IAsyncDisposable
     {

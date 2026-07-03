@@ -8,7 +8,7 @@ public class GameCatalogTests
 {
     private sealed class FakeGameFactory(string gameId) : IGameFactory
     {
-        public GameDescriptor Describe() => new(gameId, gameId, "test");
+        public GameDescriptor Describe() => new(gameId, gameId, "test", []);
 
         public Task<IGame> Create(GameSetup setup, CancellationToken ct) => throw new NotSupportedException();
     }

@@ -1,4 +1,3 @@
-using Darts.Application.Common.Constants;
 using Darts.Application.Common.Dispatch;
 using Darts.Application.Common.GameExecution;
 using Darts.GameSdk;
@@ -10,5 +9,5 @@ public sealed class UndoLastThrowCommandHandler(GameCommandExecutor executor)
     : IRequestHandler<UndoLastThrowCommand, ErrorOr<GameStateSnapshot>>
 {
     public Task<ErrorOr<GameStateSnapshot>> Handle(UndoLastThrowCommand request, CancellationToken ct) =>
-        executor.Undo(request.BoardId ?? WellKnownBoardIds.Manual, ct);
+        executor.Undo(ct);
 }

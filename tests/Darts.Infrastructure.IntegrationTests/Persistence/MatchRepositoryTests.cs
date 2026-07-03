@@ -18,7 +18,7 @@ public class MatchRepositoryTests : IAsyncLifetime
     {
         var p1 = Guid.NewGuid();
         var p2 = Guid.NewGuid();
-        var match = Match.Start("x01", "{}", InputSource.Manual, [p1, p2]).Value;
+        var match = Match.Start("x01", "{}", [p1, p2]).Value;
 
         await using (var context = _database.CreateContext())
         {
@@ -82,7 +82,7 @@ public class MatchRepositoryTests : IAsyncLifetime
 
     private async Task<Guid> SeedMatch()
     {
-        var match = Match.Start("x01", "{}", InputSource.Manual, [Guid.NewGuid()]).Value;
+        var match = Match.Start("x01", "{}", [Guid.NewGuid()]).Value;
         await using var context = _database.CreateContext();
         await new MatchRepository(context).Add(match, CancellationToken.None);
         await context.SaveChangesAsync();

@@ -19,4 +19,8 @@ public static class MatchErrors
     public static Error NotFound => Error.NotFound(
         "Match.NotFound",
         "No match was found with the given id.");
+
+    public static Error GroupAssignmentMismatch => Error.Validation(
+        "Match.GroupAssignmentMismatch",
+        "Group assignments must be provided for every participant.");
 }

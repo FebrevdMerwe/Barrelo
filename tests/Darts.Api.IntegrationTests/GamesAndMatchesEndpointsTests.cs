@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using Darts.Api.Contracts;
 using Darts.Application.Commands.Matches.StartMatch;
-using Darts.Domain.Enums;
 using Darts.GameSdk;
 using FluentAssertions;
 
@@ -26,9 +25,10 @@ public class GamesAndMatchesEndpointsTests(DartsApiFactory factory) : IClassFixt
         var client = factory.CreateClient();
         var playerIds = await factory.SeedPlayers("P1", "P2");
 
+        var playerGroups = playerIds.Select((id, index) => (id, index)).ToDictionary(x => x.id, x => x.index);
         var startResponse = await client.PostAsJsonAsync(
             "/api/matches",
-            new StartMatchRequest("x01", playerIds, null, InputSource.Manual),
+            new StartMatchRequest("x01", playerIds, null, playerGroups),
             JsonTestOptions.Options);
         startResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var started = await startResponse.Content.ReadFromJsonAsync<StartMatchResult>(JsonTestOptions.Options);

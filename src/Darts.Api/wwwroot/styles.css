@@ -521,28 +521,104 @@ body{
 }
 .text-input:focus-visible{ outline:2px solid var(--brass-bright); outline-offset:1px; border-bottom-color: var(--brass-bright); }
 
-.source-toggle{ display:flex; gap:12px; flex-wrap:wrap; }
-.source-pill-option{ cursor:pointer; }
-.source-pill-option input{ position:absolute; opacity:0; width:1px; height:1px; }
-.source-pill-option span{
-  display:inline-flex; align-items:center; gap:6px;
-  padding:9px 16px;
-  border:1px solid var(--brass-dim);
-  border-radius:999px;
-  font-size:13px; color: var(--chalk-dim);
-  transition: border-color .2s ease, color .2s ease, background .2s ease;
-}
-.source-pill-option:has(input:checked) span{ border-color: var(--brass-bright); color: var(--chalk); background: rgba(233,194,106,.08); }
-.source-pill-option.disabled{ cursor:not-allowed; }
-.source-pill-option.disabled span{ opacity:.55; }
-.source-pill-option.disabled em{ font-style:normal; color: var(--chalk-dim); }
-.source-pill-option input:focus-visible ~ span{ outline:2px solid var(--brass-bright); outline-offset:2px; }
-
 .start-cta{
   align-self:center;
   font-size:15px;
   padding:14px 40px;
   margin-top:4px;
+}
+
+.start-error{ color: var(--board-red); text-align:center; }
+
+/* ---------- shared player avatar (picker cards + group chips) ---------- */
+.chip-avatar{
+  flex:none;
+  width:30px; height:30px;
+  border-radius:50%;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-family:'Big Shoulders Display', sans-serif; font-weight:700; font-size:12.5px;
+  color: var(--chalk);
+  box-shadow: inset 0 0 0 1px rgba(237,230,214,.2);
+}
+
+/* ---------- player picker grid ---------- */
+.player-grid{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
+.player-card{
+  display:inline-flex; align-items:center; gap:10px;
+  font-family:'Archivo', sans-serif; font-size:14px;
+  color: var(--chalk-dim);
+  background: rgba(237,230,214,.04);
+  border:1px solid var(--slate-line);
+  border-radius:999px;
+  padding:6px 16px 6px 6px;
+  cursor:pointer;
+  transition: border-color .2s ease, color .2s ease, background .2s ease;
+}
+.player-card:hover{ border-color: var(--brass); }
+.player-card.is-selected{
+  color: var(--chalk);
+  border-color: var(--brass-bright);
+  background: rgba(233,194,106,.1);
+}
+.player-card:focus-visible{ outline:2px solid var(--brass-bright); outline-offset:2px; }
+
+.new-player-row{ display:flex; gap:10px; }
+.new-player-row .text-input{ flex:1 1 auto; }
+.new-player-row .pull-btn{ flex:none; padding:11px 22px; }
+
+/* ---------- mode options ---------- */
+.mode-options{ display:flex; gap:12px; flex-wrap:wrap; }
+
+/* ---------- groups (drag-and-drop buckets, incl. Spectator) ---------- */
+.group-columns{ display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; }
+.group-bucket{
+  flex:1 1 180px;
+  min-width:160px;
+  border:1px solid var(--slate-line);
+  border-radius:8px;
+  background: rgba(0,0,0,.15);
+  overflow:hidden;
+}
+.group-bucket.is-spectator{ border-style:dashed; opacity:.85; }
+.bucket-header{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:8px 12px;
+  font-family:'JetBrains Mono', monospace; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+  color: var(--chalk-dim);
+  border-bottom:1px solid var(--slate-line);
+}
+.bucket-count{ color: var(--brass); }
+.bucket-body{
+  display:flex; flex-direction:column; gap:8px;
+  padding:10px;
+  min-height:52px;
+}
+
+.player-chip{
+  display:flex; align-items:center; gap:10px;
+  font-family:'Archivo', sans-serif; font-size:14px;
+  color: var(--chalk);
+  background: rgba(237,230,214,.06);
+  border:1px solid var(--brass-dim);
+  border-radius:999px;
+  padding:6px 14px 6px 6px;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+.chip-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.chip-dragging-source{ display:none; }
+.chip-ghost{
+  position:fixed;
+  z-index:20;
+  pointer-events:none;
+  box-shadow: 0 16px 30px -10px rgba(0,0,0,.6), 0 0 0 1px var(--brass-bright);
+  cursor: grabbing;
+}
+.chip-placeholder{
+  border:1.5px dashed var(--brass-bright);
+  border-radius:999px;
+  background: rgba(233,194,106,.08);
 }
 
 /* ---------- default fallback board renderer (a game with no render.js) ---------- */

@@ -13,13 +13,12 @@ public sealed class Match : Entity<Guid>
 
     public MatchStatus Status { get; private set; }
 
-    public InputSource InputSource { get; private set; }
-
     public DateTimeOffset CreatedAtUtc { get; private set; }
 
     public DateTimeOffset? CompletedAtUtc { get; private set; }
 
-    public Guid? WinnerPlayerId { get; private set; }
+    private readonly List<Guid> _winnerPlayerIds = [];
+    public IReadOnlyList<Guid> WinnerPlayerIds => _winnerPlayerIds.AsReadOnly();
 
     private readonly List<MatchParticipant> _participants = [];
     public IReadOnlyList<MatchParticipant> Participants => _participants.AsReadOnly();
@@ -31,8 +30,8 @@ public sealed class Match : Entity<Guid>
     public static ErrorOr<Match> Start(
         string gameId,
         string gameConfigJson,
-        InputSource inputSource,
-        IReadOnlyList<Guid> orderedPlayerIds)
+        IReadOnlyList<Guid> orderedPlayerIds,
+        IReadOnlyList<int>? groupIndexes = null)
     {
         if (string.IsNullOrWhiteSpace(gameId))
             return MatchErrors.GameIdRequired;
@@ -40,30 +39,36 @@ public sealed class Match : Entity<Guid>
         if (orderedPlayerIds.Count == 0)
             return MatchErrors.NoParticipants;
 
+        if (groupIndexes is not null && groupIndexes.Count != orderedPlayerIds.Count)
+            return MatchErrors.GroupAssignmentMismatch;
+
         var match = new Match
         {
             Id = Guid.NewGuid(),
             GameId = gameId,
             GameConfigJson = gameConfigJson,
             Status = MatchStatus.InProgress,
-            InputSource = inputSource,
             CreatedAtUtc = DateTimeOffset.UtcNow,
         };
 
         for (var order = 0; order < orderedPlayerIds.Count; order++)
-            match._participants.Add(new MatchParticipant(orderedPlayerIds[order], order));
+        {
+            var groupIndex = groupIndexes?[order] ?? order;
+            match._participants.Add(new MatchParticipant(orderedPlayerIds[order], order, groupIndex));
+        }
 
         return match;
     }
 
-    public ErrorOr<Updated> Complete(Guid? winnerPlayerId)
+    public ErrorOr<Updated> Complete(IReadOnlyList<Guid> winnerPlayerIds)
     {
         if (Status == MatchStatus.Completed)
             return MatchErrors.AlreadyCompleted;
 
         Status = MatchStatus.Completed;
         CompletedAtUtc = DateTimeOffset.UtcNow;
-        WinnerPlayerId = winnerPlayerId;
+        _winnerPlayerIds.Clear();
+        _winnerPlayerIds.AddRange(winnerPlayerIds);
 
         return Result.Updated;
     }

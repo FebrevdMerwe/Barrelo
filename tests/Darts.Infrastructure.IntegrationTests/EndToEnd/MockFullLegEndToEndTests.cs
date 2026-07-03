@@ -14,7 +14,6 @@ using Darts.Infrastructure.Persistence.Repositories;
 using ErrorOr;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using InputSource = Darts.Domain.Enums.InputSource;
 
 namespace Darts.Infrastructure.IntegrationTests.EndToEnd;
 
@@ -72,7 +71,7 @@ public class MockFullLegEndToEndTests : IAsyncLifetime
                 "x01",
                 [_p1, _p2],
                 new Dictionary<string, string> { ["legsToWin"] = "1", ["setsToWin"] = "1" },
-                InputSource.Manual),
+                new Dictionary<Guid, int> { [_p1] = 0, [_p2] = 1 }),
             CancellationToken.None);
         startResult.IsError.Should().BeFalse();
         var matchId = startResult.Value.MatchId;
@@ -112,7 +111,7 @@ public class MockFullLegEndToEndTests : IAsyncLifetime
         var finalState = await Throw(10, Ring.Double);
 
         finalState.IsComplete.Should().BeTrue();
-        finalState.WinnerPlayerId.Should().Be(_p1);
+        finalState.WinnerPlayerIds.Should().BeEquivalentTo([_p1]);
         finalState.Status.Should().Be(GameStatus.Complete);
 
         var records = await _matchRepository.GetThrowRecords(matchId, CancellationToken.None);
@@ -125,7 +124,7 @@ public class MockFullLegEndToEndTests : IAsyncLifetime
 
         async Task<GameStateSnapshot> Throw(int segment, Ring ring)
         {
-            var result = await _dispatcher.Send(new RecordDetectedThrowCommand(null, segment, ring), CancellationToken.None);
+            var result = await _dispatcher.Send(new RecordDetectedThrowCommand(segment, ring), CancellationToken.None);
             result.IsError.Should().BeFalse(because: string.Join(", ", result.ErrorsOrEmptyList.Select(e => e.Description)));
             return result.Value;
         }

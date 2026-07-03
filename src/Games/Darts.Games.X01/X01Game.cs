@@ -7,6 +7,11 @@ namespace Darts.Games.X01;
 /// full append-only event log from scratch rather than reversing deltas — the hard cases (undoing
 /// the dart that completed a leg/set, or undoing back into a reverted bust visit) all fall out of
 /// the same code path this way instead of needing special-cased reversal logic.
+///
+/// Players may share a group (team play): a group has one cumulative score/legs/sets, like real
+/// doubles/teams darts. Turn order stays a flat round-robin over <see cref="_players"/> regardless
+/// of grouping — <see cref="AdvanceToNextPlayer"/> is unchanged from the ungrouped implementation —
+/// only which group's shared score a throw affects depends on <see cref="_groupByPlayer"/>.
 /// </summary>
 public sealed class X01Game : IGame
 {
@@ -15,11 +20,12 @@ public sealed class X01Game : IGame
     private sealed record LogEntry(LogEntryKind Kind, DetectedThrow? Throw);
 
     private readonly IReadOnlyList<Guid> _players;
+    private readonly IReadOnlyDictionary<Guid, int> _groupByPlayer;
     private readonly X01Options _options;
     private readonly List<LogEntry> _log = [];
 
     // Derived state, fully recomputed by Rebuild() after every log mutation.
-    private Dictionary<Guid, X01PlayerState> _playerStates = [];
+    private Dictionary<int, X01GroupState> _groupStates = [];
     private int _currentPlayerIndex;
     private int _legNumber = 1;
     private int _setNumber = 1;
@@ -27,11 +33,12 @@ public sealed class X01Game : IGame
     private List<DetectedThrow> _currentVisitThrows = [];
     private List<DetectedThrow> _currentLegThrows = [];
     private bool _isComplete;
-    private Guid? _winnerPlayerId;
+    private IReadOnlyList<Guid>? _winnerPlayerIds;
 
-    internal X01Game(IReadOnlyList<Guid> players, X01Options options)
+    internal X01Game(IReadOnlyList<Guid> players, IReadOnlyDictionary<Guid, int> groupByPlayer, X01Options options)
     {
         _players = players;
+        _groupByPlayer = groupByPlayer;
         _options = options;
         Rebuild();
     }
@@ -67,11 +74,10 @@ public sealed class X01Game : IGame
     public Task<GameStateSnapshot> GetState()
     {
         var payload = new X01StatePayload(
-            _players.Select(id =>
-            {
-                var state = _playerStates[id];
-                return new X01PlayerScore(id, state.RemainingScore, state.LegsWon, state.SetsWon);
-            }).ToArray(),
+            _groupStates.Values
+                .OrderBy(g => g.GroupIndex)
+                .Select(g => new X01GroupScore(g.GroupIndex, g.MemberPlayerIds, g.RemainingScore, g.LegsWon, g.SetsWon))
+                .ToArray(),
             _currentVisitThrows.ToArray());
 
         var snapshot = new GameStateSnapshot(
@@ -83,7 +89,7 @@ public sealed class X01Game : IGame
             SetNumber: _setNumber,
             RecentThrows: _currentLegThrows.ToArray(),
             IsComplete: _isComplete,
-            WinnerPlayerId: _winnerPlayerId,
+            WinnerPlayerIds: _winnerPlayerIds,
             Payload: payload);
 
         return Task.FromResult(snapshot);
@@ -94,12 +100,13 @@ public sealed class X01Game : IGame
         if (!_isComplete)
             throw new GameRuleViolationException("The game is not complete yet.");
 
-        var standings = _players
-            .OrderByDescending(id => _playerStates[id].SetsWon)
-            .ThenByDescending(id => _playerStates[id].LegsWon)
+        var standings = _groupStates.Values
+            .OrderByDescending(g => g.SetsWon)
+            .ThenByDescending(g => g.LegsWon)
+            .SelectMany(g => g.MemberPlayerIds)
             .ToArray();
 
-        return Task.FromResult(new GameResult(_winnerPlayerId, standings));
+        return Task.FromResult(new GameResult(_winnerPlayerIds!, standings));
     }
 
     private void EnsureNotComplete()
@@ -110,7 +117,11 @@ public sealed class X01Game : IGame
 
     private void Rebuild()
     {
-        _playerStates = _players.ToDictionary(id => id, id => new X01PlayerState(id, _options.StartingScore));
+        var distinctGroups = _players.Select(id => _groupByPlayer[id]).Distinct();
+        _groupStates = distinctGroups.ToDictionary(
+            g => g,
+            g => new X01GroupState(g, _players.Where(id => _groupByPlayer[id] == g).ToArray(), _options.StartingScore));
+
         _currentPlayerIndex = 0;
         _legNumber = 1;
         _setNumber = 1;
@@ -118,7 +129,7 @@ public sealed class X01Game : IGame
         _currentVisitThrows = [];
         _currentLegThrows = [];
         _isComplete = false;
-        _winnerPlayerId = null;
+        _winnerPlayerIds = null;
 
         var visitStartRemaining = _options.StartingScore;
 
@@ -132,32 +143,33 @@ public sealed class X01Game : IGame
             }
 
             var detectedThrow = entry.Throw!;
-            var player = _playerStates[_players[_currentPlayerIndex]];
+            var throwingPlayerId = _players[_currentPlayerIndex];
+            var group = _groupStates[_groupByPlayer[throwingPlayerId]];
 
             if (_currentVisitThrows.Count == 0)
-                visitStartRemaining = player.RemainingScore;
+                visitStartRemaining = group.RemainingScore;
 
             _currentVisitThrows.Add(detectedThrow);
             _currentLegThrows.Add(detectedThrow);
 
-            var newRemaining = player.RemainingScore - detectedThrow.Score;
+            var newRemaining = group.RemainingScore - detectedThrow.Score;
             var isBust = newRemaining < 0
                 || (_options.DoubleOut && newRemaining == 1)
                 || (newRemaining == 0 && _options.DoubleOut && !DartScoring.IsValidCheckoutRing(detectedThrow.Ring));
 
             if (isBust)
             {
-                player.RemainingScore = visitStartRemaining;
+                group.RemainingScore = visitStartRemaining;
                 AdvanceToNextPlayer();
                 _currentVisitThrows = [];
                 continue;
             }
 
-            player.RemainingScore = newRemaining;
+            group.RemainingScore = newRemaining;
 
             if (newRemaining == 0)
             {
-                WinLeg(player);
+                WinLeg(group);
                 if (_isComplete) break;
                 continue;
             }
@@ -170,25 +182,25 @@ public sealed class X01Game : IGame
         }
     }
 
-    private void WinLeg(X01PlayerState player)
+    private void WinLeg(X01GroupState group)
     {
-        player.LegsWon++;
+        group.LegsWon++;
         _legsPlayedTotal++;
         _currentVisitThrows = [];
         _currentLegThrows = [];
 
-        if (player.LegsWon >= _options.LegsToWin)
+        if (group.LegsWon >= _options.LegsToWin)
         {
-            player.SetsWon++;
+            group.SetsWon++;
 
-            if (player.SetsWon >= _options.SetsToWin)
+            if (group.SetsWon >= _options.SetsToWin)
             {
                 _isComplete = true;
-                _winnerPlayerId = player.PlayerId;
+                _winnerPlayerIds = group.MemberPlayerIds;
                 return;
             }
 
-            foreach (var state in _playerStates.Values)
+            foreach (var state in _groupStates.Values)
                 state.LegsWon = 0;
 
             _setNumber++;
@@ -199,7 +211,7 @@ public sealed class X01Game : IGame
             _legNumber++;
         }
 
-        foreach (var state in _playerStates.Values)
+        foreach (var state in _groupStates.Values)
             state.RemainingScore = _options.StartingScore;
 
         _currentPlayerIndex = _legsPlayedTotal % _players.Count;

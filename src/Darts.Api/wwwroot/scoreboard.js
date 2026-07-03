@@ -2,7 +2,7 @@
    controls, winner banner), now driven by the real GameStateSnapshot pushed over
    SignalR instead of a locally-simulated state machine. The shell reads only the
    universal envelope fields (matchId/gameId/status/currentPlayerId/legNumber/
-   setNumber/recentThrows/isComplete/winnerPlayerId) plus one soft, best-effort
+   setNumber/recentThrows/isComplete/winnerPlayerIds) plus one soft, best-effort
    convention on payload (payload.currentVisitThrows, if a game provides it) for
    the visit-progress strip — everything else in payload is opaque and handed
    straight to the per-game renderGameBoard. */
@@ -152,9 +152,10 @@
       : "Leg " + snapshot.legNumber + " · Set " + snapshot.setNumber;
 
     if (snapshot.isComplete) {
-      var winnerName = playerNames[snapshot.winnerPlayerId] || "A player";
+      var winnerIds = snapshot.winnerPlayerIds || [];
+      var winnerNames = winnerIds.map(function (id) { return playerNames[id] || "A player"; }).join(" & ");
       document.getElementById("winTitle").textContent = "Game shot!";
-      document.getElementById("winSub").textContent = winnerName + " wins the match.";
+      document.getElementById("winSub").textContent = (winnerNames || "A player") + (winnerIds.length > 1 ? " win the match." : " wins the match.");
       winBanner.classList.add("show");
     } else {
       winBanner.classList.remove("show");

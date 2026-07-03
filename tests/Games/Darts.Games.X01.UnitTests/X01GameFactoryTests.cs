@@ -15,6 +15,20 @@ public class X01GameFactoryTests
     }
 
     [Fact]
+    public void Describe_declares_a_game_mode_setting_and_a_player_group_setting()
+    {
+        var descriptor = new X01GameFactory().Describe();
+
+        var gameMode = descriptor.Settings.OfType<GameModeSetting>().Single();
+        gameMode.Choices.Select(c => c.Value).Should().BeEquivalentTo("501", "301", "701");
+        gameMode.DefaultValue.Should().Be("501");
+
+        var playerGroup = descriptor.Settings.OfType<PlayerGroupSetting>().Single();
+        playerGroup.MaxGroups.Should().Be(2);
+        playerGroup.MaxPlayersPerGroup.Should().Be(4);
+    }
+
+    [Fact]
     public async Task Create_with_no_options_uses_default_501_starting_score()
     {
         var factory = new X01GameFactory();
@@ -24,7 +38,7 @@ public class X01GameFactoryTests
         var state = await game.GetState();
         var payload = (X01StatePayload)state.Payload!;
 
-        payload.Players.Should().OnlyContain(p => p.RemainingScore == 501);
+        payload.Groups.Should().OnlyContain(g => g.RemainingScore == 501);
     }
 
     [Fact]
@@ -39,7 +53,7 @@ public class X01GameFactoryTests
         var state = await game.GetState();
         var payload = (X01StatePayload)state.Payload!;
 
-        payload.Players.Single().RemainingScore.Should().Be(301);
+        payload.Groups.Single().RemainingScore.Should().Be(301);
     }
 
     [Fact]

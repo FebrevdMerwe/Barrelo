@@ -1,6 +1,7 @@
 /* Darts.Games.X01's own board region. Reads snapshot.payload (X01StatePayload:
-   { players: [{playerId, remainingScore, legsWon, setsWon}], currentVisitThrows: [...] })
-   and the shell-provided playerId -> name map. The shell never looks inside payload
+   { groups: [{groupIndex, playerIds, remainingScore, legsWon, setsWon}], currentVisitThrows: [...] })
+   and the shell-provided playerId -> name map. A group shares one cumulative score (team play);
+   an ungrouped/solo player is just a group of one. The shell never looks inside payload
    itself — this file owns everything about how X01's state renders. */
 (function (global) {
   "use strict";
@@ -32,24 +33,28 @@
   }
 
   function renderGameBoard(container, snapshot, playerNames) {
-    var players = (snapshot.payload && snapshot.payload.players) || [];
+    var groups = (snapshot.payload && snapshot.payload.groups) || [];
     container.innerHTML = "";
     var wrap = document.createElement("div");
     wrap.className = "x01-board";
-    players.forEach(function (p) {
-      var isActive = p.playerId === snapshot.currentPlayerId && !snapshot.isComplete;
-      var pulse = lastRemaining[p.playerId] !== undefined && lastRemaining[p.playerId] !== p.remainingScore;
-      lastRemaining[p.playerId] = p.remainingScore;
+    groups.forEach(function (g) {
+      var isActive = g.playerIds.indexOf(snapshot.currentPlayerId) !== -1 && !snapshot.isComplete;
+      var pulse = lastRemaining[g.groupIndex] !== undefined && lastRemaining[g.groupIndex] !== g.remainingScore;
+      lastRemaining[g.groupIndex] = g.remainingScore;
 
-      var name = (playerNames && playerNames[p.playerId]) || "Player";
+      var names = g.playerIds.map(function (id) {
+        var isThrower = id === snapshot.currentPlayerId;
+        return (isThrower ? "› " : "") + escapeHtml((playerNames && playerNames[id]) || "Player");
+      }).join(" & ");
+
       var panel = document.createElement("div");
       panel.className = "x01-panel" + (isActive ? " active" : "");
       panel.innerHTML =
-        '<div class="x01-name">' + escapeHtml(name) + "</div>" +
-        '<div class="x01-remaining' + (pulse ? " pulse" : "") + '">' + p.remainingScore + "</div>" +
+        '<div class="x01-name">' + names + "</div>" +
+        '<div class="x01-remaining' + (pulse ? " pulse" : "") + '">' + g.remainingScore + "</div>" +
         '<div class="tallies">' +
-          '<span class="tally-group">legs' + tallyMarks(p.legsWon, "chalk-tick") + "</span>" +
-          '<span class="tally-group">sets' + tallyMarks(p.setsWon, "brass-pip") + "</span>" +
+          '<span class="tally-group">legs' + tallyMarks(g.legsWon, "chalk-tick") + "</span>" +
+          '<span class="tally-group">sets' + tallyMarks(g.setsWon, "brass-pip") + "</span>" +
         "</div>";
       wrap.appendChild(panel);
     });

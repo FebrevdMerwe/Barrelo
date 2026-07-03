@@ -8,7 +8,11 @@ public static class MatchSessionErrors
         "Match.SessionNotFound",
         $"No active session exists for match '{matchId}'.");
 
-    public static Error BoardNotBound(string boardId) => Error.NotFound(
-        "Match.BoardNotBound",
-        $"No active match is bound to board '{boardId}'.");
+    public static Error NoActiveMatch => Error.NotFound(
+        "Match.NoActiveMatch",
+        "No match is currently active.");
+
+    public static Error MatchAlreadyActive => Error.Conflict(
+        "Match.AlreadyActive",
+        "A match is already in progress. Finish it before starting a new one.");
 }

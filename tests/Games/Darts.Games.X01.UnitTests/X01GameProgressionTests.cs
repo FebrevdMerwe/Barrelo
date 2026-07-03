@@ -25,7 +25,7 @@ public class X01GameProgressionTests
         state.LegNumber.Should().Be(2);
         state.CurrentPlayerId.Should().Be(p2); // leg 2 starts with the other player
         var payload = (X01StatePayload)state.Payload!;
-        payload.Players.Should().OnlyContain(p => p.RemainingScore == 40);
+        payload.Groups.Should().OnlyContain(g => g.RemainingScore == 40);
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public class X01GameProgressionTests
         var state = await game.GetState();
         state.IsComplete.Should().BeTrue();
         state.Status.Should().Be(GameStatus.Complete);
-        state.WinnerPlayerId.Should().Be(p1);
+        state.WinnerPlayerIds.Should().BeEquivalentTo([p1]);
         state.CurrentPlayerId.Should().BeNull();
     }
 

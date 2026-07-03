@@ -4,4 +4,4 @@ using ErrorOr;
 
 namespace Darts.Application.Commands.Detection.UndoLastThrow;
 
-public sealed record UndoLastThrowCommand(string? BoardId) : IRequest<ErrorOr<GameStateSnapshot>>;
+public sealed record UndoLastThrowCommand : IRequest<ErrorOr<GameStateSnapshot>>;

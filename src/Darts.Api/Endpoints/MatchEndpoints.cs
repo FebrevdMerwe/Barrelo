@@ -18,7 +18,7 @@ public static class MatchEndpoints
                 request.GameId,
                 request.PlayerIds,
                 request.Options ?? new Dictionary<string, string>(),
-                request.InputSource);
+                request.PlayerGroups);
 
             var result = await dispatcher.Send(command, ct);
 

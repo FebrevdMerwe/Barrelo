@@ -10,5 +10,5 @@ public sealed record GameStateSnapshot(
     int SetNumber,
     IReadOnlyList<DetectedThrow> RecentThrows,
     bool IsComplete,
-    Guid? WinnerPlayerId,
+    IReadOnlyList<Guid>? WinnerPlayerIds,
     object? Payload);

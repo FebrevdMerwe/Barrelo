@@ -11,8 +11,8 @@ using DomainSource = Darts.Domain.Enums.DetectionSource;
 namespace Darts.Application.Common.GameExecution;
 
 /// <summary>
-/// Shared skeleton behind all three detection commands (throw / end-turn / undo): resolve MatchId from
-/// BoardId, take the per-match lock, run the IGame call, persist the resulting ThrowRecord change, publish
+/// Shared skeleton behind all three detection commands (throw / end-turn / undo): resolve the single
+/// active match, take its lock, run the IGame call, persist the resulting ThrowRecord change, publish
 /// the updated snapshot, and save. Factored out once so this sequence isn't copy-pasted three times.
 /// </summary>
 public sealed class GameCommandExecutor(
@@ -21,8 +21,8 @@ public sealed class GameCommandExecutor(
     IUnitOfWork unitOfWork,
     IDispatcher dispatcher)
 {
-    public Task<ErrorOr<GameStateSnapshot>> RecordThrow(string boardId, DetectedThrow detectedThrow, CancellationToken ct) =>
-        RunLocked(boardId, async (matchId, game, c) =>
+    public Task<ErrorOr<GameStateSnapshot>> RecordThrow(DetectedThrow detectedThrow, CancellationToken ct) =>
+        RunLocked(async (matchId, game, c) =>
         {
             var preState = await game.GetState();
             await game.ReceiveThrow(detectedThrow, c);
@@ -46,24 +46,23 @@ public sealed class GameCommandExecutor(
             }
         }, ct);
 
-    public Task<ErrorOr<GameStateSnapshot>> RecordEndOfTurn(string boardId, CancellationToken ct) =>
-        RunLocked(boardId, (_, game, c) => game.ReceiveEndOfTurn(c), ct);
+    public Task<ErrorOr<GameStateSnapshot>> RecordEndOfTurn(CancellationToken ct) =>
+        RunLocked((_, game, c) => game.ReceiveEndOfTurn(c), ct);
 
-    public Task<ErrorOr<GameStateSnapshot>> Undo(string boardId, CancellationToken ct) =>
-        RunLocked(boardId, async (matchId, game, c) =>
+    public Task<ErrorOr<GameStateSnapshot>> Undo(CancellationToken ct) =>
+        RunLocked(async (matchId, game, c) =>
         {
             await game.UndoLastThrow(c);
             await matchRepository.RemoveLastThrowRecord(matchId, c);
         }, ct);
 
     private async Task<ErrorOr<GameStateSnapshot>> RunLocked(
-        string boardId,
         Func<Guid, IGame, CancellationToken, Task> action,
         CancellationToken ct)
     {
-        var matchId = sessionManager.ResolveMatchForBoard(boardId);
+        var matchId = await sessionManager.TryGetActiveMatchIdAsync();
         if (matchId is null)
-            return MatchSessionErrors.BoardNotBound(boardId);
+            return MatchSessionErrors.NoActiveMatch;
 
         await using var _ = await sessionManager.LockAsync(matchId.Value, ct);
 
@@ -82,6 +81,13 @@ public sealed class GameCommandExecutor(
 
         var state = await game.GetState();
         var stamped = state with { MatchId = matchId.Value };
+
+        if (state.IsComplete)
+        {
+            var match = await matchRepository.GetById(matchId.Value, ct);
+            match?.Complete(state.WinnerPlayerIds ?? []);
+            await sessionManager.EndActiveSessionAsync(matchId.Value);
+        }
 
         await unitOfWork.SaveChangesAsync(ct);
         await dispatcher.Publish(new GameStateChangedEvent(matchId.Value, stamped), ct);

@@ -28,8 +28,8 @@ public sealed class DetectionListenerService(
 
             var result = evt.Type switch
             {
-                DetectionEventType.Throw => await executor.RecordThrow(evt.Throw!.BoardId, evt.Throw, stoppingToken),
-                DetectionEventType.EndOfTurn => await executor.RecordEndOfTurn(evt.BoardId, stoppingToken),
+                DetectionEventType.Throw => await executor.RecordThrow(evt.Throw!, stoppingToken),
+                DetectionEventType.EndOfTurn => await executor.RecordEndOfTurn(stoppingToken),
                 _ => throw new ArgumentOutOfRangeException(nameof(evt), evt.Type, "Unknown detection event type."),
             };
 

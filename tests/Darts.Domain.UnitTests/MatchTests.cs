@@ -13,7 +13,7 @@ public class MatchTests
         var p1 = Guid.NewGuid();
         var p2 = Guid.NewGuid();
 
-        var result = Match.Start("x01", "{}", InputSource.Manual, [p1, p2]);
+        var result = Match.Start("x01", "{}", [p1, p2]);
 
         result.IsError.Should().BeFalse();
         result.Value.Status.Should().Be(MatchStatus.InProgress);
@@ -27,7 +27,7 @@ public class MatchTests
     [Fact]
     public void Start_with_blank_game_id_fails()
     {
-        var result = Match.Start("", "{}", InputSource.Manual, [Guid.NewGuid()]);
+        var result = Match.Start("", "{}", [Guid.NewGuid()]);
 
         result.IsError.Should().BeTrue();
         result.FirstError.Should().Be(MatchErrors.GameIdRequired);
@@ -36,7 +36,7 @@ public class MatchTests
     [Fact]
     public void Start_with_no_participants_fails()
     {
-        var result = Match.Start("x01", "{}", InputSource.Manual, []);
+        var result = Match.Start("x01", "{}", []);
 
         result.IsError.Should().BeTrue();
         result.FirstError.Should().Be(MatchErrors.NoParticipants);
@@ -46,25 +46,60 @@ public class MatchTests
     public void Complete_marks_the_match_completed_with_winner()
     {
         var winner = Guid.NewGuid();
-        var match = Match.Start("x01", "{}", InputSource.Manual, [winner]).Value;
+        var match = Match.Start("x01", "{}", [winner]).Value;
 
-        var result = match.Complete(winner);
+        var result = match.Complete([winner]);
 
         result.IsError.Should().BeFalse();
         match.Status.Should().Be(MatchStatus.Completed);
-        match.WinnerPlayerId.Should().Be(winner);
+        match.WinnerPlayerIds.Should().BeEquivalentTo([winner]);
         match.CompletedAtUtc.Should().NotBeNull();
     }
 
     [Fact]
     public void Complete_twice_fails()
     {
-        var match = Match.Start("x01", "{}", InputSource.Manual, [Guid.NewGuid()]).Value;
-        match.Complete(null);
+        var match = Match.Start("x01", "{}", [Guid.NewGuid()]).Value;
+        match.Complete([]);
 
-        var result = match.Complete(null);
+        var result = match.Complete([]);
 
         result.IsError.Should().BeTrue();
         result.FirstError.Should().Be(MatchErrors.AlreadyCompleted);
+    }
+
+    [Fact]
+    public void Start_with_explicit_groups_records_group_index_per_participant()
+    {
+        var a1 = Guid.NewGuid();
+        var b1 = Guid.NewGuid();
+
+        var result = Match.Start("x01", "{}", [a1, b1], [0, 1]);
+
+        result.IsError.Should().BeFalse();
+        result.Value.Participants[0].GroupIndex.Should().Be(0);
+        result.Value.Participants[1].GroupIndex.Should().Be(1);
+    }
+
+    [Fact]
+    public void Start_without_groups_defaults_each_participant_to_its_own_group()
+    {
+        var p1 = Guid.NewGuid();
+        var p2 = Guid.NewGuid();
+
+        var result = Match.Start("x01", "{}", [p1, p2]);
+
+        result.IsError.Should().BeFalse();
+        result.Value.Participants[0].GroupIndex.Should().Be(0);
+        result.Value.Participants[1].GroupIndex.Should().Be(1);
+    }
+
+    [Fact]
+    public void Start_with_mismatched_group_count_fails()
+    {
+        var result = Match.Start("x01", "{}", [Guid.NewGuid(), Guid.NewGuid()], [0]);
+
+        result.IsError.Should().BeTrue();
+        result.FirstError.Should().Be(MatchErrors.GroupAssignmentMismatch);
     }
 }

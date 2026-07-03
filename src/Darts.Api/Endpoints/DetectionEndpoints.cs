@@ -15,19 +15,19 @@ public static class DetectionEndpoints
 
         group.MapPost("/manual-throw", async (ManualThrowRequest request, IDispatcher dispatcher, CancellationToken ct) =>
         {
-            var result = await dispatcher.Send(new RecordDetectedThrowCommand(request.BoardId, request.Segment, request.Ring), ct);
+            var result = await dispatcher.Send(new RecordDetectedThrowCommand(request.Segment, request.Ring), ct);
             return result.Match(Results.Ok, errors => errors.ToProblem());
         });
 
-        group.MapPost("/manual-end-turn", async (ManualEndTurnRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+        group.MapPost("/manual-end-turn", async (IDispatcher dispatcher, CancellationToken ct) =>
         {
-            var result = await dispatcher.Send(new RecordEndOfTurnCommand(request.BoardId), ct);
+            var result = await dispatcher.Send(new RecordEndOfTurnCommand(), ct);
             return result.Match(Results.Ok, errors => errors.ToProblem());
         });
 
-        group.MapPost("/undo", async (UndoRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+        group.MapPost("/undo", async (IDispatcher dispatcher, CancellationToken ct) =>
         {
-            var result = await dispatcher.Send(new UndoLastThrowCommand(request.BoardId), ct);
+            var result = await dispatcher.Send(new UndoLastThrowCommand(), ct);
             return result.Match(Results.Ok, errors => errors.ToProblem());
         });
     }

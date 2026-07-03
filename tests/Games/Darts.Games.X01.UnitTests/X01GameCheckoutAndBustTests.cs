@@ -14,7 +14,7 @@ public class X01GameCheckoutAndBustTests
         await game.ReceiveThrow(TestThrow.Of(Ring.Triple, 20), CancellationToken.None); // scores 60, overshoots 5
 
         var payload = await game.Payload();
-        payload.Players.Single().RemainingScore.Should().Be(5);
+        payload.Groups.Single().RemainingScore.Should().Be(5);
         payload.CurrentVisitThrows.Should().BeEmpty();
     }
 
@@ -27,7 +27,7 @@ public class X01GameCheckoutAndBustTests
         await game.ReceiveThrow(TestThrow.Of(Ring.Outer, 20), CancellationToken.None); // scores 20, leaves 1
 
         var payload = await game.Payload();
-        payload.Players.Single().RemainingScore.Should().Be(21);
+        payload.Groups.Single().RemainingScore.Should().Be(21);
     }
 
     [Fact]
@@ -39,8 +39,8 @@ public class X01GameCheckoutAndBustTests
         await game.ReceiveThrow(TestThrow.Of(Ring.Double, 20), CancellationToken.None); // D20 = 40
 
         var payload = await game.Payload();
-        payload.Players.Single().RemainingScore.Should().Be(40); // leg reset for the (single) player's next leg
-        payload.Players.Single().LegsWon.Should().Be(1);
+        payload.Groups.Single().RemainingScore.Should().Be(40); // leg reset for the (single) player's next leg
+        payload.Groups.Single().LegsWon.Should().Be(1);
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public class X01GameCheckoutAndBustTests
         await game.ReceiveThrow(TestThrow.Of(Ring.InnerBull), CancellationToken.None); // 50
 
         var payload = await game.Payload();
-        payload.Players.Single().LegsWon.Should().Be(1);
+        payload.Groups.Single().LegsWon.Should().Be(1);
     }
 
     [Fact]
@@ -64,8 +64,8 @@ public class X01GameCheckoutAndBustTests
         await game.ReceiveThrow(TestThrow.Of(Ring.OuterBull), CancellationToken.None); // 25, but not a double
 
         var payload = await game.Payload();
-        payload.Players.Single().RemainingScore.Should().Be(25);
-        payload.Players.Single().LegsWon.Should().Be(0);
+        payload.Groups.Single().RemainingScore.Should().Be(25);
+        payload.Groups.Single().LegsWon.Should().Be(0);
     }
 
     [Fact]
@@ -79,6 +79,6 @@ public class X01GameCheckoutAndBustTests
         await game.ReceiveThrow(TestThrow.Of(Ring.OuterBull), CancellationToken.None); // 25, straight out
 
         var payload = await game.Payload();
-        payload.Players.Single().LegsWon.Should().Be(1);
+        payload.Groups.Single().LegsWon.Should().Be(1);
     }
 }
