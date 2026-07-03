@@ -14,7 +14,13 @@
     <span id="status" class="status-pill">checking&hellip;</span>
   </header>
 
+  <div class="input-tabs">
+    <button id="tabBoard" class="tab active" type="button">Board</button>
+    <button id="tabNumbers" class="tab" type="button">Numbers</button>
+  </div>
+
   <svg id="dartboard" class="dartboard"></svg>
+  <div id="numberPanel" class="number-panel hidden"></div>
 
   <div class="controls">
     <button id="btnMiss">Miss</button>
@@ -26,6 +32,7 @@
 </div>
 
 <script src="dartboard.js"></script>
+<script src="number-panel.js"></script>
 <script>
 (function () {
   "use strict";
@@ -33,6 +40,7 @@
   var statusEl = document.getElementById("status");
   var lastEventEl = document.getElementById("lastEvent");
   var dartboard = window.createDartboard(document.getElementById("dartboard"));
+  var numberPanel = window.createNumberPanel(document.getElementById("numberPanel"));
 
   async function post(url, body) {
     var res = await fetch(url, {
@@ -52,6 +60,35 @@
       lastEventEl.textContent = ok ? "Sent: " + notation : "Failed to send: " + notation;
     });
   });
+
+  numberPanel.onThrow(function (ring, segment) {
+    var notation = window.DartScoring.notationFor(ring, segment);
+    post("/simulate/throw", { segment: segment, ring: ring }).then(function (ok) {
+      lastEventEl.textContent = ok ? "Sent: " + notation : "Failed to send: " + notation;
+    });
+  });
+
+  var tabBoard = document.getElementById("tabBoard");
+  var tabNumbers = document.getElementById("tabNumbers");
+  var dartboardEl = document.getElementById("dartboard");
+  var numberPanelEl = document.getElementById("numberPanel");
+
+  function showBoard() {
+    tabBoard.classList.add("active");
+    tabNumbers.classList.remove("active");
+    dartboardEl.classList.remove("hidden");
+    numberPanelEl.classList.add("hidden");
+  }
+
+  function showNumbers() {
+    tabNumbers.classList.add("active");
+    tabBoard.classList.remove("active");
+    numberPanelEl.classList.remove("hidden");
+    dartboardEl.classList.add("hidden");
+  }
+
+  tabBoard.addEventListener("click", showBoard);
+  tabNumbers.addEventListener("click", showNumbers);
 
   document.getElementById("btnMiss").addEventListener("click", function () {
     post("/simulate/throw", { segment: 0, ring: "Miss" }).then(function (ok) {

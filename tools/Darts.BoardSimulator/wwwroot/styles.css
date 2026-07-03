@@ -60,6 +60,57 @@ body {
 .dartboard .dead { opacity: 0.3; }
 .dartboard .num-ring text { fill: var(--chalk); }
 
+.input-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.tab {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--brass-dim);
+  background: transparent;
+  color: var(--chalk-dim);
+  cursor: pointer;
+  font-family: inherit;
+}
+.tab:hover { border-color: var(--chalk); }
+.tab.active {
+  border-color: var(--board-green);
+  color: var(--chalk);
+}
+
+.number-panel {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.number-row {
+  display: flex;
+  gap: 6px;
+}
+
+.number-row button {
+  flex: 1;
+  padding: 6px 0;
+  border-radius: 8px;
+  border: 1px solid var(--brass-dim);
+  background: transparent;
+  color: var(--chalk);
+  cursor: pointer;
+  font-family: inherit;
+}
+.number-row button:hover { border-color: var(--chalk); }
+
+.number-row .num-single { flex: 2; }
+
+.bull-row {
+  margin-top: 4px;
+}
+
 .controls {
   display: flex;
   gap: 8px;
@@ -83,3 +134,5 @@ body {
   min-height: 1em;
   margin: 0;
 }
+
+.hidden { display: none; }
