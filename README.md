@@ -1,0 +1,381 @@
+<div align="center">
+
+<img src="docs/banner.svg" alt="Barrelo — a platform for interactive dart experiences" width="100%" />
+
+<br/>
+
+![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
+![SignalR](https://img.shields.io/badge/live_updates-SignalR-1c2e29?logo=dotnet&logoColor=white)
+![SQLite](https://img.shields.io/badge/storage-SQLite-2e7d5b?logo=sqlite&logoColor=white)
+![Plugin architecture](https://img.shields.io/badge/games-plugin_architecture-c89b3c)
+![Status](https://img.shields.io/badge/status-v1_in_progress-a5312a)
+
+**A dart platform, not a scoring app.** Detection is decoupled from game rules, and game rules are decoupled
+from the core — so new games (and new detectors) plug in without touching the platform.
+
+[Overview](#overview) · [Quick start](#quick-start) · [Playing without hardware](#playing-without-hardware) ·
+[Configuration](#configuration) · [Adding a game](#adding-a-new-game) ·
+[Adding a detector](#adding-a-new-dart-detector) · [Building a release](#building-a-release) ·
+[Project layout](#project-layout) · [Testing](#testing) · [Roadmap](#roadmap)
+
+</div>
+
+---
+
+## Overview
+
+Barrelo is a self-hosted dart platform built around one idea: **detecting a dart, running a game's rules, and
+showing a scoreboard are three separate concerns.** Any detector (a real board, a hand-drawn dartboard
+clicked in a browser, a mock stream) can drive any game, and any game can be added as a plugin without
+recompiling — or even restarting — the core.
+
+```mermaid
+flowchart LR
+    subgraph Detection["Detection sources (IDetectionSource)"]
+        direction TB
+        Board["Board Simulator<br/>(WebSocket)"]
+        Manual["Manual entry<br/>(REST)"]
+        Future["Real board detector<br/>(future adapter)"]
+    end
+
+    subgraph Core["Barrelo core"]
+        direction TB
+        Listener["DetectionListenerService"]
+        Dispatch["IDispatcher"]
+        Session["GameSessionManager"]
+        Notify["GameHubNotifier"]
+    end
+
+    subgraph Plugins["Game plugins (IGame, loaded from /plugins)"]
+        direction TB
+        X01["X01"]
+        Cricket["Cricket"]
+        NewGame["Your game here"]
+    end
+
+    UI["Browser scoreboard<br/>(SignalR + REST)"]
+
+    Detection --> Listener --> Dispatch --> Session --> Plugins
+    Plugins --> Dispatch --> Notify --> UI
+    UI -.manual throw / undo.-> Dispatch
+```
+
+**Core principles** (see [`SCOPE.md`](SCOPE.md) for the full vision):
+
+- **Modular** — a game is a DLL dropped in `plugins/`, resolved at runtime. Adding one never means changing
+  the core.
+- **Detector-agnostic** — every detector, real or simulated, speaks the same `IDetectionSource` contract.
+- **Fast & live** — every throw pushes an updated scoreboard over SignalR; no polling, no page refresh.
+- **Hardware-optional** — a full match is playable from a browser with no board at all, via a virtual
+  dartboard or the standalone Board Simulator.
+
+## Features
+
+- 🎯 **Plugin-based games** — ships with **X01** (301/501/701, double-out) and **Cricket** today; see
+  [Adding a new game](#adding-a-new-game) to add your own.
+- 🖱️ **Play with zero hardware** — click a virtual SVG dartboard, or drive throws through the standalone
+  **Board Simulator** tool over WebSocket.
+- ⚡ **Live scoreboard** — every throw, undo, and turn change is pushed to every connected browser instantly
+  via SignalR.
+- 👥 **Roster & teams** — a drag-and-drop chalkboard for sorting players into teams/spectators, permanent
+  players (persisted) and session-only "chalked" players (memory-only, gone when the process restarts).
+  Deleted players can be undone within a few seconds.
+  <!-- <img src="docs/screenshot-start.png" width="720" alt="Start-match chalkboard screenshot"> -->
+- 🏆 **Session leaderboard** — every completed match awards placement points; a running leaderboard is shown
+  in the win banner and can be reset per session.
+  <!-- <img src="docs/screenshot-match.png" width="720" alt="Live match screenshot"> -->
+- 🔌 **Dynamic plugin loading** — game DLLs load into a collectible `AssemblyLoadContext` at startup; delete
+  or rebuild a plugin independently and the host picks it up without a solution-wide rebuild.
+- 🗄️ **Local-first** — SQLite, no external services, no accounts, no cloud. Runs entirely on one machine next
+  to the board.
+
+> Screenshots aren't checked in yet — run the app locally (see [Quick start](#quick-start)) to see the
+> chalkboard start screen and live scoreboard for yourself, or drop your own into `docs/` and update the
+> `<img>` tags above.
+
+## Quick start
+
+### Prerequisites
+
+- [.NET 10 SDK](https://dotnet.microsoft.com/download) (this repo targets `net10.0`; check with `dotnet --version`)
+- Any editor — Visual Studio, Rider, or VS Code with the C# extension. The solution file is `Barrelo.slnx`.
+- No database server, no Node/npm, no external services required.
+
+### Clone, build, run
+
+```bash
+git clone <this-repo-url>
+cd Barrelo
+
+# restore + build everything (core, plugins, tools, tests)
+dotnet build Barrelo.slnx
+
+# run the API — applies EF Core migrations automatically on startup
+dotnet run --project src/Barrelo.Api
+```
+
+The API starts at **http://localhost:5295** (see
+[`src/Barrelo.Api/Properties/launchSettings.json`](src/Barrelo.Api/Properties/launchSettings.json)) and serves
+the web UI itself — open that URL in a browser to reach the chalkboard start screen. In `Development`, an
+OpenAPI/Scalar reference is also available at `/scalar`.
+
+Every `dotnet build` of the solution copies each game plugin's compiled DLL and `ui/` assets into
+`src/Barrelo.Api/plugins/{gameId}/` automatically (see [`Directory.Build.targets`](src/Games/Directory.Build.targets)) —
+there's no separate "install a plugin" step for the games that ship in this repo.
+
+## Playing without hardware
+
+Barrelo is designed to be fully playable with no physical dartboard, in two ways:
+
+1. **Manual entry (always on).** The start screen's virtual SVG dartboard
+   ([`wwwroot/dartboard.js`](src/Barrelo.Api/wwwroot/dartboard.js)) posts every click to
+   `POST /api/detection/manual-throw`, independent of whichever streaming detector is configured. This is a
+   first-class way to play, not a fallback.
+2. **Board Simulator (`tools/Barrelo.BoardSimulator`).** A standalone, dependency-free app that stands in for
+   a real detector behind the exact same `IDetectionSource` contract a real board adapter would use. Run it
+   alongside the API to drive throws over the same WebSocket path a hardware detector eventually will:
+
+   ```bash
+   # terminal 1 — the simulator (defaults to http://localhost:5250)
+   dotnet run --project tools/Barrelo.BoardSimulator
+
+   # terminal 2 — the API, configured to consume it (see Configuration below)
+   dotnet run --project src/Barrelo.Api
+   ```
+
+   With `Detection:Mode` set to `Simulator` (the shipped default in
+   [`appsettings.json`](src/Barrelo.Api/appsettings.json)), throws made in the simulator's own browser tab
+   appear live on any match bound to the simulator board.
+
+## Configuration
+
+All configuration lives in [`src/Barrelo.Api/appsettings.json`](src/Barrelo.Api/appsettings.json) (and the
+`.Development.json` override), following standard ASP.NET Core conventions — override any key with an
+environment variable (`Detection__Mode=Mock`) or `appsettings.Production.json` for a real deployment.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `ConnectionStrings:BarreloDb` | `Data Source=barrelo.db` | SQLite connection string. |
+| `Plugins:Directory` | `plugins` | Folder (relative to the Api's working directory) scanned for game plugin DLLs on startup. |
+| `Detection:Mode` | `Simulator` | Which streaming `IDetectionSource` to run: `Simulator` (Board Simulator over WebSocket) or `Mock` (in-process, driven only by tests/code). Manual REST entry works regardless of this setting. |
+| `Detection:Simulator:Url` | `ws://localhost:5250/stream` | WebSocket endpoint of a running `Barrelo.BoardSimulator` instance. |
+
+## Adding a new game
+
+A game plugin is a small class library that references **only** [`Barrelo.GameSdk`](src/Barrelo.GameSdk) —
+never `Barrelo.Domain`, `Barrelo.Application`, or `Barrelo.Api`. That one-way boundary is what makes "add a
+game" not require touching the core; `Barrelo.Games.X01` and `Barrelo.Games.Cricket` are the two reference
+implementations to copy from.
+
+1. **Create the project** under `src/Games/`, e.g. `src/Games/Barrelo.Games.YourGame/`, referencing only
+   `Barrelo.GameSdk` and setting `<GameId>` — this is the only MSBuild wiring a new game needs:
+
+   ```xml
+   <Project Sdk="Microsoft.NET.Sdk">
+     <ItemGroup>
+       <ProjectReference Include="..\..\Barrelo.GameSdk\Barrelo.GameSdk.csproj" />
+     </ItemGroup>
+     <PropertyGroup>
+       <TargetFramework>net10.0</TargetFramework>
+       <ImplicitUsings>enable</ImplicitUsings>
+       <Nullable>enable</Nullable>
+       <GameId>yourgame</GameId>
+     </PropertyGroup>
+   </Project>
+   ```
+
+   The shared [`Directory.Build.targets`](src/Games/Directory.Build.targets) picks up `<GameId>` and copies
+   the built DLL (plus an optional `ui/` folder) into `Barrelo.Api/plugins/{GameId}/` after every build.
+
+2. **Implement `IGameFactory`** — describes the game to the catalog and creates instances:
+
+   ```csharp
+   public sealed class YourGameFactory : IGameFactory
+   {
+       public const string GameId = "yourgame";
+
+       public GameDescriptor Describe() => new(
+           GameId,
+           "Your Game",
+           "One-line description shown on the start screen.",
+           new GameSettingDefinition[]
+           {
+               // Optional: a GameModeSetting (radio choices merged into GameSetup.Options)
+               // and/or a PlayerGroupSetting (declares fixed team buckets, e.g. teams of up to 4).
+           });
+
+       public Task<IGame> Create(GameSetup setup, CancellationToken ct)
+       {
+           if (setup.PlayerIds.Count == 0)
+               throw new GameRuleViolationException("Your game requires at least one player.");
+
+           return Task.FromResult<IGame>(new YourGame(setup.PlayerIds));
+       }
+   }
+   ```
+
+3. **Implement `IGame`** — the rules engine. It's **pull-based**: the host calls in
+   (`ReceiveThrow`/`ReceiveEndOfTurn`/`UndoLastThrow`) and pulls state out (`GetState`/`GetResult`); a plugin
+   never raises callbacks into host code, which is what keeps it safely unloadable from its
+   `AssemblyLoadContext`.
+
+   ```csharp
+   public interface IGame
+   {
+       Task ReceiveThrow(DetectedThrow detectedThrow, CancellationToken ct);
+       Task ReceiveEndOfTurn(CancellationToken ct);
+       Task UndoLastThrow(CancellationToken ct);
+       Task<GameStateSnapshot> GetState();
+       bool IsComplete { get; }
+       Task<GameResult> GetResult();
+   }
+   ```
+
+   Put whatever your game needs to track (remaining score, marks hit, target progression...) into
+   `GameStateSnapshot.Payload` — the envelope itself (`MatchId`, `Status`, `CurrentPlayerId`, `LegNumber`,
+   `SetNumber`, `RecentThrows`, `IsComplete`, `WinnerPlayerIds`) is deliberately game-agnostic and must stay
+   that way. Throw malformed input as `GameRuleViolationException`; the host turns it into a `400` response,
+   never a crash.
+
+4. **Ship a board UI.** Drop a `ui/render.js` next to your game's `.csproj` defining
+   `window.renderGameBoard(container, snapshot)` — it's called on every state push with the `#game-board`
+   element and the parsed `GameStateSnapshot`, and is what actually draws your game's scores/targets/board
+   state. It's technically optional: if `render.js` is missing, `scoreboard.js` falls back to a raw
+   key/value dump of `Payload` so the match is never unplayable, but that fallback is a debugging aid, not a
+   real UI — ship a `render.js` for anything you want players to actually look at.
+
+5. **Deploy it.** A game plugin doesn't need to live in this solution at all — `Barrelo.Games.X01` and
+   `Barrelo.Games.Cricket` are only wired into `Barrelo.slnx`/`Barrelo.Api.csproj` because they ship as the
+   built-in reference games. For any other game, just build your project and copy the output DLL, `render.js`,
+   and `style.css` (if any) into `plugins/{gameId}/` next to the running Api:
+
+   ```
+   src/Barrelo.Api/plugins/
+     yourgame/
+       Barrelo.Games.YourGame.dll
+       render.js      (optional)
+       style.css      (optional)
+   ```
+
+   The plugin loader picks it up from there on the next Api startup, and the game appears in the start
+   screen's game picker via `GET /api/games` with no core changes and no rebuild of the solution.
+
+## Adding a new dart detector
+
+Every detector — a real board, the Board Simulator, manual entry — is just another implementation of
+`IDetectionSource` in `Barrelo.Application`:
+
+```csharp
+public interface IDetectionSource
+{
+    IAsyncEnumerable<DetectionEvent> EventsAsync(CancellationToken ct);
+    Task<bool> IsConnectedAsync();
+}
+```
+
+1. **Implement the interface** under `src/Barrelo.Infrastructure/External/Detection/`, using
+   [`BoardSimulatorDetectionSource.cs`](src/Barrelo.Infrastructure/External/Detection/BoardSimulatorDetectionSource.cs)
+   as the template — connect however your hardware/API talks (WebSocket, HTTP polling, a native SDK), map
+   every incoming event onto the canonical, detector-agnostic `DetectedThrow`:
+
+   ```csharp
+   public sealed record DetectedThrow(
+       Guid ThrowId, int Segment, Ring Ring, int Score, string RawNotation,
+       BoardPosition Position, double? Confidence, string BoardId, int? CameraIndex,
+       DateTimeOffset DetectedAtUtc, DetectionSourceType Source);
+   ```
+
+   Yield a `DetectionEvent` of type `Throw` (carrying the mapped `DetectedThrow`) or `EndOfTurn` for whatever
+   your source uses as a turn-boundary signal. `DartScoring.Score(ring, segment)` and
+   `BoardGeometry.CenterOf(segment, ring)` in `Barrelo.GameSdk` are available if your source doesn't already
+   provide a computed score or a click position.
+
+2. **Wire reconnect/backoff** if the source is a persistent connection — `BoardSimulatorDetectionSource`'s
+   exponential-backoff reconnect loop is the pattern to reuse.
+
+3. **Register it behind the `Detection:Mode` switch** in
+   [`DependencyInjection.cs`](src/Barrelo.Infrastructure/DependencyInjection.cs):
+
+   ```csharp
+   else if (string.Equals(detectionMode, "YourDetector", StringComparison.OrdinalIgnoreCase))
+   {
+       services.AddSingleton<IDetectionSource>(sp => new YourDetectorDetectionSource(/* ... */));
+   }
+   ```
+
+4. **Set `Detection:Mode`** to your new value in `appsettings.json` (or an environment-specific override) to
+   switch the running `DetectionListenerService` over to it. No changes to any game plugin, endpoint, or UI
+   code are needed — the whole platform only ever depends on the `IDetectionSource` abstraction.
+
+## Building a release
+
+```bash
+# self-contained, single-machine deployment (adjust the RID for your target device, e.g. linux-arm64 for a Pi)
+dotnet publish src/Barrelo.Api/Barrelo.Api.csproj \
+  -c Release \
+  -r win-x64 \
+  --self-contained true \
+  -o ./publish
+```
+
+- `dotnet publish` builds every referenced game plugin first (via the build-order-only project references)
+  and the `Directory.Build.targets` copy step lands each one in `plugins/{gameId}/` inside the publish
+  output — no manual plugin packaging step.
+- The app migrates the SQLite database automatically on startup; no separate migration step is needed for a
+  fresh deployment.
+- Point `Detection:Mode`/`Detection:Simulator:Url` at your target environment via
+  `appsettings.Production.json` or environment variables before shipping.
+- Run the published `Barrelo.Api` executable (or `dotnet Barrelo.Api.dll` for a framework-dependent publish)
+  on the device that sits next to the board — see [Configuration](#configuration) for what to change first.
+
+## Project layout
+
+```
+src/
+  Barrelo.Domain              domain entities/value objects — no dependency on GameSdk
+  Barrelo.Application         commands/queries, in-house dispatcher, IDetectionSource/IGameCatalog contracts
+  Barrelo.Infrastructure       EF Core (SQLite), plugin loader (ALC), detection sources, SignalR notifier plumbing
+  Barrelo.Api                 minimal-API endpoints, SignalR hub, static wwwroot UI, plugin static-asset hosting
+  Barrelo.GameSdk              dependency-free plugin contracts — the entire boundary a game plugin sees
+  Games/
+    Barrelo.Games.X01          reference game: classic 301/501/701
+    Barrelo.Games.Cricket       reference game: standard Cricket
+tests/
+  Barrelo.*.UnitTests / .IntegrationTests   one per src/ project, plus tests/Games/* per game plugin
+tools/
+  Barrelo.BoardSimulator       standalone, zero-Barrelo-dependency stand-in for a real detector
+diagrams/                     architecture diagrams (Mermaid)
+docs/                         README assets
+```
+
+See [`PLAN.md`](PLAN.md) for the full architectural rationale (why an in-house dispatcher instead of MediatR,
+why plugins load via a collectible `AssemblyLoadContext`, the detection-source design history, etc.) and
+[`SCOPE.md`](SCOPE.md) for the long-term product vision this v1 is scoped down from.
+
+## Testing
+
+```bash
+dotnet test Barrelo.slnx
+```
+
+Test projects mirror the solution layout 1:1 — `Barrelo.Domain.UnitTests`, `Barrelo.Application.UnitTests`,
+`Barrelo.GameSdk.UnitTests`, `Barrelo.Infrastructure.IntegrationTests`, `Barrelo.Api.IntegrationTests`, and
+`tests/Games/Barrelo.Games.X01.UnitTests` / `Barrelo.Games.Cricket.UnitTests` for the rules engines. The
+integration tests script full matches end-to-end (mock stream and pure manual entry) through the real
+dispatcher/plugin-loader stack — the primary correctness gate before any UI change.
+
+## Roadmap
+
+Tracked in detail in [`TASKS.md`](TASKS.md) against the phases in [`PLAN.md`](PLAN.md):
+
+- [x] Phase 0–2 — scaffold, GameSdk + X01/Cricket plugins, SQLite persistence, web UI + SignalR, virtual
+      dartboard, roster management, session leaderboard
+- [ ] Phase 3 — a real hardware detector adapter behind `IDetectionSource` (replacing/joining the Board
+      Simulator)
+- [ ] Phase 4 — hardening: connection-state UI, reconnect resilience, deployment profiles, startup scripting
+- [ ] Phase 5 (stretch) — a third game plugin with a structurally different custom board UI, proving the
+      per-game rendering extension point end-to-end
+
+## License
+
+No license file has been added yet — until one is, all rights are reserved by the project author.
