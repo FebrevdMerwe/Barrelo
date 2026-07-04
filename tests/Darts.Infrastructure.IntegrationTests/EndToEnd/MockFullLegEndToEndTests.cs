@@ -9,6 +9,7 @@ using Darts.GameSdk;
 using Darts.Games.X01;
 using Darts.Infrastructure.External.GamePlugins;
 using Darts.Infrastructure.External.Notifications;
+using Darts.Infrastructure.External.Sessions;
 using Darts.Infrastructure.Persistence;
 using Darts.Infrastructure.Persistence.Repositories;
 using ErrorOr;
@@ -19,15 +20,14 @@ namespace Darts.Infrastructure.IntegrationTests.EndToEnd;
 
 /// <summary>
 /// TASKS.md's primary Phase-1 correctness gate: a full mock 501 leg driven entirely through the real
-/// dispatcher/commands, a real SQLite-backed match repository, and the real X01 rules engine (referenced
+/// dispatcher/commands, real SQLite-backed permanent players, and the real X01 rules engine (referenced
 /// directly here for speed/determinism — ALC-loaded plugin mechanics are covered separately by
-/// PluginGameLoaderTests). Asserts the final GameStateSnapshot and the persisted ThrowRecords.
+/// PluginGameLoaderTests). Asserts the final GameStateSnapshot reaches a winner.
 /// </summary>
 public class MockFullLegEndToEndTests : IAsyncLifetime
 {
     private readonly SqliteTestDatabase _database = new();
     private IDispatcher _dispatcher = null!;
-    private IMatchRepository _matchRepository = null!;
     private Guid _p1;
     private Guid _p2;
 
@@ -41,15 +41,14 @@ public class MockFullLegEndToEndTests : IAsyncLifetime
         services.AddDartsDispatcher();
         services.AddSingleton(context);
         services.AddSingleton<IPlayerRepository, PlayerRepository>();
-        services.AddSingleton<IMatchRepository, MatchRepository>();
         services.AddSingleton<IUnitOfWork, UnitOfWork>();
         services.AddSingleton<IGameSessionManager, GameSessionManager>();
+        services.AddSingleton<ISessionPlayerStore, SessionPlayerStore>();
         services.AddSingleton<IGameCatalog>(new GameCatalog([new X01GameFactory()]));
         services.AddSingleton<IGameNotifier, NullGameNotifier>();
 
         var provider = services.BuildServiceProvider();
         _dispatcher = provider.GetRequiredService<IDispatcher>();
-        _matchRepository = provider.GetRequiredService<IMatchRepository>();
 
         var playerRepository = provider.GetRequiredService<IPlayerRepository>();
         var p1 = Player.Create("P1").Value;
@@ -64,7 +63,7 @@ public class MockFullLegEndToEndTests : IAsyncLifetime
     public Task DisposeAsync() => _database.DisposeAsync();
 
     [Fact]
-    public async Task Full_mock_501_leg_persists_every_throw_and_reaches_a_winner()
+    public async Task Full_mock_501_leg_reaches_a_winner()
     {
         var startResult = await _dispatcher.Send(
             new StartMatchCommand(
@@ -113,14 +112,7 @@ public class MockFullLegEndToEndTests : IAsyncLifetime
         finalState.IsComplete.Should().BeTrue();
         finalState.WinnerPlayerIds.Should().BeEquivalentTo([_p1]);
         finalState.Status.Should().Be(GameStatus.Complete);
-
-        var records = await _matchRepository.GetThrowRecords(matchId, CancellationToken.None);
-        records.Should().HaveCount(19); // 10 darts for P1 (3+3+3+1) + 9 for P2 (3+3+3)
-        records.Select(r => r.Sequence).Should().Equal(Enumerable.Range(1, 19));
-        records.Last().RawNotation.Should().Be("D10");
-        records.Last().PlayerId.Should().Be(_p1);
-        records.Where(r => r.PlayerId == _p1).Should().HaveCount(10);
-        records.Where(r => r.PlayerId == _p2).Should().HaveCount(9);
+        finalState.MatchId.Should().Be(matchId);
 
         async Task<GameStateSnapshot> Throw(int segment, Ring ring)
         {

@@ -7,10 +7,6 @@ public sealed class DartsDbContext(DbContextOptions<DartsDbContext> options) : D
 {
     public DbSet<Player> Players => Set<Player>();
 
-    public DbSet<Match> Matches => Set<Match>();
-
-    public DbSet<ThrowRecord> ThrowRecords => Set<ThrowRecord>();
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(DartsDbContext).Assembly);

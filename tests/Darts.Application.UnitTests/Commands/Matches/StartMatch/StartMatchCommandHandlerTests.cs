@@ -5,7 +5,6 @@ using Darts.GameSdk;
 using ErrorOr;
 using FluentAssertions;
 using Moq;
-using DomainMatch = Darts.Domain.Entities.Match;
 using Player = Darts.Domain.Entities.Player;
 
 namespace Darts.Application.UnitTests.Commands.Matches.StartMatch;
@@ -14,8 +13,7 @@ public class StartMatchCommandHandlerTests
 {
     private readonly Mock<IGameCatalog> _catalog = new();
     private readonly Mock<IPlayerRepository> _playerRepository = new();
-    private readonly Mock<IMatchRepository> _matchRepository = new();
-    private readonly Mock<IUnitOfWork> _unitOfWork = new();
+    private readonly Mock<ISessionPlayerStore> _sessionPlayerStore = new();
     private readonly Mock<IGameSessionManager> _sessionManager = new();
     private readonly Mock<IGameFactory> _factory = new();
     private readonly Mock<IGame> _game = new();
@@ -23,8 +21,7 @@ public class StartMatchCommandHandlerTests
     private StartMatchCommandHandler CreateHandler() => new(
         _catalog.Object,
         _playerRepository.Object,
-        _matchRepository.Object,
-        _unitOfWork.Object,
+        _sessionPlayerStore.Object,
         _sessionManager.Object,
         new StartMatchCommandValidator(_catalog.Object));
 
@@ -34,16 +31,16 @@ public class StartMatchCommandHandlerTests
         _factory.Setup(f => f.Describe()).Returns(new GameDescriptor("x01", "x01", "test", []));
         _playerRepository
             .Setup(r => r.GetByIds(playerIds, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(playerIds.Select(id => Player.Create("P").Value).ToList());
+            .ReturnsAsync(playerIds.Select(id => Player.Restore(id, "P", DateTimeOffset.UtcNow)).ToList());
+        _sessionPlayerStore.Setup(s => s.GetAllSessionPlayers()).Returns([]);
         _factory.Setup(f => f.Create(It.IsAny<GameSetup>(), It.IsAny<CancellationToken>())).ReturnsAsync(_game.Object);
         _game.Setup(g => g.GetState()).ReturnsAsync(new GameStateSnapshot(
             Guid.Empty, "x01", GameStatus.InProgress, playerIds[0], 1, 1, [], false, null, null));
-        _unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         _sessionManager.Setup(s => s.TryStartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>())).ReturnsAsync(true);
     }
 
     [Fact]
-    public async Task Happy_path_creates_match_and_starts_the_session()
+    public async Task Happy_path_starts_the_session()
     {
         var playerIds = new List<Guid> { Guid.NewGuid(), Guid.NewGuid() };
         SetUpHappyPath(playerIds);
@@ -53,12 +50,11 @@ public class StartMatchCommandHandlerTests
 
         result.IsError.Should().BeFalse();
         result.Value.InitialState.MatchId.Should().Be(result.Value.MatchId);
-        _matchRepository.Verify(r => r.Add(It.IsAny<DomainMatch>(), It.IsAny<CancellationToken>()), Times.Once);
         _sessionManager.Verify(s => s.TryStartSessionAsync(result.Value.MatchId, _game.Object), Times.Once);
     }
 
     [Fact]
-    public async Task Match_already_active_returns_conflict_without_creating_a_new_match()
+    public async Task Match_already_active_returns_conflict_without_starting_a_new_session()
     {
         var playerIds = new List<Guid> { Guid.NewGuid() };
         SetUpHappyPath(playerIds);
@@ -69,11 +65,11 @@ public class StartMatchCommandHandlerTests
 
         result.IsError.Should().BeTrue();
         result.FirstError.Code.Should().Be("Match.AlreadyActive");
-        _matchRepository.Verify(r => r.Add(It.IsAny<DomainMatch>(), It.IsAny<CancellationToken>()), Times.Never);
+        _sessionManager.Verify(s => s.TryStartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>()), Times.Never);
     }
 
     [Fact]
-    public async Task Losing_the_session_start_race_returns_conflict_without_persisting_the_match()
+    public async Task Losing_the_session_start_race_returns_conflict()
     {
         var playerIds = new List<Guid> { Guid.NewGuid(), Guid.NewGuid() };
         SetUpHappyPath(playerIds);
@@ -84,7 +80,6 @@ public class StartMatchCommandHandlerTests
 
         result.IsError.Should().BeTrue();
         result.FirstError.Code.Should().Be("Match.AlreadyActive");
-        _matchRepository.Verify(r => r.Add(It.IsAny<DomainMatch>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -96,7 +91,7 @@ public class StartMatchCommandHandlerTests
         var result = await CreateHandler().Handle(command, CancellationToken.None);
 
         result.IsError.Should().BeTrue();
-        _matchRepository.Verify(r => r.Add(It.IsAny<DomainMatch>(), It.IsAny<CancellationToken>()), Times.Never);
+        _sessionManager.Verify(s => s.TryStartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>()), Times.Never);
     }
 
     [Fact]
@@ -108,6 +103,7 @@ public class StartMatchCommandHandlerTests
         _playerRepository
             .Setup(r => r.GetByIds(playerIds, It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
+        _sessionPlayerStore.Setup(s => s.GetAllSessionPlayers()).Returns([]);
         var command = new StartMatchCommand("x01", playerIds, new Dictionary<string, string>());
 
         var result = await CreateHandler().Handle(command, CancellationToken.None);
@@ -117,7 +113,30 @@ public class StartMatchCommandHandlerTests
     }
 
     [Fact]
-    public async Task Grouped_happy_path_persists_group_indexes_and_passes_them_to_the_plugin()
+    public async Task Session_scoped_player_id_is_accepted_as_a_valid_participant()
+    {
+        var permanentId = Guid.NewGuid();
+        var sessionPlayer = Player.Create("Session Sam").Value;
+        var playerIds = new List<Guid> { permanentId, sessionPlayer.Id };
+        _catalog.Setup(c => c.Resolve("x01")).Returns(ErrorOrFactory.From(_factory.Object));
+        _factory.Setup(f => f.Describe()).Returns(new GameDescriptor("x01", "x01", "test", []));
+        _playerRepository
+            .Setup(r => r.GetByIds(playerIds, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([Player.Restore(permanentId, "Permanent Pat", DateTimeOffset.UtcNow)]);
+        _sessionPlayerStore.Setup(s => s.GetAllSessionPlayers()).Returns([sessionPlayer]);
+        _factory.Setup(f => f.Create(It.IsAny<GameSetup>(), It.IsAny<CancellationToken>())).ReturnsAsync(_game.Object);
+        _game.Setup(g => g.GetState()).ReturnsAsync(new GameStateSnapshot(
+            Guid.Empty, "x01", GameStatus.InProgress, playerIds[0], 1, 1, [], false, null, null));
+        _sessionManager.Setup(s => s.TryStartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>())).ReturnsAsync(true);
+        var command = new StartMatchCommand("x01", playerIds, new Dictionary<string, string>());
+
+        var result = await CreateHandler().Handle(command, CancellationToken.None);
+
+        result.IsError.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Grouped_happy_path_passes_group_indexes_to_the_plugin()
     {
         var a1 = Guid.NewGuid();
         var b1 = Guid.NewGuid();
@@ -131,9 +150,6 @@ public class StartMatchCommandHandlerTests
         var result = await CreateHandler().Handle(command, CancellationToken.None);
 
         result.IsError.Should().BeFalse();
-        _matchRepository.Verify(r => r.Add(
-            It.Is<DomainMatch>(m => m.Participants[0].GroupIndex == 0 && m.Participants[1].GroupIndex == 1),
-            It.IsAny<CancellationToken>()), Times.Once);
         _factory.Verify(f => f.Create(
             It.Is<GameSetup>(s => s.PlayerGroups![a1] == 0 && s.PlayerGroups![b1] == 1),
             It.IsAny<CancellationToken>()), Times.Once);
@@ -154,7 +170,7 @@ public class StartMatchCommandHandlerTests
         var result = await CreateHandler().Handle(command, CancellationToken.None);
 
         result.IsError.Should().BeTrue();
-        _matchRepository.Verify(r => r.Add(It.IsAny<DomainMatch>(), It.IsAny<CancellationToken>()), Times.Never);
+        _sessionManager.Verify(s => s.TryStartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>()), Times.Never);
     }
 
     [Fact]

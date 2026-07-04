@@ -6,7 +6,7 @@ namespace Darts.Api.IntegrationTests;
 
 internal static class PlayerSeeding
 {
-    /// <summary>No player-creation endpoint exists yet (Phase 2 scope) — tests seed directly via the repository.</summary>
+    /// <summary>Seeds permanent players directly via the repository, bypassing the HTTP API for test setup speed.</summary>
     public static async Task<List<Guid>> SeedPlayers(this DartsApiFactory factory, params string[] names)
     {
         using var scope = factory.Services.CreateScope();

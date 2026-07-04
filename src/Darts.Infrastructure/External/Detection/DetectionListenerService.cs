@@ -10,7 +10,7 @@ namespace Darts.Infrastructure.External.Detection;
 
 /// <summary>
 /// The sole consumer of the active IDetectionSource's event stream. GameCommandExecutor is scoped
-/// (it depends on IMatchRepository/IUnitOfWork), so a fresh scope is opened per event — throws are
+/// (it depends on the scoped IDispatcher), so a fresh scope is opened per event — throws are
 /// human-paced, so per-event scoping is simple and cheap enough.
 /// </summary>
 public sealed class DetectionListenerService(

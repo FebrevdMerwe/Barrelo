@@ -26,4 +26,12 @@ public sealed class Player : Entity<Guid>
             CreatedAtUtc = DateTimeOffset.UtcNow,
         };
     }
+
+    /// <summary>Reconstructs a previously-created player under its original id, e.g. to undo an erase.</summary>
+    public static Player Restore(Guid id, string name, DateTimeOffset createdAtUtc) => new()
+    {
+        Id = id,
+        Name = name,
+        CreatedAtUtc = createdAtUtc,
+    };
 }

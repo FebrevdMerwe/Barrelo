@@ -8,6 +8,8 @@ public sealed class PlayerRepository(DartsDbContext context) : IPlayerRepository
 {
     public async Task Add(Player player, CancellationToken ct) => await context.Players.AddAsync(player, ct);
 
+    public void Remove(Player player) => context.Players.Remove(player);
+
     public Task<Player?> GetById(Guid id, CancellationToken ct) =>
         context.Players.FirstOrDefaultAsync(p => p.Id == id, ct);
 

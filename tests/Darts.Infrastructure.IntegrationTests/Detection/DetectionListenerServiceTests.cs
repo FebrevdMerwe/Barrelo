@@ -10,6 +10,7 @@ using Darts.Games.X01;
 using Darts.Infrastructure.External.Detection;
 using Darts.Infrastructure.External.GamePlugins;
 using Darts.Infrastructure.External.Notifications;
+using Darts.Infrastructure.External.Sessions;
 using Darts.Infrastructure.Persistence;
 using Darts.Infrastructure.Persistence.Repositories;
 using FluentAssertions;
@@ -27,7 +28,6 @@ public class DetectionListenerServiceTests : IAsyncLifetime
 {
     private readonly SqliteTestDatabase _database = new();
     private IDispatcher _dispatcher = null!;
-    private IMatchRepository _matchRepository = null!;
     private IGameSessionManager _sessionManager = null!;
     private MockDetectionSource _detectionSource = null!;
     private DetectionListenerService _listener = null!;
@@ -44,9 +44,9 @@ public class DetectionListenerServiceTests : IAsyncLifetime
         services.AddDartsDispatcher();
         services.AddSingleton(context);
         services.AddSingleton<IPlayerRepository, PlayerRepository>();
-        services.AddSingleton<IMatchRepository, MatchRepository>();
         services.AddSingleton<IUnitOfWork, UnitOfWork>();
         services.AddSingleton<IGameSessionManager, GameSessionManager>();
+        services.AddSingleton<ISessionPlayerStore, SessionPlayerStore>();
         services.AddSingleton<IGameCatalog>(new GameCatalog([new X01GameFactory()]));
         services.AddSingleton<IGameNotifier, NullGameNotifier>();
 
@@ -55,7 +55,6 @@ public class DetectionListenerServiceTests : IAsyncLifetime
 
         var provider = services.BuildServiceProvider();
         _dispatcher = provider.GetRequiredService<IDispatcher>();
-        _matchRepository = provider.GetRequiredService<IMatchRepository>();
         _sessionManager = provider.GetRequiredService<IGameSessionManager>();
 
         var playerRepository = provider.GetRequiredService<IPlayerRepository>();
@@ -108,13 +107,17 @@ public class DetectionListenerServiceTests : IAsyncLifetime
 
         _detectionSource.SimulateThrow(detectedThrow);
 
-        await WaitUntil(async () => (await _matchRepository.GetThrowRecords(matchId, CancellationToken.None)).Count == 1);
+        await WaitUntil(async () =>
+        {
+            var game = await _sessionManager.TryGetAsync(matchId);
+            var state = await game!.GetState();
+            return state.RecentThrows.Count == 1;
+        });
 
-        var records = await _matchRepository.GetThrowRecords(matchId, CancellationToken.None);
-        records.Should().ContainSingle();
-        records[0].RawNotation.Should().Be("T20");
-        records[0].Score.Should().Be(60);
-        records[0].PlayerId.Should().Be(_p1);
+        var recordedState = await (await _sessionManager.TryGetAsync(matchId))!.GetState();
+        recordedState.RecentThrows.Should().ContainSingle();
+        recordedState.RecentThrows[0].RawNotation.Should().Be("T20");
+        recordedState.RecentThrows[0].Score.Should().Be(60);
 
         _detectionSource.SimulateEndOfTurn(WellKnownBoardIds.Manual);
 

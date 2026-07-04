@@ -188,7 +188,7 @@
     post("/api/detection/manual-end-turn", {}).then(function (s) { if (s) render(s); });
   });
   document.getElementById("btnRack").addEventListener("click", function () {
-    window.location.href = "index.html";
+    window.location.href = "index.html?fromMatch=1";
   });
   drawerPeek.addEventListener("click", function () { setDrawerOpen(true); });
   btnCollapseDrawer.addEventListener("click", function () { setDrawerOpen(false); });

@@ -1,60 +1,29 @@
 using Darts.Application.Common.Dispatch;
 using Darts.Application.Common.Errors;
-using Darts.Application.Common.Interfaces.Persistence;
 using Darts.Application.Common.Interfaces.Services;
 using Darts.Application.Common.Notifications;
 using Darts.GameSdk;
 using ErrorOr;
-using DomainRing = Darts.Domain.Enums.Ring;
-using DomainSource = Darts.Domain.Enums.DetectionSource;
 
 namespace Darts.Application.Common.GameExecution;
 
 /// <summary>
 /// Shared skeleton behind all three detection commands (throw / end-turn / undo): resolve the single
-/// active match, take its lock, run the IGame call, persist the resulting ThrowRecord change, publish
-/// the updated snapshot, and save. Factored out once so this sequence isn't copy-pasted three times.
+/// active match, take its lock, run the IGame call, publish the updated snapshot. Factored out once so
+/// this sequence isn't copy-pasted three times.
 /// </summary>
 public sealed class GameCommandExecutor(
     IGameSessionManager sessionManager,
-    IMatchRepository matchRepository,
-    IUnitOfWork unitOfWork,
     IDispatcher dispatcher)
 {
     public Task<ErrorOr<GameStateSnapshot>> RecordThrow(DetectedThrow detectedThrow, CancellationToken ct) =>
-        RunLocked(async (matchId, game, c) =>
-        {
-            var preState = await game.GetState();
-            await game.ReceiveThrow(detectedThrow, c);
-
-            if (preState.CurrentPlayerId is { } throwingPlayerId)
-            {
-                await matchRepository.AddThrowRecord(
-                    matchId,
-                    throwingPlayerId,
-                    preState.SetNumber,
-                    preState.LegNumber,
-                    detectedThrow.Segment,
-                    MapRing(detectedThrow.Ring),
-                    detectedThrow.Score,
-                    detectedThrow.RawNotation,
-                    detectedThrow.Position.X,
-                    detectedThrow.Position.Y,
-                    MapSource(detectedThrow.Source),
-                    detectedThrow.DetectedAtUtc,
-                    c);
-            }
-        }, ct);
+        RunLocked((_, game, c) => game.ReceiveThrow(detectedThrow, c), ct);
 
     public Task<ErrorOr<GameStateSnapshot>> RecordEndOfTurn(CancellationToken ct) =>
         RunLocked((_, game, c) => game.ReceiveEndOfTurn(c), ct);
 
     public Task<ErrorOr<GameStateSnapshot>> Undo(CancellationToken ct) =>
-        RunLocked(async (matchId, game, c) =>
-        {
-            await game.UndoLastThrow(c);
-            await matchRepository.RemoveLastThrowRecord(matchId, c);
-        }, ct);
+        RunLocked((_, game, c) => game.UndoLastThrow(c), ct);
 
     private async Task<ErrorOr<GameStateSnapshot>> RunLocked(
         Func<Guid, IGame, CancellationToken, Task> action,
@@ -83,36 +52,10 @@ public sealed class GameCommandExecutor(
         var stamped = state with { MatchId = matchId.Value };
 
         if (state.IsComplete)
-        {
-            var match = await matchRepository.GetById(matchId.Value, ct);
-            match?.Complete(state.WinnerPlayerIds ?? []);
             await sessionManager.EndActiveSessionAsync(matchId.Value);
-        }
 
-        await unitOfWork.SaveChangesAsync(ct);
         await dispatcher.Publish(new GameStateChangedEvent(matchId.Value, stamped), ct);
 
         return stamped;
     }
-
-    private static DomainRing MapRing(Ring ring) => ring switch
-    {
-        Ring.Miss => DomainRing.Miss,
-        Ring.Inner => DomainRing.Inner,
-        Ring.Outer => DomainRing.Outer,
-        Ring.Triple => DomainRing.Triple,
-        Ring.Double => DomainRing.Double,
-        Ring.InnerBull => DomainRing.InnerBull,
-        Ring.OuterBull => DomainRing.OuterBull,
-        _ => throw new ArgumentOutOfRangeException(nameof(ring), ring, null),
-    };
-
-    private static DomainSource MapSource(DetectionSourceType source) => source switch
-    {
-        DetectionSourceType.AutoDarts => DomainSource.AutoDarts,
-        DetectionSourceType.Mock => DomainSource.Mock,
-        DetectionSourceType.Manual => DomainSource.Manual,
-        DetectionSourceType.Simulator => DomainSource.Simulator,
-        _ => throw new ArgumentOutOfRangeException(nameof(source), source, null),
-    };
 }

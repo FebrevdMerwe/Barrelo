@@ -1,9 +1,7 @@
-using System.Text.Json;
 using Darts.Application.Common.Dispatch;
 using Darts.Application.Common.Errors;
 using Darts.Application.Common.Interfaces.Persistence;
 using Darts.Application.Common.Interfaces.Services;
-using Darts.Domain.Entities;
 using Darts.GameSdk;
 using ErrorOr;
 using FluentValidation;
@@ -13,8 +11,7 @@ namespace Darts.Application.Commands.Matches.StartMatch;
 public sealed class StartMatchCommandHandler(
     IGameCatalog catalog,
     IPlayerRepository playerRepository,
-    IMatchRepository matchRepository,
-    IUnitOfWork unitOfWork,
+    ISessionPlayerStore sessionPlayerStore,
     IGameSessionManager sessionManager,
     IValidator<StartMatchCommand> validator)
     : IRequestHandler<StartMatchCommand, ErrorOr<StartMatchResult>>
@@ -33,28 +30,20 @@ public sealed class StartMatchCommandHandler(
             return factoryResult.Errors;
         var factory = factoryResult.Value;
 
-        var players = await playerRepository.GetByIds(request.PlayerIds, ct);
-        if (players.Count != request.PlayerIds.Count)
+        var permanentPlayers = await playerRepository.GetByIds(request.PlayerIds, ct);
+        var knownPlayerIds = permanentPlayers.Select(p => p.Id)
+            .Concat(sessionPlayerStore.GetAllSessionPlayers().Select(p => p.Id))
+            .ToHashSet();
+        if (!request.PlayerIds.All(knownPlayerIds.Contains))
             return Error.Validation("Match.PlayersNotFound", "One or more player ids do not exist.");
 
         // Explicit assignment if present, else own order index (own singleton group) — same fallback
-        // rule as GameSetupExtensions.EffectiveGroupIndex, applied consistently to both the persisted
-        // MatchParticipant.GroupIndex and the plugin-facing GameSetup.PlayerGroups.
+        // rule as GameSetupExtensions.EffectiveGroupIndex, applied consistently to GameSetup.PlayerGroups.
         var groupIndexes = request.PlayerIds
             .Select((id, order) => request.PlayerGroups is not null && request.PlayerGroups.TryGetValue(id, out var groupIndex)
                 ? groupIndex
                 : order)
             .ToArray();
-        var hasExplicitGroups = request.PlayerGroups is { Count: > 0 };
-
-        var matchResult = Match.Start(
-            request.GameId,
-            JsonSerializer.Serialize(request.Options),
-            request.PlayerIds,
-            hasExplicitGroups ? groupIndexes : null);
-        if (matchResult.IsError)
-            return matchResult.Errors;
-        var match = matchResult.Value;
 
         var playerGroupsForSetup = request.PlayerIds
             .Zip(groupIndexes, (id, groupIndex) => (id, groupIndex))
@@ -62,15 +51,13 @@ public sealed class StartMatchCommandHandler(
         var setup = new GameSetup(request.PlayerIds, request.Options, playerGroupsForSetup);
         var game = await factory.Create(setup, ct);
 
-        if (!await sessionManager.TryStartSessionAsync(match.Id, game))
+        var matchId = Guid.NewGuid();
+        if (!await sessionManager.TryStartSessionAsync(matchId, game))
             return MatchSessionErrors.MatchAlreadyActive;
 
-        await matchRepository.Add(match, ct);
-        await unitOfWork.SaveChangesAsync(ct);
-
         var state = await game.GetState();
-        var stamped = state with { MatchId = match.Id };
+        var stamped = state with { MatchId = matchId };
 
-        return new StartMatchResult(match.Id, stamped);
+        return new StartMatchResult(matchId, stamped);
     }
 }

@@ -4,6 +4,7 @@ using Darts.Application.Common.Interfaces.Services;
 using Darts.Infrastructure.External.Detection;
 using Darts.Infrastructure.External.GamePlugins;
 using Darts.Infrastructure.External.Notifications;
+using Darts.Infrastructure.External.Sessions;
 using Darts.Infrastructure.Persistence;
 using Darts.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -21,10 +22,10 @@ public static class DependencyInjection
             options.UseSqlite(configuration.GetConnectionString("DartsDb") ?? "Data Source=darts.db"));
 
         services.AddScoped<IPlayerRepository, PlayerRepository>();
-        services.AddScoped<IMatchRepository, MatchRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         services.AddSingleton<IGameSessionManager, GameSessionManager>();
+        services.AddSingleton<ISessionPlayerStore, SessionPlayerStore>();
         services.AddSingleton<IGameCatalog>(sp =>
         {
             var pluginsDirectory = ResolvePluginsDirectory(configuration["Plugins:Directory"] ?? "plugins");

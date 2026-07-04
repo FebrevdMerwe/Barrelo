@@ -1,11 +1,8 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using Darts.Api.Contracts;
-using Darts.Application.Commands.Matches.StartMatch;
-using Darts.Application.Common.Interfaces.Persistence;
 using Darts.GameSdk;
 using FluentAssertions;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Darts.Api.IntegrationTests;
 
@@ -17,7 +14,7 @@ namespace Darts.Api.IntegrationTests;
 public class ManualFullLegEndToEndTests(DartsApiFactory factory) : IClassFixture<DartsApiFactory>
 {
     [Fact]
-    public async Task Full_manual_501_leg_over_http_reaches_a_winner_with_correct_persisted_history()
+    public async Task Full_manual_501_leg_over_http_reaches_a_winner()
     {
         var client = factory.CreateClient();
         var playerIds = await factory.SeedPlayers("P1", "P2");
@@ -34,7 +31,6 @@ public class ManualFullLegEndToEndTests(DartsApiFactory factory) : IClassFixture
                 playerGroups),
             JsonTestOptions.Options);
         startResponse.EnsureSuccessStatusCode();
-        var matchId = (await startResponse.Content.ReadFromJsonAsync<StartMatchResult>(JsonTestOptions.Options))!.MatchId;
 
         // P1 visit 1: a Miss, then an early end-turn after only 2 darts (never reaching the 3rd).
         await Throw(0, Ring.Miss);
@@ -83,17 +79,6 @@ public class ManualFullLegEndToEndTests(DartsApiFactory factory) : IClassFixture
         final.Status.Should().Be(GameStatus.Complete);
         final.WinnerPlayerIds.Should().BeEquivalentTo([p1]);
         final.CurrentPlayerId.Should().BeNull();
-
-        using var scope = factory.Services.CreateScope();
-        var matchRepository = scope.ServiceProvider.GetRequiredService<IMatchRepository>();
-        var records = await matchRepository.GetThrowRecords(matchId, CancellationToken.None);
-
-        // 13 manual-throw calls were made; the busting dart and the first checkout dart were each undone.
-        records.Should().HaveCount(11);
-        records.Select(r => r.Sequence).Should().Equal(Enumerable.Range(1, 11));
-        records.Where(r => r.PlayerId == p1).Should().HaveCount(5); // Miss, Inner1, D20(the surviving checkout), T13, D1
-        records.Where(r => r.PlayerId == p2).Should().HaveCount(6); // three misses per leg, two legs
-        records.Last().RawNotation.Should().Be("D1");
 
         return;
 

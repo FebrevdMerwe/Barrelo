@@ -19,6 +19,7 @@
     </div>
     <div class="meta">
       <span class="legmeta">a platform for interactive dart experiences</span>
+      <button type="button" class="icon-btn" id="manageRosterBtn" aria-label="Manage roster" title="Manage roster">⚙</button>
     </div>
   </header>
 
@@ -28,17 +29,6 @@
   </section>
 
   <form class="setup-form" id="setupForm">
-
-    <fieldset class="field-block">
-      <legend class="section-label">Players</legend>
-      <div class="player-grid" id="playerGrid">
-        <p class="hero-sub" id="playerGridEmpty">Loading players&hellip;</p>
-      </div>
-      <div class="new-player-row">
-        <input class="text-input" type="text" id="newPlayerInput" maxlength="20" placeholder="New player name">
-        <button class="pull-btn" type="button" id="newPlayerBtn">Add player</button>
-      </div>
-    </fieldset>
 
     <fieldset class="field-block">
       <legend class="section-label">Game</legend>
@@ -54,12 +44,33 @@
 
     <fieldset class="field-block" id="groupsBlock">
       <legend class="section-label" id="groupsLabel">Groups</legend>
+      <button type="button" class="pull-btn auto-fill-btn" id="autoFillBtn" hidden>Auto-fill teams</button>
       <div class="group-columns" id="groupColumns"></div>
     </fieldset>
 
     <p class="hero-sub start-error" id="startError" hidden></p>
     <button class="pull-btn go start-cta" type="submit" id="startBtn">Start match</button>
   </form>
+
+  <div class="undo-toast" id="eraseToast" role="status">
+    <span id="eraseToastMsg"></span>
+    <button type="button" id="eraseUndoBtn">Undo</button>
+  </div>
+
+  <dialog class="roster-modal" id="manageRosterModal">
+    <div class="roster-modal-inner">
+      <header class="roster-modal-head">
+        <h2>Manage roster</h2>
+        <button type="button" class="roster-modal-close" id="rosterModalClose" aria-label="Close">&times;</button>
+      </header>
+      <p class="hero-sub">Permanent players auto-populate every session. Bench one to keep them off tonight's board without deleting them.</p>
+      <div class="roster-list" id="rosterList"></div>
+      <form class="roster-add-row" id="rosterAddForm">
+        <input type="text" class="text-input" id="rosterAddInput" placeholder="Add a permanent player&hellip;" maxlength="40" aria-label="New permanent player name">
+        <button class="pull-btn" type="submit">Add</button>
+      </form>
+    </div>
+  </dialog>
 
 </div>
 
@@ -73,10 +84,9 @@
   var startBtn = document.getElementById("startBtn");
   var startErrorEl = document.getElementById("startError");
 
-  var playerGridEl = document.getElementById("playerGrid");
-  var playerGridEmptyEl = document.getElementById("playerGridEmpty");
-  var newPlayerInput = document.getElementById("newPlayerInput");
-  var newPlayerBtn = document.getElementById("newPlayerBtn");
+  var eraseToastEl = document.getElementById("eraseToast");
+  var eraseToastMsgEl = document.getElementById("eraseToastMsg");
+  var eraseUndoBtn = document.getElementById("eraseUndoBtn");
 
   var modeBlock = document.getElementById("modeBlock");
   var modeLabel = document.getElementById("modeLabel");
@@ -84,16 +94,35 @@
 
   var groupsLabel = document.getElementById("groupsLabel");
   var groupColumnsEl = document.getElementById("groupColumns");
+  var autoFillBtn = document.getElementById("autoFillBtn");
 
-  var existingPlayers = []; // [{id, name}], loaded from GET /api/players, alphabetical
-  var roster = []; // [{id, name}], players toggled on for this match
+  var existingPlayers = []; // [{id, name, createdAtUtc, isPermanent, isBenched}], loaded from
+                            // GET /api/players, alphabetical. Permanent players auto-populate every
+                            // session; session-scoped ("chalked") players only live in server memory
+                            // for this process's lifetime. Benched permanent players stay in this
+                            // list (Manage Roster still needs them) but are excluded from the
+                            // chalkboard — see visiblePlayers().
   var gamesById = {}; // gameId -> full descriptor (incl. settings)
 
   // bucketOrder: bucketKey -> [playerId, ...] in throw order. Team games use "0".."N-1" plus
   // "spectator"; non-team games use "playing" plus "spectator". This is the single source of
   // truth for both group membership and per-group turn order (drag position = throw order).
   var bucketOrder = {};
-  var roundRobinCursor = 0;
+
+  // Display order of currently-active (non-empty) team keys, tracked independently of the raw
+  // bucket key so a team created via the "+ New team" drop zone always appears at the end of the
+  // row regardless of which internal slot it happens to reuse — see syncTeamOrder().
+  var teamOrder = [];
+  var lastSpecSignature = null;
+
+  // Roster state persists across matches via localStorage (there's no backend "session" concept
+  // today), so returning from a finished match can keep spectators benched and reshuffle whoever
+  // was actually playing — see ensureRosterInitialized().
+  var LAST_ROSTER_KEY = "darts.lastRoster";
+  var fromMatch = new URLSearchParams(window.location.search).get("fromMatch") === "1";
+  var playersReady = false;
+  var gamesReady = false;
+  var rosterInitialized = false;
 
   function currentGame() {
     var checked = form.querySelector('input[name="game"]:checked');
@@ -109,6 +138,7 @@
   }
 
   function renderGameCards(games) {
+    gamesReady = true;
     gameCardsEl.innerHTML = "";
     gamesById = {};
     games.forEach(function (game) { gamesById[game.gameId] = game; });
@@ -162,92 +192,59 @@
   }
 
   function playerById(id) {
-    var fromRoster = roster.find(function (p) { return p.id === id; });
-    if (fromRoster) return fromRoster;
     return existingPlayers.find(function (p) { return p.id === id; });
   }
 
-  // ---------- player picker grid ----------
+  // Everyone shown on the chalkboard: every session-scoped player, plus every permanent player who
+  // isn't benched for tonight.
+  function visiblePlayers() {
+    return existingPlayers.filter(function (p) { return !p.isBenched; });
+  }
+
+  // ---------- players (everyone visible here shows up on the chalkboard) ----------
 
   async function fetchExistingPlayers() {
     try {
       var res = await fetch("/api/players");
       if (!res.ok) throw new Error("GET /api/players failed: " + res.status);
       existingPlayers = await res.json();
-      renderPlayerGrid();
+      playersReady = true;
+      renderGroupColumns();
     } catch (err) {
       console.error(err);
-      playerGridEl.innerHTML = "";
-      playerGridEmptyEl.textContent = "Couldn't load players — is the API running?";
-      playerGridEl.appendChild(playerGridEmptyEl);
+      groupColumnsEl.innerHTML = "";
+      var errEl = document.createElement("p");
+      errEl.className = "hero-sub";
+      errEl.textContent = "Couldn't load players — is the API running?";
+      groupColumnsEl.appendChild(errEl);
     }
   }
 
-  function renderPlayerGrid() {
-    playerGridEl.innerHTML = "";
-    if (!existingPlayers.length) {
-      playerGridEmptyEl.textContent = "No players yet — add one below.";
-      playerGridEl.appendChild(playerGridEmptyEl);
-      return;
-    }
-    existingPlayers.forEach(function (player) {
-      var selected = roster.some(function (p) { return p.id === player.id; });
-      var card = document.createElement("button");
-      card.type = "button";
-      card.className = "player-card" + (selected ? " is-selected" : "");
-      card.innerHTML =
-        '<span class="chip-avatar" style="background:' + avatarColor(player.name) + '">' + initials(player.name) + '</span>' +
-        '<span class="pc-name"></span>';
-      card.querySelector(".pc-name").textContent = player.name;
-      card.addEventListener("click", function () { toggleRosterPlayer(player); });
-      playerGridEl.appendChild(card);
+  // "Chalk a name" — a session-scoped player, never written to the database.
+  async function createPlayerByName(name) {
+    var res = await fetch("/api/players/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name }),
     });
-  }
-
-  function toggleRosterPlayer(player) {
-    var idx = roster.findIndex(function (p) { return p.id === player.id; });
-    if (idx === -1) {
-      roster.push(player);
-    } else {
-      roster.splice(idx, 1);
-      removePlayerFromBuckets(player.id);
-    }
-    renderPlayerGrid();
+    if (!res.ok) throw new Error("POST /api/players/session failed: " + res.status);
+    var player = await res.json();
+    existingPlayers.push(player);
+    existingPlayers.sort(function (a, b) { return a.name.localeCompare(b.name); });
     renderGroupColumns();
+    return player;
   }
 
-  async function createNewPlayer() {
-    var name = newPlayerInput.value.trim();
-    if (!name) return;
+  // Manage Roster's "add permanent player" — persisted to the database, survives a restart.
+  async function createPermanentPlayer(name) {
     var res = await fetch("/api/players", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: name }),
     });
     if (!res.ok) throw new Error("POST /api/players failed: " + res.status);
-    var player = await res.json();
-    existingPlayers.push(player);
-    existingPlayers.sort(function (a, b) { return a.name.localeCompare(b.name); });
-    roster.push(player);
-    newPlayerInput.value = "";
-    renderPlayerGrid();
-    renderGroupColumns();
+    return res.json();
   }
-
-  newPlayerBtn.addEventListener("click", function () {
-    createNewPlayer().catch(function (err) {
-      console.error(err);
-      alert("Couldn't add that player. See console for details.");
-    });
-  });
-  newPlayerInput.addEventListener("keydown", function (e) {
-    if (e.key !== "Enter") return;
-    e.preventDefault();
-    createNewPlayer().catch(function (err) {
-      console.error(err);
-      alert("Couldn't add that player. See console for details.");
-    });
-  });
 
   function renderModeOptions() {
     var game = currentGame();
@@ -299,6 +296,44 @@
     return (spec.hasTeams && key !== "spectator") ? spec.maxPerTeam : null;
   }
 
+  // ---------- team distribution (shared by Auto-fill and the post-match reshuffle) ----------
+
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+
+  // Precondition: spec.hasTeams. Randomizes playerIds, then splits into the largest team count t
+  // in [ceil(n/maxPerTeam), min(teamCount, n)] that divides n evenly (t > 1) — i.e. as many
+  // *equally-sized* teams as the game allows, rather than packing teams to capacity before
+  // opening a new one. Falls back to t = min(teamCount, n) dealt round-robin (sizes differ by at
+  // most 1) when no clean divisor exists (e.g. a prime player count). Anyone beyond
+  // teamCount * maxPerTeam capacity is returned as overflow rather than seated.
+  function distributeIntoTeams(playerIds, spec) {
+    var capacity = spec.teamCount * spec.maxPerTeam;
+    var shuffled = shuffle(playerIds);
+    var overflow = shuffled.length > capacity ? shuffled.slice(capacity) : [];
+    var seated = shuffled.slice(0, capacity);
+    var n = seated.length;
+    if (n === 0) return { teams: [], overflow: overflow };
+
+    var cap = Math.min(spec.teamCount, n);
+    var lo = Math.max(1, Math.ceil(n / spec.maxPerTeam));
+    var t = null;
+    for (var candidate = cap; candidate >= lo; candidate--) {
+      if (candidate > 1 && n % candidate === 0) { t = candidate; break; }
+    }
+    if (t === null) t = cap;
+
+    var teams = Array.from({ length: t }, function () { return []; });
+    seated.forEach(function (id, idx) { teams[idx % t].push(id); });
+    return { teams: teams, overflow: overflow };
+  }
+
   function removePlayerFromBuckets(playerId) {
     Object.keys(bucketOrder).forEach(function (key) {
       var idx = bucketOrder[key].indexOf(playerId);
@@ -306,19 +341,22 @@
     });
   }
 
-  // Rebuilds bucketOrder for the current game's spec: carries over players who are still in the
-  // roster (remapping to Spectator if their old bucket no longer exists), bumps anyone now over a
-  // team's capacity into Spectator, then default-places any roster player with no bucket yet.
+  // Rebuilds bucketOrder for the current game's spec: carries over every known player who's still
+  // valid (remapping to Spectator if their old bucket no longer exists), bumps anyone now over a
+  // team's capacity into Spectator, then defaults any player with no bucket yet straight to
+  // Spectator (team games) or "playing" (non-team games) — which includes every player on first
+  // load, since everyone always shows up on the board. Team placement is a deliberate action (the
+  // Auto-fill button, or a post-match reshuffle) rather than an automatic side effect of showing up.
   function reconcileBuckets(spec) {
     var keys = bucketKeys(spec);
     var oldOrder = bucketOrder;
     bucketOrder = {};
     keys.forEach(function (k) { bucketOrder[k] = []; });
 
-    var rosterIds = roster.map(function (p) { return p.id; });
+    var knownIds = visiblePlayers().map(function (p) { return p.id; });
     Object.keys(oldOrder).forEach(function (oldKey) {
       oldOrder[oldKey].forEach(function (playerId) {
-        if (rosterIds.indexOf(playerId) === -1) return;
+        if (knownIds.indexOf(playerId) === -1) return;
         var targetKey = keys.indexOf(oldKey) !== -1 ? oldKey : "spectator";
         bucketOrder[targetKey].push(playerId);
       });
@@ -333,22 +371,98 @@
     }
 
     var placedIds = [].concat.apply([], Object.keys(bucketOrder).map(function (k) { return bucketOrder[k]; }));
-    roster.forEach(function (player) {
+    visiblePlayers().forEach(function (player) {
       if (placedIds.indexOf(player.id) !== -1) return;
       if (!spec.hasTeams) { bucketOrder.playing.push(player.id); return; }
+      bucketOrder.spectator.push(player.id);
+    });
+  }
 
-      var teamKeys = keys.filter(function (k) { return k !== "spectator"; });
-      var placed = false;
-      for (var attempt = 0; attempt < teamKeys.length; attempt++) {
-        var key = teamKeys[roundRobinCursor % teamKeys.length];
-        roundRobinCursor++;
-        if (bucketOrder[key].length < spec.maxPerTeam) {
-          bucketOrder[key].push(player.id);
-          placed = true;
-          break;
-        }
-      }
-      if (!placed) bucketOrder.spectator.push(player.id);
+  // ---------- roster persistence (localStorage) + post-match reshuffle ----------
+  // There's no backend "session" concept, so who was spectating vs. actively playing carries
+  // forward between matches via a client-side snapshot rather than a server-side one.
+
+  function loadSavedRoster() {
+    try {
+      var raw = localStorage.getItem(LAST_ROSTER_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (err) { console.error(err); return null; }
+  }
+
+  function saveRoster(order) {
+    try { localStorage.setItem(LAST_ROSTER_KEY, JSON.stringify(order)); } catch (err) { console.error(err); }
+  }
+
+  // Runs once, the first time both players and games have loaded, before the first
+  // reconcileBuckets() call for the page. With no ?fromMatch=1 marker, this just restores the
+  // last-saved layout verbatim (so a plain refresh doesn't wipe the board). With the marker
+  // (arriving here via the scoreboard's "Back to start" button after a match completes), it pools
+  // every previously-active (non-spectator) still-existing player and reshuffles them into fresh
+  // teams for the current game via distributeIntoTeams, while the saved Spectator list carries
+  // over unchanged — keeping spectators as spectators across games.
+  function ensureRosterInitialized(spec) {
+    if (rosterInitialized) return;
+    rosterInitialized = true;
+
+    var saved = loadSavedRoster();
+    if (!saved) return;
+
+    if (!fromMatch) {
+      bucketOrder = saved;
+      return;
+    }
+
+    var keys = bucketKeys(spec);
+    var isVisible = function (id) { var p = playerById(id); return !!p && !p.isBenched; };
+    var pool = [];
+    keys.filter(function (k) { return k !== "spectator"; }).forEach(function (key) {
+      (saved[key] || []).forEach(function (id) { if (isVisible(id)) pool.push(id); });
+    });
+    var savedSpectators = (saved.spectator || []).filter(isVisible);
+
+    bucketOrder = {};
+    keys.forEach(function (k) { bucketOrder[k] = []; });
+    bucketOrder.spectator = savedSpectators;
+
+    if (spec.hasTeams) {
+      var result = distributeIntoTeams(pool, spec);
+      keys.filter(function (k) { return k !== "spectator"; }).forEach(function (key, idx) {
+        bucketOrder[key] = (result.teams[idx] || []).slice();
+      });
+      bucketOrder.spectator = savedSpectators.concat(result.overflow);
+    }
+    // Non-team games have no team concept to redistribute into — pool ids are simply left
+    // unplaced here and fall through to reconcileBuckets' normal default-to-"playing" path.
+
+    teamOrder = [];
+    saveRoster(bucketOrder);
+    history.replaceState(null, "", window.location.pathname);
+  }
+
+  function onAutoFillClick() {
+    var spec = bucketSpec(currentGame());
+    if (!spec.hasTeams) return;
+    var keys = bucketKeys(spec);
+    var result = distributeIntoTeams(visiblePlayers().map(function (p) { return p.id; }), spec);
+
+    keys.filter(function (k) { return k !== "spectator"; }).forEach(function (key, idx) {
+      bucketOrder[key] = (result.teams[idx] || []).slice();
+    });
+    bucketOrder.spectator = result.overflow.slice();
+    teamOrder = [];
+    renderGroupColumns();
+  }
+
+  // ---------- display order for team columns (independent of raw bucket keys) ----------
+
+  function specSignature(spec) {
+    return spec.hasTeams + ":" + spec.teamCount;
+  }
+
+  function syncTeamOrder(spec) {
+    teamOrder = teamOrder.filter(function (k) { return bucketOrder[k] && bucketOrder[k].length > 0; });
+    bucketKeys(spec).filter(function (k) { return k !== "spectator"; }).forEach(function (k) {
+      if (bucketOrder[k].length > 0 && teamOrder.indexOf(k) === -1) teamOrder.push(k);
     });
   }
 
@@ -358,29 +472,142 @@
     chip.dataset.playerId = player.id;
     chip.innerHTML =
       '<span class="chip-avatar" style="background:' + avatarColor(player.name) + '">' + initials(player.name) + '</span>' +
-      '<span class="chip-name"></span>';
+      '<span class="chip-name"></span>' +
+      '<button type="button" class="eraser-btn" aria-label="Erase ' + player.name + ' from the roster for good"></button>';
     chip.querySelector(".chip-name").textContent = player.name;
     chip.addEventListener("pointerdown", onChipPointerDown);
+    chip.querySelector(".eraser-btn").addEventListener("click", function (e) {
+      e.stopPropagation();
+      eraseSimple(chip, player);
+    });
     return chip;
   }
 
   function renderGroupColumns() {
+    // Roster seeding (below) needs existingPlayers already populated, and /api/players /
+    // /api/games resolve independently — so this is a no-op until both have loaded at least once.
+    if (!playersReady || !gamesReady) return;
+
     var game = currentGame();
     var spec = bucketSpec(game);
+    var signature = specSignature(spec);
+    if (signature !== lastSpecSignature) teamOrder = [];
+    lastSpecSignature = signature;
+    ensureRosterInitialized(spec);
     reconcileBuckets(spec);
 
     var groupSetting = findSetting(game, "playerGroup");
     groupsLabel.textContent = groupSetting ? (groupSetting.displayName || "Teams") : "Groups";
+    autoFillBtn.hidden = !spec.hasTeams;
     groupColumnsEl.innerHTML = "";
 
-    if (!roster.length) {
-      var empty = document.createElement("p");
-      empty.className = "hero-sub";
-      empty.textContent = "Add players above, then drag them into teams.";
-      groupColumnsEl.appendChild(empty);
-      return;
+    if (spec.hasTeams) {
+      renderChalkboard(spec);
+    } else {
+      renderSimpleBuckets(spec);
     }
+  }
 
+  // ---------- chalkboard (team games): only occupied teams render, relabeled contiguously ----------
+
+  function renderChalkboard(spec) {
+    syncTeamOrder(spec);
+
+    var slate = document.createElement("div");
+    slate.className = "slate";
+    var row = document.createElement("div");
+    row.className = "bucket-columns";
+
+    teamOrder.forEach(function (key, idx) {
+      row.appendChild(chalkColumn(key, "Team " + String.fromCharCode(65 + idx), spec.maxPerTeam));
+    });
+    row.appendChild(chalkColumn("spectator", "Spectator", null));
+    slate.appendChild(row);
+    slate.appendChild(chalkAddRow());
+    groupColumnsEl.appendChild(slate);
+  }
+
+  function chalkColumn(key, label, cap) {
+    var col = document.createElement("div");
+    col.className = "bucket-col" + (key === "spectator" ? " is-spectator" : "");
+
+    var head = document.createElement("div");
+    head.className = "bucket-col-head";
+    head.innerHTML = "<span>" + label + "</span>" +
+      (cap ? '<span class="bucket-cap">' + bucketOrder[key].length + "/" + cap + "</span>" : "");
+    col.appendChild(head);
+
+    var body = document.createElement("div");
+    body.className = "bucket-body";
+    body.dataset.bucketKey = key;
+    bucketOrder[key].forEach(function (playerId) {
+      var player = playerById(playerId);
+      if (player) body.appendChild(chalkTileFor(player));
+    });
+    col.appendChild(body);
+    return col;
+  }
+
+  function chalkTileFor(player) {
+    var tile = document.createElement("div");
+    tile.className = "chalk-tile";
+    tile.dataset.playerId = player.id;
+    tile.innerHTML =
+      '<span class="chalk-name"></span>' +
+      '<button type="button" class="eraser-btn" aria-label="Erase ' + player.name + ' from the roster for good"></button>';
+    tile.querySelector(".chalk-name").textContent = player.name;
+    tile.addEventListener("pointerdown", onChipPointerDown);
+    tile.querySelector(".eraser-btn").addEventListener("click", function (e) {
+      e.stopPropagation();
+      eraseChalkTile(tile, player);
+    });
+    return tile;
+  }
+
+  function chalkAddRow() {
+    var row = document.createElement("div");
+    row.className = "add-row";
+    row.innerHTML =
+      '<input type="text" class="chalk-add-input" placeholder="Chalk a name&hellip;" maxlength="20" aria-label="New player name">' +
+      '<button type="button" class="chalk-plus" aria-label="Add player">+</button>';
+    var input = row.querySelector("input");
+    function commit() {
+      var name = input.value.trim();
+      if (!name) return;
+      createPlayerByName(name).catch(function (err) {
+        console.error(err);
+        alert("Couldn't add that player. See console for details.");
+      });
+    }
+    row.querySelector(".chalk-plus").addEventListener("click", commit);
+    input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); commit(); } });
+    return row;
+  }
+
+  // While a chip is being dragged, offers one extra empty column after the last visible team —
+  // dropping a chip there starts a brand-new team. Only appears if the game's MaxGroups hasn't
+  // been reached yet (bucketKeys already sizes exactly to spec.teamCount raw slots).
+  function insertNewGroupZoneIfRoom(spec) {
+    if (!spec.hasTeams) return;
+    var nextKey = bucketKeys(spec)
+      .filter(function (k) { return k !== "spectator"; })
+      .find(function (k) { return bucketOrder[k].length === 0; });
+    if (nextKey === undefined) return;
+
+    var row = groupColumnsEl.querySelector(".bucket-columns");
+    if (!row) return;
+    var spectatorCol = row.querySelector(".bucket-col.is-spectator");
+    var col = document.createElement("div");
+    col.className = "bucket-col new-group-col";
+    col.innerHTML =
+      '<div class="bucket-col-head"><span>New team</span></div>' +
+      '<div class="bucket-body new-group-zone" data-bucket-key="' + nextKey + '"></div>';
+    if (spectatorCol) row.insertBefore(col, spectatorCol); else row.appendChild(col);
+  }
+
+  // ---------- simple buckets (non-team games): unchanged from before, plus the shared add-row ----------
+
+  function renderSimpleBuckets(spec) {
     bucketKeys(spec).forEach(function (key) {
       var col = document.createElement("div");
       col.className = "group-bucket" + (key === "spectator" ? " is-spectator" : "");
@@ -403,6 +630,7 @@
       col.appendChild(body);
       groupColumnsEl.appendChild(col);
     });
+    groupColumnsEl.appendChild(chalkAddRow());
   }
 
   // ---------- drag-and-drop (pointer events so this works on touch, not just mouse) ----------
@@ -411,12 +639,17 @@
 
   function onChipPointerDown(e) {
     if (e.button !== undefined && e.button !== 0) return;
+    // pointerdown bubbles up from the eraser button before its own "click" handler ever runs, so
+    // without this guard erasing a chip also kicks off a drag (and the resulting drop re-render
+    // clobbers the erase). stopPropagation() on the button's click handler can't prevent this,
+    // since pointerdown already fired by the time click does.
+    if (e.target.closest(".eraser-btn")) return;
     var chip = e.currentTarget;
     var body = chip.closest(".bucket-body");
     var rect = chip.getBoundingClientRect();
 
     var ghost = chip.cloneNode(true);
-    ghost.className = "player-chip chip-ghost";
+    ghost.classList.add("chip-ghost");
     ghost.style.width = rect.width + "px";
     document.body.appendChild(ghost);
     positionGhost(ghost, rect.left, rect.top);
@@ -436,6 +669,7 @@
     };
     chip.classList.add("chip-dragging-source");
     chip.remove();
+    insertNewGroupZoneIfRoom(bucketSpec(currentGame()));
 
     document.addEventListener("pointermove", onChipPointerMove);
     document.addEventListener("pointerup", onChipPointerUp);
@@ -494,6 +728,186 @@
     renderGroupColumns();
   }
 
+  // ---------- erase (permanent delete) ----------
+
+  var eraseUndoTimer = null;
+
+  function showEraseUndo(name, restoreFn) {
+    clearTimeout(eraseUndoTimer);
+    eraseToastMsgEl.textContent = "Erased " + name + ".";
+    eraseToastEl.classList.add("show");
+    eraseUndoBtn.onclick = function () {
+      eraseToastEl.classList.remove("show");
+      clearTimeout(eraseUndoTimer);
+      restoreFn();
+    };
+    eraseUndoTimer = setTimeout(function () { eraseToastEl.classList.remove("show"); }, 4200);
+  }
+
+  function spawnDust(container, x, y) {
+    for (var i = 0; i < 7; i++) {
+      var d = document.createElement("span");
+      d.className = "dust";
+      d.style.left = x + "px";
+      d.style.top = y + "px";
+      var ang = Math.random() * Math.PI * 2, dist = 14 + Math.random() * 20;
+      d.style.setProperty("--dx", (Math.cos(ang) * dist) + "px");
+      d.style.setProperty("--dy", (Math.sin(ang) * dist - 10) + "px");
+      container.appendChild(d);
+      (function (el) { setTimeout(function () { el.remove(); }, 650); })(d);
+    }
+  }
+
+  // Calls DELETE immediately (not deferred) — the server branches by kind: a session-scoped player is
+  // fully removed, a permanent player is only benched for the rest of this session, never deleted.
+  // "Undo" restores the exact same player rather than recreating a new one: a session player is
+  // reinserted under its original id (no DB race to worry about now that it's pure in-memory state),
+  // a permanent player is simply un-benched.
+  async function commitErase(player, el) {
+    el.classList.add("leaving");
+    await new Promise(function (resolve) { setTimeout(resolve, 560); });
+
+    removePlayerFromBuckets(player.id);
+    var existingIdx = existingPlayers.findIndex(function (p) { return p.id === player.id; });
+    if (existingIdx !== -1) existingPlayers.splice(existingIdx, 1);
+    renderGroupColumns();
+
+    try {
+      var res = await fetch("/api/players/" + player.id, { method: "DELETE" });
+      if (!res.ok) {
+        var problem = await res.json().catch(function () { return null; });
+        var message = (problem && (problem.title || problem.detail)) || ("DELETE /api/players failed: " + res.status);
+        throw new Error(message);
+      }
+      showEraseUndo(player.name, function () {
+        var undo = player.isPermanent
+          ? fetch("/api/players/" + player.id + "/unbench", { method: "POST" })
+          : fetch("/api/players/" + player.id + "/restore", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name: player.name, createdAtUtc: player.createdAtUtc }),
+            });
+        undo
+          .then(function (undoRes) {
+            if (!undoRes.ok) throw new Error("Undo failed: " + undoRes.status);
+            return fetchExistingPlayers();
+          })
+          .catch(function (err) {
+            console.error(err);
+            alert("Couldn't bring " + player.name + " back. See console for details.");
+          });
+      });
+    } catch (err) {
+      console.error(err);
+      existingPlayers.push(player);
+      existingPlayers.sort(function (a, b) { return a.name.localeCompare(b.name); });
+      renderGroupColumns();
+      startErrorEl.textContent = "Couldn't erase " + player.name + " — " + err.message;
+      startErrorEl.hidden = false;
+    }
+  }
+
+  function eraseChalkTile(tile, player) {
+    var slate = tile.closest(".slate");
+    if (slate) {
+      var slateRect = slate.getBoundingClientRect();
+      var rect = tile.getBoundingClientRect();
+      var sweep = document.createElement("div");
+      sweep.className = "eraser-sweep";
+      sweep.style.top = (rect.top - slateRect.top) + "px";
+      sweep.style.left = (rect.left - slateRect.left) + "px";
+      slate.appendChild(sweep);
+      spawnDust(slate, rect.left - slateRect.left + rect.width / 2, rect.top - slateRect.top + rect.height / 2);
+      setTimeout(function () { sweep.remove(); }, 560);
+    }
+    commitErase(player, tile).catch(function (err) { console.error(err); });
+  }
+
+  function eraseSimple(el, player) {
+    commitErase(player, el).catch(function (err) { console.error(err); });
+  }
+
+  // ---------- Manage Roster (permanent players: add / bench / delete forever) ----------
+
+  var manageRosterBtn = document.getElementById("manageRosterBtn");
+  var manageRosterModal = document.getElementById("manageRosterModal");
+  var rosterModalClose = document.getElementById("rosterModalClose");
+  var rosterListEl = document.getElementById("rosterList");
+  var rosterAddForm = document.getElementById("rosterAddForm");
+  var rosterAddInput = document.getElementById("rosterAddInput");
+
+  function renderRosterList() {
+    rosterListEl.innerHTML = "";
+    var permanentPlayers = existingPlayers.filter(function (p) { return p.isPermanent; });
+    if (!permanentPlayers.length) {
+      var empty = document.createElement("p");
+      empty.className = "hero-sub";
+      empty.textContent = "No permanent players yet.";
+      rosterListEl.appendChild(empty);
+      return;
+    }
+    permanentPlayers.forEach(function (player) {
+      var row = document.createElement("div");
+      row.className = "roster-row" + (player.isBenched ? " is-benched" : "");
+      row.innerHTML =
+        '<span class="roster-name">' + player.name +
+          (player.isBenched ? ' <span class="roster-benched-tag">benched tonight</span>' : '') + '</span>' +
+        '<button type="button" class="pull-btn roster-toggle-btn">' + (player.isBenched ? "Add to board" : "Bench for tonight") + '</button>' +
+        '<button type="button" class="pull-btn roster-delete-btn">Delete forever</button>';
+      row.querySelector(".roster-toggle-btn").addEventListener("click", function () { toggleRosterBench(player); });
+      row.querySelector(".roster-delete-btn").addEventListener("click", function () { deleteRosterPlayer(player); });
+      rosterListEl.appendChild(row);
+    });
+  }
+
+  async function toggleRosterBench(player) {
+    try {
+      var res = player.isBenched
+        ? await fetch("/api/players/" + player.id + "/unbench", { method: "POST" })
+        : await fetch("/api/players/" + player.id, { method: "DELETE" });
+      if (!res.ok) throw new Error("Request failed: " + res.status);
+      await fetchExistingPlayers();
+      renderRosterList();
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't update " + player.name + ". See console for details.");
+    }
+  }
+
+  async function deleteRosterPlayer(player) {
+    if (!confirm("Delete " + player.name + " forever? This cannot be undone.")) return;
+    try {
+      var res = await fetch("/api/players/" + player.id + "/permanent", { method: "DELETE" });
+      if (!res.ok) throw new Error("Request failed: " + res.status);
+      await fetchExistingPlayers();
+      renderRosterList();
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't delete " + player.name + ". See console for details.");
+    }
+  }
+
+  rosterAddForm.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var name = rosterAddInput.value.trim();
+    if (!name) return;
+    try {
+      await createPermanentPlayer(name);
+      rosterAddInput.value = "";
+      await fetchExistingPlayers();
+      renderRosterList();
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't add that player. See console for details.");
+    }
+  });
+
+  manageRosterBtn.addEventListener("click", function () {
+    renderRosterList();
+    manageRosterModal.showModal();
+  });
+  rosterModalClose.addEventListener("click", function () { manageRosterModal.close(); });
+
   function onGameChanged() {
     renderModeOptions();
     renderGroupColumns();
@@ -501,7 +915,7 @@
 
   function validate() {
     var spectatorCount = bucketOrder.spectator ? bucketOrder.spectator.length : 0;
-    var playingCount = roster.length - spectatorCount;
+    var playingCount = visiblePlayers().length - spectatorCount;
     if (playingCount < 2) return "Add at least two players who aren't spectating.";
     return null;
   }
@@ -572,6 +986,7 @@
       }
       var started = await matchRes.json();
 
+      saveRoster(bucketOrder);
       window.location.href = "match.html?matchId=" + encodeURIComponent(started.matchId);
     } catch (err) {
       console.error(err);
@@ -580,6 +995,8 @@
       startBtn.textContent = "Start match";
     }
   });
+
+  autoFillBtn.addEventListener("click", onAutoFillClick);
 
   fetchExistingPlayers();
   fetchGames();

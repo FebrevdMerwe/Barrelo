@@ -25,6 +25,6 @@ public class DartsDbContextMigrationTests : IAsyncLifetime
         while (await reader.ReadAsync())
             tableNames.Add(reader.GetString(0));
 
-        tableNames.Should().BeEquivalentTo(["Players", "Matches", "MatchParticipants", "ThrowRecords"]);
+        tableNames.Should().BeEquivalentTo(["Players"]);
     }
 }
