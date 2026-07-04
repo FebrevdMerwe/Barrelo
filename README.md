@@ -309,6 +309,13 @@ public interface IDetectionSource
 
 ## Building a release
 
+The easiest way to try Barrelo without building from source: grab the latest `Barrelo-*-win-x64.zip`
+from [Releases](../../releases), unzip it, and run `Barrelo.Api.exe` — it bundles the built-in game
+plugins and BoardSimulator together, so you can play a full game with zero real hardware. Currently
+published for win-x64 only.
+
+To build your own package:
+
 ```bash
 # self-contained, single-machine deployment (adjust the RID for your target device, e.g. linux-arm64 for a Pi)
 dotnet publish src/Barrelo.Api/Barrelo.Api.csproj \
