@@ -31,6 +31,7 @@ public sealed class BoardSimulatorDetectionSource : IDetectionSource, IAsyncDisp
     private readonly Task _connectionLoop;
 
     private volatile ClientWebSocket? _socket;
+    private int _disposed;
 
     public BoardSimulatorDetectionSource(Uri simulatorUri, string boardId, ILogger<BoardSimulatorDetectionSource> logger)
     {
@@ -157,6 +158,11 @@ public sealed class BoardSimulatorDetectionSource : IDetectionSource, IAsyncDisp
 
     public async ValueTask DisposeAsync()
     {
+        // Registered under both its own type and IDetectionSource (DependencyInjection.cs), so the DI
+        // container resolves and disposes this same singleton instance twice on shutdown.
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
+
         await _cts.CancelAsync();
         _channel.Writer.TryComplete();
         try
