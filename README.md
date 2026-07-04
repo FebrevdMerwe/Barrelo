@@ -364,18 +364,6 @@ Test projects mirror the solution layout 1:1 — `Barrelo.Domain.UnitTests`, `Ba
 integration tests script full matches end-to-end (mock stream and pure manual entry) through the real
 dispatcher/plugin-loader stack — the primary correctness gate before any UI change.
 
-## Roadmap
-
-Tracked in detail in [`TASKS.md`](TASKS.md) against the phases in [`PLAN.md`](PLAN.md):
-
-- [x] Phase 0–2 — scaffold, GameSdk + X01/Cricket plugins, SQLite persistence, web UI + SignalR, virtual
-      dartboard, roster management, session leaderboard
-- [ ] Phase 3 — a real hardware detector adapter behind `IDetectionSource` (replacing/joining the Board
-      Simulator)
-- [ ] Phase 4 — hardening: connection-state UI, reconnect resilience, deployment profiles, startup scripting
-- [ ] Phase 5 (stretch) — a third game plugin with a structurally different custom board UI, proving the
-      per-game rendering extension point end-to-end
-
 ## License
 
-No license file has been added yet — until one is, all rights are reserved by the project author.
+Licensed under the [Apache License 2.0](LICENSE).
