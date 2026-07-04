@@ -231,8 +231,31 @@
     var player = await res.json();
     existingPlayers.push(player);
     existingPlayers.sort(function (a, b) { return a.name.localeCompare(b.name); });
+    placeNewPlayerInActiveBucket(player.id);
     renderGroupColumns();
     return player;
+  }
+
+  // A newly chalked player should show up ready to play, not benched — drop them straight into
+  // "Playing" (non-team games) or the first team with room (team games), and only fall back to
+  // Spectator once every team is already full. reconcileBuckets() (called by the renderGroupColumns()
+  // right after this) preserves whatever bucket we place them in here, since it only defaults
+  // *unplaced* players to Spectator.
+  function placeNewPlayerInActiveBucket(playerId) {
+    var spec = bucketSpec(currentGame());
+    if (!spec.hasTeams) {
+      bucketOrder.playing = bucketOrder.playing || [];
+      bucketOrder.playing.push(playerId);
+      return;
+    }
+    var target = null;
+    var bestLen = Infinity;
+    bucketKeys(spec).filter(function (k) { return k !== "spectator"; }).forEach(function (key) {
+      var len = (bucketOrder[key] || []).length;
+      if (len < spec.maxPerTeam && len < bestLen) { bestLen = len; target = key; }
+    });
+    bucketOrder[target || "spectator"] = bucketOrder[target || "spectator"] || [];
+    bucketOrder[target || "spectator"].push(playerId);
   }
 
   // Manage Roster's "add permanent player" — persisted to the database, survives a restart.
