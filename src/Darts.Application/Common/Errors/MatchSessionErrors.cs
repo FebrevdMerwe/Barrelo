@@ -11,8 +11,4 @@ public static class MatchSessionErrors
     public static Error NoActiveMatch => Error.NotFound(
         "Match.NoActiveMatch",
         "No match is currently active.");
-
-    public static Error MatchAlreadyActive => Error.Conflict(
-        "Match.AlreadyActive",
-        "A match is already in progress. Finish it before starting a new one.");
 }

@@ -36,7 +36,7 @@ public class StartMatchCommandHandlerTests
         _factory.Setup(f => f.Create(It.IsAny<GameSetup>(), It.IsAny<CancellationToken>())).ReturnsAsync(_game.Object);
         _game.Setup(g => g.GetState()).ReturnsAsync(new GameStateSnapshot(
             Guid.Empty, "x01", GameStatus.InProgress, playerIds[0], 1, 1, [], false, null, null));
-        _sessionManager.Setup(s => s.TryStartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>())).ReturnsAsync(true);
+        _sessionManager.Setup(s => s.StartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>())).Returns(Task.CompletedTask);
     }
 
     [Fact]
@@ -50,11 +50,11 @@ public class StartMatchCommandHandlerTests
 
         result.IsError.Should().BeFalse();
         result.Value.InitialState.MatchId.Should().Be(result.Value.MatchId);
-        _sessionManager.Verify(s => s.TryStartSessionAsync(result.Value.MatchId, _game.Object), Times.Once);
+        _sessionManager.Verify(s => s.StartSessionAsync(result.Value.MatchId, _game.Object), Times.Once);
     }
 
     [Fact]
-    public async Task Match_already_active_returns_conflict_without_starting_a_new_session()
+    public async Task Starting_a_match_while_one_is_already_active_evicts_it_and_starts_the_new_one()
     {
         var playerIds = new List<Guid> { Guid.NewGuid() };
         SetUpHappyPath(playerIds);
@@ -63,23 +63,8 @@ public class StartMatchCommandHandlerTests
 
         var result = await CreateHandler().Handle(command, CancellationToken.None);
 
-        result.IsError.Should().BeTrue();
-        result.FirstError.Code.Should().Be("Match.AlreadyActive");
-        _sessionManager.Verify(s => s.TryStartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task Losing_the_session_start_race_returns_conflict()
-    {
-        var playerIds = new List<Guid> { Guid.NewGuid(), Guid.NewGuid() };
-        SetUpHappyPath(playerIds);
-        _sessionManager.Setup(s => s.TryStartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>())).ReturnsAsync(false);
-        var command = new StartMatchCommand("x01", playerIds, new Dictionary<string, string>());
-
-        var result = await CreateHandler().Handle(command, CancellationToken.None);
-
-        result.IsError.Should().BeTrue();
-        result.FirstError.Code.Should().Be("Match.AlreadyActive");
+        result.IsError.Should().BeFalse();
+        _sessionManager.Verify(s => s.StartSessionAsync(result.Value.MatchId, _game.Object), Times.Once);
     }
 
     [Fact]
@@ -91,7 +76,7 @@ public class StartMatchCommandHandlerTests
         var result = await CreateHandler().Handle(command, CancellationToken.None);
 
         result.IsError.Should().BeTrue();
-        _sessionManager.Verify(s => s.TryStartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>()), Times.Never);
+        _sessionManager.Verify(s => s.StartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>()), Times.Never);
     }
 
     [Fact]
@@ -127,7 +112,7 @@ public class StartMatchCommandHandlerTests
         _factory.Setup(f => f.Create(It.IsAny<GameSetup>(), It.IsAny<CancellationToken>())).ReturnsAsync(_game.Object);
         _game.Setup(g => g.GetState()).ReturnsAsync(new GameStateSnapshot(
             Guid.Empty, "x01", GameStatus.InProgress, playerIds[0], 1, 1, [], false, null, null));
-        _sessionManager.Setup(s => s.TryStartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>())).ReturnsAsync(true);
+        _sessionManager.Setup(s => s.StartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>())).Returns(Task.CompletedTask);
         var command = new StartMatchCommand("x01", playerIds, new Dictionary<string, string>());
 
         var result = await CreateHandler().Handle(command, CancellationToken.None);
@@ -170,7 +155,7 @@ public class StartMatchCommandHandlerTests
         var result = await CreateHandler().Handle(command, CancellationToken.None);
 
         result.IsError.Should().BeTrue();
-        _sessionManager.Verify(s => s.TryStartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>()), Times.Never);
+        _sessionManager.Verify(s => s.StartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>()), Times.Never);
     }
 
     [Fact]

@@ -1,5 +1,4 @@
 using Darts.Application.Common.Dispatch;
-using Darts.Application.Common.Errors;
 using Darts.Application.Common.Interfaces.Persistence;
 using Darts.Application.Common.Interfaces.Services;
 using Darts.GameSdk;
@@ -21,9 +20,6 @@ public sealed class StartMatchCommandHandler(
         var validation = await validator.ValidateAsync(request, ct);
         if (!validation.IsValid)
             return validation.Errors.Select(e => Error.Validation(e.PropertyName, e.ErrorMessage)).ToList();
-
-        if (await sessionManager.TryGetActiveMatchIdAsync() is not null)
-            return MatchSessionErrors.MatchAlreadyActive;
 
         var factoryResult = catalog.Resolve(request.GameId);
         if (factoryResult.IsError)
@@ -52,8 +48,7 @@ public sealed class StartMatchCommandHandler(
         var game = await factory.Create(setup, ct);
 
         var matchId = Guid.NewGuid();
-        if (!await sessionManager.TryStartSessionAsync(matchId, game))
-            return MatchSessionErrors.MatchAlreadyActive;
+        await sessionManager.StartSessionAsync(matchId, game);
 
         var state = await game.GetState();
         var stamped = state with { MatchId = matchId };

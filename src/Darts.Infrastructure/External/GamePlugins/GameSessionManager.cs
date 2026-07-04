@@ -6,6 +6,7 @@ namespace Darts.Infrastructure.External.GamePlugins;
 
 /// <summary>
 /// Not persisted/rehydrated across process restart — an interrupted match is lost (explicit v1 limitation).
+/// Starting a session always evicts whatever was previously active.
 /// </summary>
 public sealed class GameSessionManager : IGameSessionManager
 {
@@ -22,18 +23,15 @@ public sealed class GameSessionManager : IGameSessionManager
         }
     }
 
-    public Task<bool> TryStartSessionAsync(Guid matchId, IGame game)
+    public Task StartSessionAsync(Guid matchId, IGame game)
     {
         lock (_activeMatchGate)
         {
-            if (_activeMatchId is not null)
-                return Task.FromResult(false);
-
             _activeMatchId = matchId;
         }
 
         _sessions[matchId] = game;
-        return Task.FromResult(true);
+        return Task.CompletedTask;
     }
 
     public Task<IGame?> TryGetAsync(Guid matchId) =>

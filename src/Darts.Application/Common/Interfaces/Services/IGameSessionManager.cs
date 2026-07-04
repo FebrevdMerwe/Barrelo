@@ -4,8 +4,9 @@ namespace Darts.Application.Common.Interfaces.Services;
 
 /// <summary>
 /// Owns the live IGame instances for in-progress matches and the per-matchId locking around them.
-/// At most one match is ever active at a time (single board, single manual station); TryStartSessionAsync
-/// enforces that invariant. Not persisted/rehydrated across process restart — an interrupted match is
+/// At most one match is ever active at a time (single board, single manual station). Starting a new
+/// session always evicts whatever was previously active — a stuck or abandoned match never blocks a
+/// new one from starting. Not persisted/rehydrated across process restart — an interrupted match is
 /// lost (explicit v1 limitation).
 /// </summary>
 public interface IGameSessionManager
@@ -14,10 +15,11 @@ public interface IGameSessionManager
     Task<Guid?> TryGetActiveMatchIdAsync();
 
     /// <summary>
-    /// Installs game as the session for matchId and marks it the active match, but only if no match is
-    /// currently active. Returns false without installing anything if one already is.
+    /// Installs game as the session for matchId and marks it the active match, evicting whatever match
+    /// was previously active (its IGame instance is left in place, just no longer reachable via
+    /// TryGetActiveMatchIdAsync).
     /// </summary>
-    Task<bool> TryStartSessionAsync(Guid matchId, IGame game);
+    Task StartSessionAsync(Guid matchId, IGame game);
 
     Task<IGame?> TryGetAsync(Guid matchId);
 
