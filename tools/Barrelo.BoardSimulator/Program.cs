@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 
 // Barrelo.BoardSimulator deliberately has zero references to any Barrelo.* project — it stands in for an
-// external, decoupled physical board the same way a real detector (e.g. AutoDarts) would be: the platform
+// external, decoupled physical board the same way a real detector (e.g. a third-party vendor detector) would be: the platform
 // only ever talks to it over the network, via the /stream WebSocket below.
 
 var builder = WebApplication.CreateBuilder(args);

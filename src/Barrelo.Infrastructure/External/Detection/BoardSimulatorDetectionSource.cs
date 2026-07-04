@@ -11,8 +11,8 @@ namespace Barrelo.Infrastructure.External.Detection;
 
 /// <summary>
 /// Connects to the standalone Barrelo.BoardSimulator app over WebSocket, standing in for a real detector
-/// (e.g. a future AutoDartsDetectionSource) behind the same IDetectionSource contract. The simulator's wire
-/// protocol is our own invention (not a guess at AutoDarts' undocumented API) — a tiny JSON envelope:
+/// (e.g. a future ThirdPartyDetectionSource) behind the same IDetectionSource contract. The simulator's wire
+/// protocol is our own invention (not a guess at the third-party detector's undocumented API) — a tiny JSON envelope:
 /// {"type":"throw","segment":20,"ring":"Triple","x":0.13,"y":0.91} or {"type":"endOfTurn"}. x/y are the
 /// real SVG click position when available (omitted for keyboard activation or the Miss button), and fall
 /// back to a deterministic BoardGeometry-fabricated center point when absent.

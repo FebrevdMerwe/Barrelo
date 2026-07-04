@@ -2,7 +2,7 @@ namespace Barrelo.GameSdk;
 
 public enum DetectionSourceType
 {
-    AutoDarts,
+    ThirdPartyDetector,
     Mock,
     Manual,
     Simulator,

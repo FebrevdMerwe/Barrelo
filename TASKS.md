@@ -68,7 +68,7 @@ Mirrors the phases in `PLAN.md`. Check items off as they land; don't reorder pha
 
 ---
 
-## Phase 3 — AutoDarts adapter
+## Phase 3 — ThirdPartyDetector adapter
 
 ### Gate — resolve before building the adapter
 - [ ] Confirm local board-manager exposes real-time throw events (vs. cloud-only) — hard gate on the "no cloud" constraint
@@ -79,8 +79,8 @@ Mirrors the phases in `PLAN.md`. Check items off as they land; don't reorder pha
 - [ ] Capture real sample frames from a live board manager
 
 ### Build
-- [ ] `AutoDartsDetectionSource.cs` + exponential-backoff reconnect
-- [ ] `Detection:Mode` DI switch (`AutoDarts` / `Mock`)
+- [ ] `ThirdPartyDetectionSource.cs` + exponential-backoff reconnect
+- [ ] `Detection:Mode` DI switch (`ThirdPartyDetector` / `Mock`)
 - [ ] Local test server in `Infrastructure.IntegrationTests` replaying canned frames
 
 **Done when:** adapter runs against the replayed-frame test server, reconnects correctly after a dropped connection, and the wire-format gate above was resolved with real captured samples — before ever touching real hardware.
@@ -93,7 +93,7 @@ Mirrors the phases in `PLAN.md`. Check items off as they land; don't reorder pha
 - [ ] Board connected/disconnected UI indicator
 - [ ] Reconnect resilience
 - [ ] `appsettings` profiles
-- [ ] Startup script launching `Barrelo.Api` on the target device (assumes AutoDarts already running; points `Detection:AutoDarts:*` at it)
+- [ ] Startup script launching `Barrelo.Api` on the target device (assumes ThirdPartyDetector already running; points `Detection:ThirdPartyDetector:*` at it)
 
 ---
 
