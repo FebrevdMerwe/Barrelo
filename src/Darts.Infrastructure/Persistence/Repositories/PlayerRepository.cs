@@ -17,5 +17,6 @@ public sealed class PlayerRepository(DartsDbContext context) : IPlayerRepository
         await context.Players.Where(p => ids.Contains(p.Id)).ToListAsync(ct);
 
     public async Task<IReadOnlyList<Player>> GetAll(CancellationToken ct) =>
+        
         await context.Players.OrderBy(p => p.Name).ToListAsync(ct);
 }

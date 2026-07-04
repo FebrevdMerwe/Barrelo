@@ -497,7 +497,9 @@
     reconcileBuckets(spec);
 
     var groupSetting = findSetting(game, "playerGroup");
-    groupsLabel.textContent = groupSetting ? (groupSetting.displayName || "Teams") : "Groups";
+    groupsLabel.textContent = groupSetting
+      ? (groupSetting.displayName || "Teams") + " (" + spec.teamCount + ")"
+      : "Groups";
     autoFillBtn.hidden = !spec.hasTeams;
     groupColumnsEl.innerHTML = "";
 
@@ -902,7 +904,8 @@
     }
   });
 
-  manageRosterBtn.addEventListener("click", function () {
+  manageRosterBtn.addEventListener("click", async function () {
+    await fetchExistingPlayers();
     renderRosterList();
     manageRosterModal.showModal();
   });

@@ -560,6 +560,27 @@ body{
 
 /* ---------- mode options ---------- */
 .mode-options{ display:flex; gap:12px; flex-wrap:wrap; }
+.source-pill-option{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  cursor:pointer;
+  font-family:'Big Shoulders Display', sans-serif; font-weight:700; font-size:18px; letter-spacing:.02em;
+  color: var(--chalk);
+  background: rgba(0,0,0,.15);
+  border:1px solid var(--brass-dim);
+  border-radius:999px;
+  padding:9px 22px;
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.source-pill-option input{ position:absolute; opacity:0; width:1px; height:1px; }
+.source-pill-option:hover{ border-color: var(--brass); }
+.source-pill-option:has(input:checked){
+  border-color: var(--brass-bright);
+  background: rgba(233,194,106,.14);
+  box-shadow: 0 0 0 1px var(--brass-bright);
+}
+.source-pill-option input:focus-visible ~ span{ outline:2px solid var(--brass-bright); outline-offset:3px; border-radius:999px; }
 
 /* ---------- groups (drag-and-drop buckets, incl. Spectator) ---------- */
 .group-columns{ display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; }
