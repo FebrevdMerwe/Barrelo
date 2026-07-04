@@ -1,4 +1,4 @@
-# Dart Platform Scope Document
+# Barrelo Scope Document
 
 ## Vision
 

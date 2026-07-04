@@ -1,0 +1,27 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Barrelo.Api/Barrelo.Api.csproj" />
+    <Project Path="src/Barrelo.Application/Barrelo.Application.csproj" />
+    <Project Path="src/Barrelo.Domain/Barrelo.Domain.csproj" />
+    <Project Path="src/Barrelo.GameSdk/Barrelo.GameSdk.csproj" />
+    <Project Path="src/Barrelo.Infrastructure/Barrelo.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Games/">
+    <Project Path="src/Games/Barrelo.Games.X01/Barrelo.Games.X01.csproj" />
+    <Project Path="src/Games/Barrelo.Games.Cricket/Barrelo.Games.Cricket.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Barrelo.Api.IntegrationTests/Barrelo.Api.IntegrationTests.csproj" />
+    <Project Path="tests/Barrelo.Application.UnitTests/Barrelo.Application.UnitTests.csproj" />
+    <Project Path="tests/Barrelo.Domain.UnitTests/Barrelo.Domain.UnitTests.csproj" />
+    <Project Path="tests/Barrelo.GameSdk.UnitTests/Barrelo.GameSdk.UnitTests.csproj" />
+    <Project Path="tests/Barrelo.Infrastructure.IntegrationTests/Barrelo.Infrastructure.IntegrationTests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Games/">
+    <Project Path="tests/Games/Barrelo.Games.X01.UnitTests/Barrelo.Games.X01.UnitTests.csproj" />
+    <Project Path="tests/Games/Barrelo.Games.Cricket.UnitTests/Barrelo.Games.Cricket.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Barrelo.BoardSimulator/Barrelo.BoardSimulator.csproj" />
+  </Folder>
+</Solution>

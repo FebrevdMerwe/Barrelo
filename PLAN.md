@@ -1,4 +1,4 @@
-# Darts Platform — v1 Implementation Plan
+# Barrelo — v1 Implementation Plan
 
 ## Context
 
@@ -18,45 +18,45 @@ The plugin architecture is designed so that "add a new game" and "add a new dete
 
 ## Solution layout
 
-Root: `C:\Projects\Darts` (already exists, contains only `SCOPE.md`, not yet a git repo). Solution `Darts.sln`, root namespace `Darts`.
+Root: `C:\Projects\Barrelo` (already exists, contains only `SCOPE.md`, not yet a git repo). Solution `Barrelo.sln`, root namespace `Barrelo`.
 
-Run the `new-dotnet-project` scaffold conventions **in place** in `C:\Projects\Darts` (adapt the skill's steps — skip creating a new directory under `~/projects`, since this directory and its SCOPE.md already exist) to produce the standard four layers + test projects, then layer these additions/deviations on top:
+Run the `new-dotnet-project` scaffold conventions **in place** in `C:\Projects\Barrelo` (adapt the skill's steps — skip creating a new directory under `~/projects`, since this directory and its SCOPE.md already exist) to produce the standard four layers + test projects, then layer these additions/deviations on top:
 
 ```
 src/
-  Darts.Domain
-  Darts.Application
-  Darts.Infrastructure
-  Darts.Api
-  Darts.GameSdk                      ← NEW: slim, dependency-free plugin contracts library
+  Barrelo.Domain
+  Barrelo.Application
+  Barrelo.Infrastructure
+  Barrelo.Api
+  Barrelo.GameSdk                      ← NEW: slim, dependency-free plugin contracts library
   Games/
-    Darts.Games.X01                  ← NEW: first reference game plugin
-    Darts.Games.Cricket               ← NEW: second reference game plugin (Standard Cricket)
+    Barrelo.Games.X01                  ← NEW: first reference game plugin
+    Barrelo.Games.Cricket               ← NEW: second reference game plugin (Standard Cricket)
 tests/
-  Darts.Domain.UnitTests
-  Darts.Application.UnitTests
-  Darts.Infrastructure.IntegrationTests
-  Darts.Api.IntegrationTests
-  Darts.GameSdk.UnitTests            ← NEW
+  Barrelo.Domain.UnitTests
+  Barrelo.Application.UnitTests
+  Barrelo.Infrastructure.IntegrationTests
+  Barrelo.Api.IntegrationTests
+  Barrelo.GameSdk.UnitTests            ← NEW
   Games/
-    Darts.Games.X01.UnitTests        ← NEW (bulk of rules-engine tests live here)
-    Darts.Games.Cricket.UnitTests    ← NEW
+    Barrelo.Games.X01.UnitTests        ← NEW (bulk of rules-engine tests live here)
+    Barrelo.Games.Cricket.UnitTests    ← NEW
 ```
 
 **Deviations from the default scaffold:**
 - **No MediatR.** MediatR moved to a commercial license (v13, 2025 — paid above a revenue threshold). Since this is built toward a real commercial product, the scaffold's MediatR dependency and `AddMediatR(...)` registration are dropped in favour of a tiny in-house dispatcher (see "Request dispatcher" below). No other library in the stack carries a commercial-licensing obligation, so removing this one keeps v1 — and any later commercial release — free of runtime licensing fees. `ErrorOr` (MIT) is kept.
 - Infrastructure: swap `Microsoft.EntityFrameworkCore.SqlServer` → `Microsoft.EntityFrameworkCore.Sqlite` (single-device local deployment, no server needed).
-- `Darts.GameSdk`: **zero** project references, no dispatcher/EF/ErrorOr — BCL + `System.Text.Json` only. This is the only assembly a game plugin author (including a future third party) needs to reference.
-- `Darts.Application` references `Darts.GameSdk` in addition to `Darts.Domain`. `Darts.Domain` does **not** reference GameSdk — keep the domain model pure; GameSdk is a sibling contracts library.
-- `Darts.Api` also references `Darts.GameSdk` (hosts the plugin loader, shapes SignalR payloads).
-- `Darts.Games.X01` references **only** `Darts.GameSdk` — this is what proves the plugin boundary is real, not aspirational.
-- No separate SPA/front-end project for v1 — the web UI is static files served from `Darts.Api/wwwroot` (see UI section for why).
+- `Barrelo.GameSdk`: **zero** project references, no dispatcher/EF/ErrorOr — BCL + `System.Text.Json` only. This is the only assembly a game plugin author (including a future third party) needs to reference.
+- `Barrelo.Application` references `Barrelo.GameSdk` in addition to `Barrelo.Domain`. `Barrelo.Domain` does **not** reference GameSdk — keep the domain model pure; GameSdk is a sibling contracts library.
+- `Barrelo.Api` also references `Barrelo.GameSdk` (hosts the plugin loader, shapes SignalR payloads).
+- `Barrelo.Games.X01` references **only** `Barrelo.GameSdk` — this is what proves the plugin boundary is real, not aspirational.
+- No separate SPA/front-end project for v1 — the web UI is static files served from `Barrelo.Api/wwwroot` (see UI section for why).
 
 ---
 
 ## Request dispatcher (in-house, replaces MediatR)
 
-A ~1-file mediator living in `Darts.Application/Common/Dispatch/`. It covers exactly the two features the plan actually uses — request/response commands+queries and fire-and-forget notifications — and nothing else. No pipeline-behavior framework, no assembly-scanning magic beyond a single registration helper.
+A ~1-file mediator living in `Barrelo.Application/Common/Dispatch/`. It covers exactly the two features the plan actually uses — request/response commands+queries and fire-and-forget notifications — and nothing else. No pipeline-behavior framework, no assembly-scanning magic beyond a single registration helper.
 
 **Contracts (Application, dependency-free):**
 - `IRequest<TResponse>` — marker for a command/query returning `TResponse` (typically `ErrorOr<T>`).
@@ -70,7 +70,7 @@ A ~1-file mediator living in `Darts.Application/Common/Dispatch/`. It covers exa
 
 **Why this is safe to hand-roll:** the surface MediatR gave us here is small and stable, all first-party handlers (no third-party pipeline plugins), and the boundary is already an interface (`IDispatcher`) — so if a future need outgrows it, swapping the implementation is localized. Keeping the `IRequest`/`IRequestHandler` shape close to MediatR's also means handler code reads familiarly and the migration cost (in either direction) stays near zero.
 
-**Unit tests (`Darts.Application.UnitTests`):** dispatch routes to the correct handler; unregistered request throws a clear error; notification reaches all registered handlers; response (incl. `ErrorOr` failure) is returned unchanged.
+**Unit tests (`Barrelo.Application.UnitTests`):** dispatch routes to the correct handler; unregistered request throws a clear error; notification reaches all registered handlers; response (incl. `ErrorOr` failure) is returned unchanged.
 
 ---
 
@@ -80,9 +80,9 @@ A ~1-file mediator living in `Darts.Application/Common/Dispatch/`. It covers exa
 
 **This is designed to be additive later, not a migration.** `GameCatalog` and `GameSessionManager` only ever talk to games through `IGameFactory`/`IGame` — they don't know or care how a game was loaded. That means a second loader (e.g. a future `OutOfProcessGameLoader`, proxying calls over IPC to a subprocess) can be added *alongside* `PluginGameLoader` later, contributing its own `IGameFactory` instances into the same catalog with no changes to the catalog, session manager, or API layer. Built-in games stay in-process (no IPC overhead, simplest to author); custom, third-party, or non-.NET games get the out-of-process path once that need is real. This only works because the contract lives in a dependency-free SDK assembly rather than in Domain/Application types, and because `IGame` is async-returning from the start (see below) — a design cost paid once, now, while it's nearly free.
 
-**ALC gotcha to design around now:** types crossing the boundary (`DetectedThrow`, `GameStateSnapshot`, etc.) must resolve to the same assembly instance on both sides, or identical-looking types throw `InvalidCastException`. Fix: the plugin's `AssemblyLoadContext.Load` override returns `null` for any assembly already loaded in the default context (i.e. `Darts.GameSdk`), forcing resolution against the host's copy. Only the plugin's own DLL loads into its collectible context.
+**ALC gotcha to design around now:** types crossing the boundary (`DetectedThrow`, `GameStateSnapshot`, etc.) must resolve to the same assembly instance on both sides, or identical-looking types throw `InvalidCastException`. Fix: the plugin's `AssemblyLoadContext.Load` override returns `null` for any assembly already loaded in the default context (i.e. `Barrelo.GameSdk`), forcing resolution against the host's copy. Only the plugin's own DLL loads into its collectible context.
 
-### `Darts.GameSdk` contents
+### `Barrelo.GameSdk` contents
 - `DetectedThrow` — canonical throw event, shared verbatim between the detection subsystem and game logic (no mapping layer needed since both sit on the same "outer, replaceable" side of the boundary relative to Domain).
 - `DetectionEventType` (`Throw | EndOfTurn`) — real detectors signal visit-complete explicitly (OpenDartboard's wire protocol has an explicit `"END"` marker; AutoDarts exposes turn/match state), so the contract needs a real turn-boundary signal, not "3 throws = turn."
 - `DetectionEvent` (Application-side wrapper, not GameSdk) — a discriminated envelope: `DetectionEventType Type` + a nullable `DetectedThrow Throw` (populated only when `Type == Throw`). `IDetectionSource.EventsAsync` yields these; the listener switches on `Type` to send `RecordDetectedThrowCommand` vs `RecordEndOfTurnCommand` through the dispatcher. Stated explicitly here because the split-command design otherwise leaves the on-the-wire event shape implicit.
@@ -99,7 +99,7 @@ A ~1-file mediator living in `Darts.Application/Common/Dispatch/`. It covers exa
 - `GameSessionManager.cs` — implements `IGameSessionManager` (Application): holds live `IGame` instances per in-progress match in a `ConcurrentDictionary<Guid, IGame>`. **Explicit v1 limitation:** not persisted/rehydrated across process restart — an interrupted match is lost. Resumability would require every `IGame` to support state serialize/deserialize, which is real design weight with no current requirement driving it.
   - **Per-match serialization of `IGame` access.** `IGame` is stateful and passive (call-in/pull-out, not self-driving), and multiple producers can target the same match concurrently: the manual-throw REST endpoint runs a dispatched command on a request thread while `DetectionListenerService` may be mid-throw on the background thread, and Phase 4 explicitly wants live manual correction alongside a real board (two active sources at once). The dictionary makes concurrent matches structurally possible, so all mutation of a given `IGame` must be serialized. `GameSessionManager` owns a per-`matchId` async lock (or funnels every producer through a single-writer channel per match); command handlers acquire it before calling `ReceiveThrow`/`ReceiveEvent`/`UndoLastThrow`. This keeps the "plugin is passive, host controls timing" contract true regardless of how many producers exist.
   - **Detection event → match routing.** A `DetectedThrow` carries a `BoardId`, not a `MatchId`, so the manager also owns the `BoardId → active MatchId` binding, established when a match starts. **v1 rule:** a board hosts at most one active match at a time; the listener resolves the incoming throw's `BoardId` to that match, and throws for a board with no active match are dropped (logged). Mock/manual sources use a well-known default `BoardId`. This is the routing step the data flow below depends on — without it "resolve the match's `IGame`" has no key.
-- Every project under `src/Games/` picks up a shared `Directory.Build.targets` post-build step keyed off a per-project `<GameId>` property (e.g. `x01`, `cricket`): it copies the built DLL and any `ui/` assets into one consolidated `Darts.Api/plugins/{GameId}/` folder, so `dotnet build` produces a working plugins folder automatically while still proving dynamic loading (not a project reference) is what's happening at runtime. A new game needs no MSBuild wiring beyond setting `<GameId>`.
+- Every project under `src/Games/` picks up a shared `Directory.Build.targets` post-build step keyed off a per-project `<GameId>` property (e.g. `x01`, `cricket`): it copies the built DLL and any `ui/` assets into one consolidated `Barrelo.Api/plugins/{GameId}/` folder, so `dotnet build` produces a working plugins folder automatically while still proving dynamic loading (not a project reference) is what's happening at runtime. A new game needs no MSBuild wiring beyond setting `<GameId>`.
 
 ---
 
@@ -123,7 +123,7 @@ Task<bool> IsConnectedAsync();
 ```
 `IAsyncEnumerable` over raw C# events — trivial to unit test (`await foreach` a mock async-enumerable) and composes cleanly with a `BackgroundService` consumer with no manual event unsubscription.
 
-`DetectedThrow` lives in `Darts.GameSdk` (Application already depends on it for `IGame`), so detection events flow straight into `IGame.ReceiveThrow(...)` with no intermediate mapping type.
+`DetectedThrow` lives in `Barrelo.GameSdk` (Application already depends on it for `IGame`), so detection events flow straight into `IGame.ReceiveThrow(...)` with no intermediate mapping type.
 
 ### AutoDarts wire format (to verify in Phase 3 — not yet confirmed)
 
@@ -152,7 +152,7 @@ with `score` ∈ `S1..S20`, `D1..D20`, `T1..T20`, `BULL` (50), `OUTER` (25), `MI
 
 ---
 
-## First reference game: classic 501 (`Darts.Games.X01`)
+## First reference game: classic 501 (`Barrelo.Games.X01`)
 
 Simplest state machine that still exercises the whole `IGame` contract (turn/leg/set progression, bust rules, undo, winner determination) — validates the contract cheaply and sets the pattern every future game follows.
 
@@ -174,7 +174,7 @@ Simplest state machine that still exercises the whole `IGame` contract (turn/leg
 **Per-game board UI.** Games are visually diverse by nature — a score game (X01) needs only a number, a putt-putt-style game needs each player's ball position, and neither should require touching core code to add. So the shell owns only the chrome above; a bounded `<div id="game-board">` region is delegated to the active game itself:
 - **Convention, not a new `GameSdk` contract.** No new field on `GameDescriptor` — the shell always looks for `/plugins/{gameId}/render.js`. If present, it defines a global `window.renderGameBoard(container, snapshot)`, called on every `GameStateUpdated` push with the `game-board` element and the parsed `GameStateSnapshot` (incl. `.payload`). This is an optional per-game asset, not a mandatory one: a game with nothing visual beyond the chrome (X01 may well be one) can ship no `render.js` at all.
 - **Default fallback renderer.** If `render.js` 404s / defines nothing, `scoreboard.js` falls back to a small built-in renderer (generic key/value dump of `payload`) — this is what keeps the pure-convention approach (no explicit descriptor field) from failing silently/late for a game that forgot to ship UI.
-- **Delivery, consolidated with the DLL post-build copy (below).** A game project may include a `ui/` folder (e.g. `src/Games/Darts.Games.X01/ui/render.js`); the shared `src/Games/Directory.Build.targets` post-build target copies both the DLL and the `ui/` assets into the same `Darts.Api/plugins/{gameId}/` folder. A dedicated `UseStaticFiles` middleware in `Program.cs`, mounted at `/plugins` and allow-listing only `.js`/`.css`, serves that folder over HTTP without ever exposing the `.dll` sitting alongside it. Pure MSBuild copy wiring plus middleware config — no project reference changes, so the plugin still references only `Darts.GameSdk`.
+- **Delivery, consolidated with the DLL post-build copy (below).** A game project may include a `ui/` folder (e.g. `src/Games/Barrelo.Games.X01/ui/render.js`); the shared `src/Games/Directory.Build.targets` post-build target copies both the DLL and the `ui/` assets into the same `Barrelo.Api/plugins/{gameId}/` folder. A dedicated `UseStaticFiles` middleware in `Program.cs`, mounted at `/plugins` and allow-listing only `.js`/`.css`, serves that folder over HTTP without ever exposing the `.dll` sitting alongside it. Pure MSBuild copy wiring plus middleware config — no project reference changes, so the plugin still references only `Barrelo.GameSdk`.
 - **Loading model kept simple.** Starting/opening a match does a full page load with the resolved `gameId` rather than dynamic script injection/teardown — consistent with "static wwwroot, no SPA" and avoiding any global-function collision between games sharing one page lifetime.
 - **Server-side contract is unchanged.** `IGame`, `DetectedThrow`, and `GameStateSnapshot` are untouched — this is purely an additive static-asset convention on top of the existing opaque `Payload` field.
 - **Virtual dartboard (`dartboard.js`).** A clickable **SVG standard 20-segment board**: for each number, four wedge paths (inner-single, triple, outer-single, double) plus outer-bull (25) and inner-bull (50) circles, each carrying `data-segment` and `data-ring`. A click resolves segment+ring directly from the clicked element's data attributes — SVG hit-testing does the geometry, no pixel-to-polar math (polar math is only a fallback if a single `<canvas>` is ever preferred over discrete paths). Alongside the board: **Miss** (segment 0 / `Ring.Miss`), **Undo**, and **End turn / Next player** controls. Each action POSTs to the matching manual endpoint; the board computes no score and holds no game state — current-player highlight and "darts this visit (1/2/3)" come straight from the pushed `GameStateSnapshot`, so the existing `GameStateUpdated` event re-renders everything. The board is purely an input device, making manual play fully hardware-free.
@@ -186,7 +186,7 @@ Simplest state machine that still exercises the whole `IGame` contract (turn/leg
 - `POST /api/detection/manual-end-turn` — body `{ boardId? }` → dispatches the existing `RecordEndOfTurnCommand` (`IGame.ReceiveEvent(EndOfTurn)`), letting a player end a visit before 3 darts (checkouts/busts).
 - `POST /api/detection/undo` — body `{ boardId? }` → new thin **`UndoLastThrowCommand`** whose handler resolves the match's `IGame` under the per-`matchId` lock, calls the already-first-class `UndoLastThrow()`, retracts the last `ThrowRecord`, and publishes `GameStateChangedEvent`. This exposes undo (required by the contract, line 87) to the manual UI.
 
-**Why not Blazor Server:** it would keep everything in C#, but ties rendering to a stateful per-tab circuit owned by the Api process, muddying the boundary between "the platform's network API" and "this particular UI." REST + a purpose-built SignalR hub keeps `Darts.Api` a clean surface that future consumers (mobile companion app, spectator/TV display — both explicitly in the long-term vision) can hit without caring how the reference web scoreboard is built. It also mirrors the same network-boundary philosophy already forced onto the OpenDartboard integration.
+**Why not Blazor Server:** it would keep everything in C#, but ties rendering to a stateful per-tab circuit owned by the Api process, muddying the boundary between "the platform's network API" and "this particular UI." REST + a purpose-built SignalR hub keeps `Barrelo.Api` a clean surface that future consumers (mobile companion app, spectator/TV display — both explicitly in the long-term vision) can hit without caring how the reference web scoreboard is built. It also mirrors the same network-boundary philosophy already forced onto the OpenDartboard integration.
 
 v1 UI scope: live scoreboard + trivial match-start form only. No player CRUD screen, no stats views.
 
@@ -200,33 +200,33 @@ v1 UI scope: live scoreboard + trivial match-start form only. No player CRUD scr
 
 No `Leg` table — leg/set boundaries are derivable from `ThrowRecord` fields if ever needed; not worth a dedicated entity in v1.
 
-EF: `Infrastructure/Persistence/Configurations/{Player,Match,ThrowRecord}Configuration.cs`, repositories `IPlayerRepository`/`IMatchRepository` (Application interfaces) implemented in `Infrastructure/Persistence/Repositories/`. Connection string `Data Source=darts.db`.
+EF: `Infrastructure/Persistence/Configurations/{Player,Match,ThrowRecord}Configuration.cs`, repositories `IPlayerRepository`/`IMatchRepository` (Application interfaces) implemented in `Infrastructure/Persistence/Repositories/`. Connection string `Data Source=barrelo.db`.
 
 ---
 
 ## Phased build order
 
-**Phase 0 — Scaffold.** Run the DDD scaffold in place at `C:\Projects\Darts`; swap SqlServer→Sqlite; add `Darts.GameSdk` and `src/Games/Darts.Games.X01` (+ test projects) with the reference rules above; `dotnet build`; `git init` + initial commit.
+**Phase 0 — Scaffold.** Run the DDD scaffold in place at `C:\Projects\Barrelo`; swap SqlServer→Sqlite; add `Barrelo.GameSdk` and `src/Games/Barrelo.Games.X01` (+ test projects) with the reference rules above; `dotnet build`; `git init` + initial commit.
 
-**Phase 1 — Domain + GameSdk + X01 plugin + mock detection, no UI (earliest demoable slice).** Large phase; sequence it internally so the **`GameSdk` contracts and the `Darts.Games.X01` state machine + its unit tests land and pass first** (bust incl. double-bull finish, checkout, leg/set progression, undo across a leg boundary, undo of a busting dart, win), *before* the plumbing that asserts against them: domain entities/value objects; plugin loader + `GameCatalog`/`GameSessionManager` (incl. per-`matchId` serialization + `BoardId`→match routing); `MockDetectionSource`; SQLite context + repositories + first migration; the in-house dispatcher + commands/handlers (incl. the manual `RecordEndOfTurnCommand` and new `UndoLastThrowCommand`); the three manual-play endpoints (`manual-throw`, `manual-end-turn`, `undo`) in `DetectionEndpoints`; `Match.InputSource` + the manual `BoardId` binding on manual-match start; bare Api endpoints exercised via Scalar/curl plus an integration test scripting a full mock 501 leg end-to-end **and** a full *manual* 501 leg (normal throws + `Miss` + an early `end-turn` + `undo` of a busting dart across a leg boundary) with **no streaming source running**. **Deliverable: a full 501 leg playable and asserted via API + tests — from both the mock stream and pure manual entry with zero hardware — with the plugin genuinely loaded from a `plugins/` folder DLL, before any UI exists.**
+**Phase 1 — Domain + GameSdk + X01 plugin + mock detection, no UI (earliest demoable slice).** Large phase; sequence it internally so the **`GameSdk` contracts and the `Barrelo.Games.X01` state machine + its unit tests land and pass first** (bust incl. double-bull finish, checkout, leg/set progression, undo across a leg boundary, undo of a busting dart, win), *before* the plumbing that asserts against them: domain entities/value objects; plugin loader + `GameCatalog`/`GameSessionManager` (incl. per-`matchId` serialization + `BoardId`→match routing); `MockDetectionSource`; SQLite context + repositories + first migration; the in-house dispatcher + commands/handlers (incl. the manual `RecordEndOfTurnCommand` and new `UndoLastThrowCommand`); the three manual-play endpoints (`manual-throw`, `manual-end-turn`, `undo`) in `DetectionEndpoints`; `Match.InputSource` + the manual `BoardId` binding on manual-match start; bare Api endpoints exercised via Scalar/curl plus an integration test scripting a full mock 501 leg end-to-end **and** a full *manual* 501 leg (normal throws + `Miss` + an early `end-turn` + `undo` of a busting dart across a leg boundary) with **no streaming source running**. **Deliverable: a full 501 leg playable and asserted via API + tests — from both the mock stream and pure manual entry with zero hardware — with the plugin genuinely loaded from a `plugins/` folder DLL, before any UI exists.**
 
 **Phase 2 — Web UI + SignalR.** `GameHub`, `GameHubNotifier`, `wwwroot` scoreboard + start-match form (with input-source selector) + **virtual dartboard input** (`dartboard.js`: clickable SVG board + Miss/Undo/End-turn controls, all driven by the manual endpoints and re-rendered from `GameStateUpdated`), minimal player create/list. **Verify manual play end-to-end in the browser: start a `Manual` match, click segments/rings, confirm live SignalR updates and a full leg/match completion — with no tracker connected.**
 
 **Phase 3 — AutoDarts adapter.** `AutoDartsDetectionSource`, reconnect logic, `Detection:Mode` switch. No hardware yet, so validate against a local test server in `Infrastructure.IntegrationTests` replaying canned frames matching AutoDarts' event schema — gives confidence ahead of hardware and becomes a regression test once hardware exists. **Gate (see AutoDarts wire format):** pin down the unconfirmed API first — (a) local board-manager stream vs cloud-only (and whether that forces an auth flow or bends the "no cloud" constraint), (b) the exact throw/turn-boundary event schema and notation, (c) confirm one-fused-throw-per-dart, (d) decide correction/retract handling. These must be settled here, since they determine how a raw AutoDarts event maps to a `DetectedThrow`. Capture real sample frames from a live board manager to drive the replay tests.
 
-**Phase 4 — Hardening.** Logging, board connected/disconnected UI indicator, reconnect resilience, appsettings profiles, and a startup script that launches `Darts.Api` on the target device. Unlike a forked GPL detector, **AutoDarts is not shipped by us** — it's a separate product the user installs and runs (its board client/manager); the startup script just assumes it's already running and points `Detection:AutoDarts:*` at it. (A future owned detector like a forked OpenDartboard would reintroduce the "launch the detector binary alongside `Darts.Api`" step.)
+**Phase 4 — Hardening.** Logging, board connected/disconnected UI indicator, reconnect resilience, appsettings profiles, and a startup script that launches `Barrelo.Api` on the target device. Unlike a forked GPL detector, **AutoDarts is not shipped by us** — it's a separate product the user installs and runs (its board client/manager); the startup script just assumes it's already running and points `Detection:AutoDarts:*` at it. (A future owned detector like a forked OpenDartboard would reintroduce the "launch the detector binary alongside `Barrelo.Api`" step.)
 
 **Phase 5 (stretch, not required for "v1 done").** A second, deliberately different game plugin (e.g. Around the Clock) to validate the architecture claim end-to-end — this must include its own `render.js` rendering something structurally different from X01's board region (e.g. per-player target progression, or a putt-putt-style ball-position display), not a reuse of the generic/default renderer. The per-game board UI extension point is proven by actually exercising it, the same bar already applied to the plugin loader itself (see Verification).
 
 ---
 
 ## Critical files
-- `src/Darts.GameSdk/{IGame,DetectedThrow,GameSetup,GameStateSnapshot,IGameFactory}.cs` — the entire plugin boundary hinges on this assembly.
-- `src/Games/Darts.Games.X01/X01Game.cs` — reference implementation setting the pattern for every future game.
-- `src/Darts.Application/Common/Interfaces/Services/IDetectionSource.cs` — detection abstraction every adapter (AutoDarts, Mock, Manual, future OpenDartboard) satisfies.
-- `src/Darts.Infrastructure/External/GamePlugins/{PluginLoadContext,PluginGameLoader}.cs` — actual ALC loading + shared-assembly resolution fix.
-- `src/Darts.Infrastructure/Persistence/DartsDbContext.cs` + `Persistence/Configurations/*` — SQLite schema.
-- `Darts.Api/wwwroot/index.html` + `scoreboard.js` — chrome/board-region split and the default fallback renderer; the counterpart to the plugin boundary on the UI side.
+- `src/Barrelo.GameSdk/{IGame,DetectedThrow,GameSetup,GameStateSnapshot,IGameFactory}.cs` — the entire plugin boundary hinges on this assembly.
+- `src/Games/Barrelo.Games.X01/X01Game.cs` — reference implementation setting the pattern for every future game.
+- `src/Barrelo.Application/Common/Interfaces/Services/IDetectionSource.cs` — detection abstraction every adapter (AutoDarts, Mock, Manual, future OpenDartboard) satisfies.
+- `src/Barrelo.Infrastructure/External/GamePlugins/{PluginLoadContext,PluginGameLoader}.cs` — actual ALC loading + shared-assembly resolution fix.
+- `src/Barrelo.Infrastructure/Persistence/BarreloDbContext.cs` + `Persistence/Configurations/*` — SQLite schema.
+- `Barrelo.Api/wwwroot/index.html` + `scoreboard.js` — chrome/board-region split and the default fallback renderer; the counterpart to the plugin boundary on the UI side.
 - Each game project's optional `ui/render.js` + the shared `src/Games/Directory.Build.targets` post-build copy target — the per-game board UI convention.
 
 ## Verification

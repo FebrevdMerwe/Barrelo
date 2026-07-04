@@ -4,5 +4,7 @@ obj/
 .vs/
 darts.db
 darts.db-*
-src/Darts.Api/plugins/
+barrelo.db
+barrelo.db-*
+src/Barrelo.Api/plugins/
 Releases/*

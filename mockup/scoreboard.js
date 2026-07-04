@@ -17,7 +17,7 @@
   var descriptor = (window.GAME_CATALOG || []).find(function (g) { return g.id === gameId; }) || { name: gameId };
   var players = [params.get("p1") || "Febre", params.get("p2") || "Sam"];
 
-  document.title = "Oché — " + descriptor.name;
+  document.title = "Barrelo — " + descriptor.name;
   document.getElementById("gameLabel").textContent = descriptor.name;
 
   var history = [];

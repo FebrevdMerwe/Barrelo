@@ -1,4 +1,4 @@
-# Darts Platform — Task Tracker
+# Barrelo — Task Tracker
 
 Mirrors the phases in `PLAN.md`. Check items off as they land; don't reorder phases without updating `PLAN.md` too. Each phase's "Done when" is its deliverable/verification line from `PLAN.md`.
 
@@ -6,10 +6,10 @@ Mirrors the phases in `PLAN.md`. Check items off as they land; don't reorder pha
 
 ## Phase 0 — Scaffold
 
-- [x] Run `new-dotnet-project` DDD scaffold in place at `C:\Projects\Darts`
+- [x] Run `new-dotnet-project` DDD scaffold in place at `C:\Projects\Barrelo`
 - [x] Swap `Microsoft.EntityFrameworkCore.SqlServer` → `Microsoft.EntityFrameworkCore.Sqlite`
-- [x] Add `Darts.GameSdk` project (zero project references, BCL + `System.Text.Json` only)
-- [x] Add `src/Games/Darts.Games.X01` + `tests/Games/Darts.Games.X01.UnitTests`
+- [x] Add `Barrelo.GameSdk` project (zero project references, BCL + `System.Text.Json` only)
+- [x] Add `src/Games/Barrelo.Games.X01` + `tests/Games/Barrelo.Games.X01.UnitTests`
 - [x] `dotnet build` succeeds
 - [x] Commit scaffold
 
@@ -37,11 +37,11 @@ Mirrors the phases in `PLAN.md`. Check items off as they land; don't reorder pha
 - [x] `GameCatalog` (`ListAvailable`, `Resolve`)
 - [x] `GameSessionManager` (per-`matchId` lock, `BoardId → MatchId` routing)
 - [x] `MockDetectionSource`
-- [x] SQLite `DartsDbContext` + configurations + repositories + first migration
+- [x] SQLite `BarreloDbContext` + configurations + repositories + first migration
 - [x] `RecordDetectedThrowCommand`, `RecordEndOfTurnCommand`, `UndoLastThrowCommand` + handlers
 - [x] `DetectionEndpoints`: `manual-throw`, `manual-end-turn`, `undo`
 - [x] `Match.InputSource` + manual `BoardId` binding on manual-match start
-- [x] X01 post-build target copying DLL into `Darts.Api/plugins/Darts.Games.X01/`
+- [x] X01 post-build target copying DLL into `Barrelo.Api/plugins/Barrelo.Games.X01/`
 
 ### Verification
 - [x] Bare API endpoints exercised via Scalar/curl
@@ -59,7 +59,7 @@ Mirrors the phases in `PLAN.md`. Check items off as they land; don't reorder pha
 - [x] `IGameNotifier` / `GameHubNotifier`
 - [x] `wwwroot/index.html` + `scoreboard.js` (players, remaining score, current visit, last N throws, leg/set score, winner banner, start-match form incl. input-source selector) — chrome only
 - [x] `<div id="game-board">` region in `index.html` + default fallback renderer in `scoreboard.js` (generic `payload` dump when a game ships no `render.js`)
-- [x] Per-game `ui/render.js` post-build copy target convention (`ui/` folder → `Darts.Api/wwwroot/plugins/{gameId}/`), wired for `Darts.Games.X01` even if it ships no custom renderer
+- [x] Per-game `ui/render.js` post-build copy target convention (`ui/` folder → `Barrelo.Api/wwwroot/plugins/{gameId}/`), wired for `Barrelo.Games.X01` even if it ships no custom renderer
 - [x] `dartboard.js` — clickable SVG board (wedges + bull) + Miss/Undo/End-turn controls
 - [x] Minimal player create/list
 - [x] `Program.cs` wiring: `AddSignalR()`, `UseStaticFiles()`, `MapHub`, `AddDartsDispatcher()`, endpoint groups
@@ -93,7 +93,7 @@ Mirrors the phases in `PLAN.md`. Check items off as they land; don't reorder pha
 - [ ] Board connected/disconnected UI indicator
 - [ ] Reconnect resilience
 - [ ] `appsettings` profiles
-- [ ] Startup script launching `Darts.Api` on the target device (assumes AutoDarts already running; points `Detection:AutoDarts:*` at it)
+- [ ] Startup script launching `Barrelo.Api` on the target device (assumes AutoDarts already running; points `Detection:AutoDarts:*` at it)
 
 ---
 
