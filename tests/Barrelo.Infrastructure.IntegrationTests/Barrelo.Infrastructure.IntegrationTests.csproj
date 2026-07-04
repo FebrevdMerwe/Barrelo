@@ -29,8 +29,19 @@
     <ProjectReference Include="..\..\src\Games\Barrelo.Games.X01\Barrelo.Games.X01.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Include="..\..\src\Barrelo.Api\plugins\**" LinkBase="plugins" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
+  <!--
+    Static glob items are evaluated once, at project load, before X01's post-build step (triggered by
+    the ProjectReference above) has copied its plugin into src\Barrelo.Api\plugins\x01\ — so a plain
+    <None Include> here never sees the file on a clean build. Globbing inside a Target defers
+    evaluation until the target runs, after that copy step has already completed.
+  -->
+  <Target Name="CopyPluginsToOutput" AfterTargets="Build">
+    <ItemGroup>
+      <PluginFiles Include="$(MSBuildProjectDirectory)\..\..\src\Barrelo.Api\plugins\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PluginFiles)"
+          DestinationFolder="$(OutDir)plugins\%(RecursiveDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

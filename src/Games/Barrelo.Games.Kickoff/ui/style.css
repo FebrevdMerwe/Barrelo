@@ -1,0 +1,28 @@
+/* Kickoff board: one shared pitch, one ball — not a panel per side. Landscape, right-to-left:
+   groups[0]'s goal is the wire frame on the right, groups[1]'s on the left. Both goal frames are
+   bent from the same brass wire as the dartboard's own spider and corner-riveted the same way.
+   Ball position reuses the dartboard's own polar geometry (angle from segment, distance from
+   ring) as a movement vector across the pitch. */
+.pitch-board{ display:flex; flex-direction:column; align-items:center; gap:14px; width:min(420px, 92vw); margin:0 auto; }
+.pitch-diagram{ width:100%; max-width:420px; height:auto; }
+.pitch-outline{ fill:none; stroke: var(--brass-dim); stroke-width:2; }
+.pitch-line{ stroke: var(--brass-dim); stroke-width:1.4; }
+.goal-frame{ fill:none; stroke: var(--brass); stroke-width:3.2; transition: stroke .3s ease, filter .3s ease; }
+.goal-frame.attacking{ stroke: var(--brass-bright); filter: drop-shadow(0 0 4px rgba(233,194,106,.6)); }
+.goal-rivet{ fill: var(--brass-dim); }
+.ball-trail{ fill:none; stroke: var(--chalk-dim); stroke-width:1.4; stroke-dasharray:2 3; opacity:.4; }
+.ball{ fill: var(--chalk); stroke: var(--brass-dim); stroke-width:1.2; }
+.pitch-event{
+  font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:.08em;
+  text-transform:uppercase; color: var(--chalk);
+}
+.pitch-event-good{ color: var(--brass-bright); }
+.pitch-event-bad{ color: var(--chalk-dim); }
+.pitch-scoreline{ display:flex; align-items:baseline; gap:14px; }
+.pitch-team{ font-family:'Caveat', cursive; font-weight:600; font-size:17px; color: var(--chalk-dim); }
+.pitch-score{ font-family:'Big Shoulders Display', sans-serif; font-weight:900; font-size:30px; color: var(--chalk); letter-spacing:.02em; }
+.pitch-tallies{
+  display:flex; justify-content:space-between; gap:20px; width:100%;
+  font-family:'JetBrains Mono', monospace; font-size:10.5px; color: var(--chalk-dim);
+  text-transform:uppercase; letter-spacing:.06em;
+}

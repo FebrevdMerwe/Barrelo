@@ -9,6 +9,7 @@
   <Folder Name="/src/Games/">
     <Project Path="src/Games/Barrelo.Games.X01/Barrelo.Games.X01.csproj" />
     <Project Path="src/Games/Barrelo.Games.Cricket/Barrelo.Games.Cricket.csproj" />
+    <Project Path="src/Games/Barrelo.Games.Kickoff/Barrelo.Games.Kickoff.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Barrelo.Api.IntegrationTests/Barrelo.Api.IntegrationTests.csproj" />
@@ -20,6 +21,7 @@
   <Folder Name="/tests/Games/">
     <Project Path="tests/Games/Barrelo.Games.X01.UnitTests/Barrelo.Games.X01.UnitTests.csproj" />
     <Project Path="tests/Games/Barrelo.Games.Cricket.UnitTests/Barrelo.Games.Cricket.UnitTests.csproj" />
+    <Project Path="tests/Games/Barrelo.Games.Kickoff.UnitTests/Barrelo.Games.Kickoff.UnitTests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/Barrelo.BoardSimulator/Barrelo.BoardSimulator.csproj" />

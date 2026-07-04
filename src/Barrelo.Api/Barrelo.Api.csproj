@@ -25,10 +25,33 @@
          dynamic via the plugin loader, not a project reference. -->
     <ProjectReference Include="..\Games\Barrelo.Games.X01\Barrelo.Games.X01.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Games\Barrelo.Games.Cricket\Barrelo.Games.Cricket.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Games\Barrelo.Games.Kickoff\Barrelo.Games.Kickoff.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Include="plugins\**" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
+  <!--
+    Plugins are written to plugins\{gameId}\ by each game project's post-build step
+    (Directory.Build.targets), which runs as part of this same build via the build-order-only
+    project references above. A plain <None Include="plugins\**"> item is evaluated once, at
+    project load, before those files exist on a clean build — so it never sees them. Globbing
+    inside a Target instead defers evaluation until the target actually executes, after all
+    referenced game projects (and their copy steps) have already run.
+  -->
+  <Target Name="CopyPluginsToOutput" AfterTargets="Build">
+    <ItemGroup>
+      <PluginFiles Include="$(MSBuildProjectDirectory)\plugins\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PluginFiles)"
+          DestinationFolder="$(OutDir)plugins\%(RecursiveDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyPluginsToPublishDir" AfterTargets="Publish">
+    <ItemGroup>
+      <PluginFilesForPublish Include="$(MSBuildProjectDirectory)\plugins\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PluginFilesForPublish)"
+          DestinationFolder="$(PublishDir)plugins\%(RecursiveDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>
