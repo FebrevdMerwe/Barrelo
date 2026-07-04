@@ -8,6 +8,7 @@
   </Folder>
   <Folder Name="/src/Games/">
     <Project Path="src/Games/Darts.Games.X01/Darts.Games.X01.csproj" />
+    <Project Path="src/Games/Darts.Games.Cricket/Darts.Games.Cricket.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Darts.Api.IntegrationTests/Darts.Api.IntegrationTests.csproj" />
@@ -18,6 +19,7 @@
   </Folder>
   <Folder Name="/tests/Games/">
     <Project Path="tests/Games/Darts.Games.X01.UnitTests/Darts.Games.X01.UnitTests.csproj" />
+    <Project Path="tests/Games/Darts.Games.Cricket.UnitTests/Darts.Games.Cricket.UnitTests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/Darts.BoardSimulator/Darts.BoardSimulator.csproj" />

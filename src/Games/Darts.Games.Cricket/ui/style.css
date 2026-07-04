@@ -1,13 +1,12 @@
-/* cricket board: each player gets their own chalk slate. Name and marks live
-   in the same flex column, so a name can never drift from its own scores
-   the way a shared header row could. */
-.cricket-board{ width:min(560px, 94vw); }
+/* cricket board: each group gets its own chalk slate, scales to N groups.
+   Name and marks live in the same flex column, so a name can never drift
+   from its own scores the way a shared header row could. */
+.cricket-board{ width:min(720px, 94vw); }
 .cricket-slates{
   display:flex; gap:14px; align-items:flex-start; justify-content:center; flex-wrap:wrap;
-  margin-bottom:12px;
 }
 .cricket-slate{
-  flex:1 1 150px; max-width:220px;
+  flex:1 1 150px; max-width:190px;
   padding: 14px 10px 12px;
   border:1px solid var(--slate-line);
   border-radius:8px;
@@ -51,9 +50,4 @@
   display:block; margin-top:2px;
   font-family:'JetBrains Mono', monospace; font-size:9px; color: var(--chalk-dim); font-weight:500;
   text-transform:uppercase; letter-spacing:.16em;
-}
-.cricket-tallies{
-  display:flex; justify-content:space-between; margin-top:12px;
-  font-family:'JetBrains Mono', monospace; font-size:10.5px; color: var(--chalk-dim);
-  text-transform:uppercase; letter-spacing:.06em;
 }

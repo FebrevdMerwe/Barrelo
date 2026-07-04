@@ -143,41 +143,34 @@
     var board = document.createElement("div");
     board.className = "cricket-board";
 
-    var head = document.createElement("div");
-    head.className = "cricket-head";
+    var slates = document.createElement("div");
+    slates.className = "cricket-slates";
     players.forEach(function (name, idx) {
       var isActive = state.currentPlayer === idx && !state.complete;
-      var span = document.createElement("span");
-      span.className = "cricket-player" + (isActive ? " active" : "");
-      span.textContent = name;
-      head.appendChild(span);
-      if (idx === 0) {
-        var title = document.createElement("span");
-        title.className = "cricket-title";
-        title.textContent = "Cricket";
-        head.appendChild(title);
-      }
-    });
-    board.appendChild(head);
+      var slate = document.createElement("div");
+      slate.className = "cricket-slate" + (isActive ? " active" : "");
 
-    var table = document.createElement("table");
-    table.className = "cricket-grid";
-    var tbody = document.createElement("tbody");
-    TARGET_LABELS.forEach(function (label, i) {
-      var tr = document.createElement("tr");
-      if (state.deadTargets.indexOf(i === 6 ? "BULL" : parseInt(label, 10)) !== -1) tr.classList.add("dead-row");
-      tr.innerHTML =
-        '<td class="mark-cell">' + markGlyph(state.marks[0][i]) + "</td>" +
-        '<td class="target-cell">' + label + "</td>" +
-        '<td class="mark-cell">' + markGlyph(state.marks[1][i]) + "</td>";
-      tbody.appendChild(tr);
+      var nameSpan = document.createElement("span");
+      nameSpan.className = "slate-name";
+      nameSpan.textContent = name;
+      slate.appendChild(nameSpan);
+
+      TARGET_LABELS.forEach(function (label, i) {
+        var isDead = state.deadTargets.indexOf(i === 6 ? "BULL" : parseInt(label, 10)) !== -1;
+        var row = document.createElement("div");
+        row.className = "slate-row" + (isDead ? " dead" : "");
+        row.innerHTML = '<span class="slate-target">' + label + "</span>" + markGlyph(state.marks[idx][i]);
+        slate.appendChild(row);
+      });
+
+      var score = document.createElement("div");
+      score.className = "slate-score";
+      score.innerHTML = state.score[idx] + "<small>Score</small>";
+      slate.appendChild(score);
+
+      slates.appendChild(slate);
     });
-    table.appendChild(tbody);
-    var tfoot = document.createElement("tfoot");
-    tfoot.innerHTML =
-      '<tr class="cricket-score-row"><td>' + state.score[0] + '</td><td>Score</td><td>' + state.score[1] + "</td></tr>";
-    table.appendChild(tfoot);
-    board.appendChild(table);
+    board.appendChild(slates);
 
     var tallies = document.createElement("div");
     tallies.className = "cricket-tallies";

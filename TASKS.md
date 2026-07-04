@@ -99,8 +99,8 @@ Mirrors the phases in `PLAN.md`. Check items off as they land; don't reorder pha
 
 ## Phase 5 — Stretch (not required for "v1 done")
 
-- [ ] Second game plugin (e.g. Around the Clock) — validates the plugin architecture claim end-to-end with zero core changes
-- [ ] Second game ships its own `ui/render.js` rendering a board region structurally different from X01's (e.g. target progression or per-player ball position) — proves games own their board UI, not just the generic/default renderer
+- [x] Second game plugin (**Cricket**) — validates the plugin architecture claim end-to-end with zero core changes
+- [x] Second game ships its own `ui/render.js` rendering a board region structurally different from X01's — Cricket's marks-grid table, not X01's two-big-numbers panel
 
 ---
 

@@ -24,10 +24,21 @@
          nothing to this project's compiled dependency closure, so the runtime load stays genuinely
          dynamic via the plugin loader, not a project reference. -->
     <ProjectReference Include="..\Games\Darts.Games.X01\Darts.Games.X01.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Games\Darts.Games.Cricket\Darts.Games.Cricket.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="plugins\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="wwwroot\plugins\cricket\render.js" />
+    <Content Remove="wwwroot\plugins\cricket\style.css" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="wwwroot\plugins\cricket\render.js" />
+    <None Include="wwwroot\plugins\cricket\style.css" />
   </ItemGroup>
 
 </Project>

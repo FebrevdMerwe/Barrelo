@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Darts.GameSdk\Darts.GameSdk.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <Target Name="CopyPluginToApi" AfterTargets="Build">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MSBuildThisFileDirectory)..\..\Darts.Api\plugins\Darts.Games.Cricket\" />
+  </Target>
+
+  <Target Name="CopyUiToApi" AfterTargets="Build">
+    <ItemGroup>
+      <UiAssets Include="ui\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(UiAssets)" DestinationFolder="$(MSBuildThisFileDirectory)..\..\Darts.Api\wwwroot\plugins\cricket\%(RecursiveDir)" />
+  </Target>
+
+</Project>

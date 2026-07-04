@@ -31,6 +31,7 @@ src/
   Darts.GameSdk                      ← NEW: slim, dependency-free plugin contracts library
   Games/
     Darts.Games.X01                  ← NEW: first reference game plugin
+    Darts.Games.Cricket               ← NEW: second reference game plugin (Standard Cricket)
 tests/
   Darts.Domain.UnitTests
   Darts.Application.UnitTests
@@ -39,6 +40,7 @@ tests/
   Darts.GameSdk.UnitTests            ← NEW
   Games/
     Darts.Games.X01.UnitTests        ← NEW (bulk of rules-engine tests live here)
+    Darts.Games.Cricket.UnitTests    ← NEW
 ```
 
 **Deviations from the default scaffold:**
