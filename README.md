@@ -13,9 +13,10 @@
 **A dart platform, not a scoring app.** Detection is decoupled from game rules, and game rules are decoupled
 from the core — so new games (and new detectors) plug in without touching the platform.
 
-[Overview](#overview) · [Quick start](#quick-start) · [Playing without hardware](#playing-without-hardware) ·
+[Overview](#overview) · [Quick start](#quick-start) · [Running a release package](#running-a-release-package) ·
+[Playing without hardware](#playing-without-hardware) ·
 [Configuration](#configuration) · [Adding a game](#adding-a-new-game) ·
-[Adding a detector](#adding-a-new-dart-detector) · [Building a release](#building-a-release) ·
+[Adding a detector](#adding-a-new-dart-detector) · [Building your own package](#building-your-own-package) ·
 [Project layout](#project-layout) · [Testing](#testing) · [Roadmap](#roadmap)
 
 </div>
@@ -122,6 +123,25 @@ OpenAPI/Scalar reference is also available at `/scalar`.
 Every `dotnet build` of the solution copies each game plugin's compiled DLL and `ui/` assets into
 `src/Barrelo.Api/plugins/{gameId}/` automatically (see [`Directory.Build.targets`](src/Games/Directory.Build.targets)) —
 there's no separate "install a plugin" step for the games that ship in this repo.
+
+## Running a release package
+
+No .NET SDK, no clone, no build — just download and run:
+
+1. Grab the latest `Barrelo-*-win-x64.zip` from [Releases](../../releases) and unzip it anywhere.
+2. Run `Barrelo.Api.exe` (double-click it, or run it from a terminal in that folder). It's self-contained —
+   no separate .NET runtime install needed — and applies EF Core migrations to its own `barrelo.db`
+   automatically on first launch.
+3. Open **http://localhost:5295** in a browser to reach the chalkboard start screen (the same URL as a
+   from-source run — see [Configuration](#configuration) to change it).
+4. Optional — for board-simulator play, also run `tools\BoardSimulator\Barrelo.BoardSimulator.exe` from the
+   unzipped folder (defaults to **http://localhost:5250**); the Api is configured to talk to it out of the
+   box. Manual entry via the on-screen dartboard works either way, with or without the simulator running.
+
+The package bundles the built-in game plugins (`plugins/x01`, `plugins/cricket`, `plugins/kickoff`) and the
+Board Simulator tool together, so a full match is playable immediately with zero real hardware. Currently
+published for win-x64 only. To change ports, database location, or detection mode, edit `appsettings.json`
+next to `Barrelo.Api.exe` — see [Configuration](#configuration).
 
 ## Playing without hardware
 
@@ -307,14 +327,9 @@ public interface IDetectionSource
    switch the running `DetectionListenerService` over to it. No changes to any game plugin, endpoint, or UI
    code are needed — the whole platform only ever depends on the `IDetectionSource` abstraction.
 
-## Building a release
+## Building your own package
 
-The easiest way to try Barrelo without building from source: grab the latest `Barrelo-*-win-x64.zip`
-from [Releases](../../releases), unzip it, and run `Barrelo.Api.exe` — it bundles the built-in game
-plugins and BoardSimulator together, so you can play a full game with zero real hardware. Currently
-published for win-x64 only.
-
-To build your own package:
+To publish for a different RID, or with your own configuration baked in:
 
 ```bash
 # self-contained, single-machine deployment (adjust the RID for your target device, e.g. linux-arm64 for a Pi)
