@@ -26,9 +26,10 @@ public static class DependencyInjection
 
         services.AddSingleton<IGameSessionManager, GameSessionManager>();
         services.AddSingleton<ISessionPlayerStore, SessionPlayerStore>();
+        services.AddSingleton<ISessionLeaderboardStore, SessionLeaderboardStore>();
         services.AddSingleton<IGameCatalog>(sp =>
         {
-            var pluginsDirectory = ResolvePluginsDirectory(configuration["Plugins:Directory"] ?? "plugins");
+            var pluginsDirectory = PluginsDirectoryResolver.Resolve(configuration);
             var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger<PluginGameLoader>();
             var factories = new PluginGameLoader(logger).LoadFactories(pluginsDirectory);
             return new GameCatalog(factories);
@@ -57,7 +58,4 @@ public static class DependencyInjection
 
         return services;
     }
-
-    private static string ResolvePluginsDirectory(string configured) =>
-        Path.IsPathRooted(configured) ? configured : Path.Combine(AppContext.BaseDirectory, configured);
 }

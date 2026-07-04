@@ -31,14 +31,4 @@
     <None Include="plugins\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Remove="wwwroot\plugins\cricket\render.js" />
-    <Content Remove="wwwroot\plugins\cricket\style.css" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="wwwroot\plugins\cricket\render.js" />
-    <None Include="wwwroot\plugins\cricket\style.css" />
-  </ItemGroup>
-
 </Project>

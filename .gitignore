@@ -5,5 +5,4 @@ obj/
 darts.db
 darts.db-*
 src/Darts.Api/plugins/
-src/Darts.Api/wwwroot/plugins/
 Releases/*

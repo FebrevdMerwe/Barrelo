@@ -28,10 +28,33 @@ public class GameSessionManagerTests
         var matchId = Guid.NewGuid();
         var game = new NoOpGame();
 
-        await manager.StartSessionAsync(matchId, game);
+        await manager.StartSessionAsync(matchId, game, new Dictionary<Guid, int>());
         var found = await manager.TryGetAsync(matchId);
 
         found.Should().BeSameAs(game);
+    }
+
+    [Fact]
+    public async Task StartSessionAsync_then_TryGetPlayerGroupsAsync_returns_the_same_mapping()
+    {
+        var manager = new GameSessionManager();
+        var matchId = Guid.NewGuid();
+        var playerA = Guid.NewGuid();
+        var playerB = Guid.NewGuid();
+        var playerGroups = new Dictionary<Guid, int> { [playerA] = 0, [playerB] = 1 };
+
+        await manager.StartSessionAsync(matchId, new NoOpGame(), playerGroups);
+        var found = await manager.TryGetPlayerGroupsAsync(matchId);
+
+        found.Should().BeEquivalentTo(playerGroups);
+    }
+
+    [Fact]
+    public async Task TryGetPlayerGroupsAsync_for_unknown_match_returns_null()
+    {
+        var manager = new GameSessionManager();
+
+        (await manager.TryGetPlayerGroupsAsync(Guid.NewGuid())).Should().BeNull();
     }
 
     [Fact]
@@ -59,8 +82,8 @@ public class GameSessionManagerTests
         var gameA = new NoOpGame();
         var gameB = new NoOpGame();
 
-        await manager.StartSessionAsync(matchA, gameA);
-        await manager.StartSessionAsync(matchB, gameB);
+        await manager.StartSessionAsync(matchA, gameA, new Dictionary<Guid, int>());
+        await manager.StartSessionAsync(matchB, gameB, new Dictionary<Guid, int>());
 
         (await manager.TryGetActiveMatchIdAsync()).Should().Be(matchB);
         (await manager.TryGetAsync(matchB)).Should().BeSameAs(gameB);
@@ -73,12 +96,12 @@ public class GameSessionManagerTests
         var manager = new GameSessionManager();
         var matchA = Guid.NewGuid();
         var matchB = Guid.NewGuid();
-        await manager.StartSessionAsync(matchA, new NoOpGame());
+        await manager.StartSessionAsync(matchA, new NoOpGame(), new Dictionary<Guid, int>());
 
         await manager.EndActiveSessionAsync(matchA);
 
         (await manager.TryGetActiveMatchIdAsync()).Should().BeNull();
-        await manager.StartSessionAsync(matchB, new NoOpGame());
+        await manager.StartSessionAsync(matchB, new NoOpGame(), new Dictionary<Guid, int>());
         (await manager.TryGetActiveMatchIdAsync()).Should().Be(matchB);
     }
 
@@ -87,7 +110,7 @@ public class GameSessionManagerTests
     {
         var manager = new GameSessionManager();
         var matchA = Guid.NewGuid();
-        await manager.StartSessionAsync(matchA, new NoOpGame());
+        await manager.StartSessionAsync(matchA, new NoOpGame(), new Dictionary<Guid, int>());
 
         await manager.EndActiveSessionAsync(Guid.NewGuid());
 

@@ -44,6 +44,7 @@ public class MockFullLegEndToEndTests : IAsyncLifetime
         services.AddSingleton<IUnitOfWork, UnitOfWork>();
         services.AddSingleton<IGameSessionManager, GameSessionManager>();
         services.AddSingleton<ISessionPlayerStore, SessionPlayerStore>();
+        services.AddSingleton<ISessionLeaderboardStore, SessionLeaderboardStore>();
         services.AddSingleton<IGameCatalog>(new GameCatalog([new X01GameFactory()]));
         services.AddSingleton<IGameNotifier, NullGameNotifier>();
 
@@ -114,7 +115,7 @@ public class MockFullLegEndToEndTests : IAsyncLifetime
         finalState.Status.Should().Be(GameStatus.Complete);
         finalState.MatchId.Should().Be(matchId);
 
-        async Task<GameStateSnapshot> Throw(int segment, Ring ring)
+        async Task<Darts.Application.Common.GameExecution.MatchStateSnapshotDto> Throw(int segment, Ring ring)
         {
             var result = await _dispatcher.Send(new RecordDetectedThrowCommand(segment, ring), CancellationToken.None);
             result.IsError.Should().BeFalse(because: string.Join(", ", result.ErrorsOrEmptyList.Select(e => e.Description)));

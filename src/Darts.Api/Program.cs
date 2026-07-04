@@ -5,8 +5,11 @@ using Darts.Application;
 using Darts.Application.Common.Dispatch;
 using Darts.Application.Common.Interfaces.Services;
 using Darts.Infrastructure;
+using Darts.Infrastructure.External.GamePlugins;
 using Darts.Infrastructure.Persistence;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,10 +42,28 @@ app.UseHttpsRedirection();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+var pluginsDirectory = PluginsDirectoryResolver.Resolve(builder.Configuration);
+if (Directory.Exists(pluginsDirectory))
+{
+    var pluginContentTypes = new FileExtensionContentTypeProvider();
+    pluginContentTypes.Mappings.Clear();
+    pluginContentTypes.Mappings[".js"] = "text/javascript";
+    pluginContentTypes.Mappings[".css"] = "text/css";
+
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(pluginsDirectory),
+        RequestPath = "/plugins",
+        ContentTypeProvider = pluginContentTypes,
+        ServeUnknownFileTypes = false,
+    });
+}
+
 app.MapGameEndpoints();
 app.MapMatchEndpoints();
 app.MapDetectionEndpoints();
 app.MapPlayerEndpoints();
+app.MapLeaderboardEndpoints();
 app.MapHub<GameHub>("/hubs/game");
 
 app.Run();

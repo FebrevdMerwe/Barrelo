@@ -2,7 +2,9 @@ using Darts.Application.Commands.Detection.RecordDetectedThrow;
 using Darts.Application.Common.Dispatch;
 using Darts.Application.Common.GameExecution;
 using Darts.Application.Common.Interfaces.Services;
+using Darts.Application.Common.Leaderboard;
 using Darts.Application.Common.Notifications;
+using Darts.Application.Queries.Players.ListPlayers;
 using Darts.GameSdk;
 using FluentAssertions;
 using Moq;
@@ -13,13 +15,19 @@ public class RecordDetectedThrowCommandHandlerTests
 {
     private readonly Mock<IGameSessionManager> _sessionManager = new();
     private readonly Mock<IDispatcher> _dispatcher = new();
+    private readonly Mock<ISessionLeaderboardStore> _leaderboardStore = new();
     private readonly Mock<IGame> _game = new();
     private readonly Guid _matchId = Guid.NewGuid();
     private readonly Guid _playerId = Guid.NewGuid();
 
+    public RecordDetectedThrowCommandHandlerTests()
+    {
+        _leaderboardStore.Setup(s => s.GetStandings()).Returns([]);
+    }
+
     private RecordDetectedThrowCommandHandler CreateHandler()
     {
-        var executor = new GameCommandExecutor(_sessionManager.Object, _dispatcher.Object);
+        var executor = new GameCommandExecutor(_sessionManager.Object, _dispatcher.Object, _leaderboardStore.Object);
         return new RecordDetectedThrowCommandHandler(executor, new RecordDetectedThrowCommandValidator());
     }
 
@@ -86,5 +94,41 @@ public class RecordDetectedThrowCommandHandlerTests
 
         result.IsError.Should().BeTrue();
         _sessionManager.Verify(s => s.TryGetActiveMatchIdAsync(), Times.Never);
+    }
+
+    [Fact]
+    public async Task Completing_a_match_records_points_and_attaches_standings_to_the_response()
+    {
+        var runnerUpId = Guid.NewGuid();
+        ActivateMatch();
+        _game.Setup(g => g.GetState()).ReturnsAsync(Snapshot(isComplete: true));
+        _game.Setup(g => g.GetResult()).ReturnsAsync(new GameResult([_playerId], [_playerId, runnerUpId]));
+        _sessionManager
+            .Setup(s => s.TryGetPlayerGroupsAsync(_matchId))
+            .ReturnsAsync(new Dictionary<Guid, int> { [_playerId] = 0, [runnerUpId] = 1 });
+        _dispatcher
+            .Setup(d => d.Send(It.IsAny<ListPlayersQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyList<PlayerListItem>)
+            [
+                new PlayerListItem(_playerId, "Winner", DateTimeOffset.UtcNow, true, false),
+                new PlayerListItem(runnerUpId, "Runner Up", DateTimeOffset.UtcNow, true, false),
+            ]);
+        var standings = new List<LeaderboardEntry>
+        {
+            new(_playerId, "Winner", 3),
+            new(runnerUpId, "Runner Up", 2),
+        };
+        _leaderboardStore.Setup(s => s.GetStandings()).Returns(standings);
+        var command = new RecordDetectedThrowCommand(20, Ring.Triple);
+
+        var result = await CreateHandler().Handle(command, CancellationToken.None);
+
+        result.IsError.Should().BeFalse();
+        result.Value.SessionLeaderboard.Should().BeEquivalentTo(standings);
+        _leaderboardStore.Verify(s => s.RecordResult(_matchId, It.Is<IReadOnlyList<LeaderboardEntry>>(awards =>
+            awards.Count == 2 &&
+            awards.Any(a => a.PlayerId == _playerId && a.Points == 3) &&
+            awards.Any(a => a.PlayerId == runnerUpId && a.Points == 2))), Times.Once);
+        _sessionManager.Verify(s => s.EndActiveSessionAsync(_matchId), Times.Once);
     }
 }

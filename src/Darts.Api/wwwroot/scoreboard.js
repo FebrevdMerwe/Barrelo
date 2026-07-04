@@ -22,6 +22,8 @@
   var gameBoardEl = document.getElementById("game-board");
   var ledgerStrip = document.getElementById("ledgerStrip");
   var winBanner = document.getElementById("winBanner");
+  var winLeaderboard = document.getElementById("winLeaderboard");
+  var leaderboardList = document.getElementById("leaderboardList");
 
   var inputDrawer = document.getElementById("inputDrawer");
   var drawerPeek = document.getElementById("drawerPeek");
@@ -129,6 +131,20 @@
     ledgerStrip.scrollLeft = ledgerStrip.scrollWidth;
   }
 
+  function renderLeaderboard(standings) {
+    leaderboardList.innerHTML = "";
+    standings.forEach(function (entry, i) {
+      var li = document.createElement("li");
+      li.className = "leaderboard-row";
+      li.innerHTML =
+        '<span class="lb-rank">' + (i + 1) + '</span>' +
+        '<span class="lb-name">' + entry.playerName + '</span>' +
+        '<span class="lb-points">' + entry.points + ' pt' + (entry.points === 1 ? '' : 's') + '</span>';
+      leaderboardList.appendChild(li);
+    });
+    winLeaderboard.hidden = standings.length === 0;
+  }
+
   async function render(snapshot) {
     var turnChanged = snapshot.currentPlayerId !== lastCurrentPlayer;
     if (turnChanged || snapshot.isComplete) setDrawerOpen(false);
@@ -156,6 +172,7 @@
       var winnerNames = winnerIds.map(function (id) { return playerNames[id] || "A player"; }).join(" & ");
       document.getElementById("winTitle").textContent = "Game shot!";
       document.getElementById("winSub").textContent = (winnerNames || "A player") + (winnerIds.length > 1 ? " win the match." : " wins the match.");
+      renderLeaderboard(snapshot.sessionLeaderboard || []);
       winBanner.classList.add("show");
     } else {
       winBanner.classList.remove("show");

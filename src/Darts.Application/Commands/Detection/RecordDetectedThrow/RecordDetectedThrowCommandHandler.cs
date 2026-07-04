@@ -10,9 +10,9 @@ namespace Darts.Application.Commands.Detection.RecordDetectedThrow;
 public sealed class RecordDetectedThrowCommandHandler(
     GameCommandExecutor executor,
     IValidator<RecordDetectedThrowCommand> validator)
-    : IRequestHandler<RecordDetectedThrowCommand, ErrorOr<GameStateSnapshot>>
+    : IRequestHandler<RecordDetectedThrowCommand, ErrorOr<MatchStateSnapshotDto>>
 {
-    public async Task<ErrorOr<GameStateSnapshot>> Handle(RecordDetectedThrowCommand request, CancellationToken ct)
+    public async Task<ErrorOr<MatchStateSnapshotDto>> Handle(RecordDetectedThrowCommand request, CancellationToken ct)
     {
         var validation = await validator.ValidateAsync(request, ct);
         if (!validation.IsValid)

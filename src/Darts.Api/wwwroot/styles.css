@@ -455,6 +455,22 @@ body{
 }
 .win-card h2{ font-family:'Caveat', cursive; font-weight:700; font-size: clamp(34px,7vw,52px); color: var(--brass-bright); margin:0 0 6px; }
 .win-card p{ margin:0 0 20px; color: var(--chalk-dim); font-size:14px; }
+.win-leaderboard{ margin: 4px 0 22px; text-align:left; }
+.win-leaderboard-title{
+  font-family:'Archivo', sans-serif; font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+  color: var(--brass); margin:0 0 8px;
+}
+.leaderboard-list{
+  list-style:none; margin:0; padding:0; max-height:220px; overflow-y:auto;
+  display:flex; flex-direction:column; gap:6px;
+}
+.leaderboard-row{
+  display:flex; align-items:center; gap:10px; padding:6px 10px;
+  border:1px solid var(--brass-dim); border-radius:8px; background: rgba(0,0,0,.15);
+}
+.lb-rank{ font-family:'JetBrains Mono', monospace; color: var(--brass-bright); width:1.4em; }
+.lb-name{ flex:1; color: var(--chalk); }
+.lb-points{ font-family:'JetBrains Mono', monospace; color: var(--chalk-dim); }
 
 /* ================= catalog / start-match page ================= */
 .hero{ text-align:center; margin: 6px 0 clamp(30px,5vw,52px); opacity:0; transform: translateY(10px); }

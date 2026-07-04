@@ -20,6 +20,7 @@
     <div class="meta">
       <span class="legmeta">a platform for interactive dart experiences</span>
       <button type="button" class="icon-btn" id="manageRosterBtn" aria-label="Manage roster" title="Manage roster">⚙</button>
+      <button type="button" class="icon-btn" id="resetLeaderboardBtn" aria-label="Reset session leaderboard" title="Reset session leaderboard">🏆</button>
     </div>
   </header>
 
@@ -933,6 +934,18 @@
     manageRosterModal.showModal();
   });
   rosterModalClose.addEventListener("click", function () { manageRosterModal.close(); });
+
+  var resetLeaderboardBtn = document.getElementById("resetLeaderboardBtn");
+  resetLeaderboardBtn.addEventListener("click", async function () {
+    if (!confirm("Reset the session leaderboard? This clears everyone's points for tonight.")) return;
+    try {
+      var res = await fetch("/api/leaderboard/reset", { method: "POST" });
+      if (!res.ok) throw new Error("Request failed: " + res.status);
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't reset the leaderboard. See console for details.");
+    }
+  });
 
   function onGameChanged() {
     renderModeOptions();

@@ -36,7 +36,9 @@ public class StartMatchCommandHandlerTests
         _factory.Setup(f => f.Create(It.IsAny<GameSetup>(), It.IsAny<CancellationToken>())).ReturnsAsync(_game.Object);
         _game.Setup(g => g.GetState()).ReturnsAsync(new GameStateSnapshot(
             Guid.Empty, "x01", GameStatus.InProgress, playerIds[0], 1, 1, [], false, null, null));
-        _sessionManager.Setup(s => s.StartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>())).Returns(Task.CompletedTask);
+        _sessionManager
+            .Setup(s => s.StartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>(), It.IsAny<IReadOnlyDictionary<Guid, int>>()))
+            .Returns(Task.CompletedTask);
     }
 
     [Fact]
@@ -50,7 +52,8 @@ public class StartMatchCommandHandlerTests
 
         result.IsError.Should().BeFalse();
         result.Value.InitialState.MatchId.Should().Be(result.Value.MatchId);
-        _sessionManager.Verify(s => s.StartSessionAsync(result.Value.MatchId, _game.Object), Times.Once);
+        _sessionManager.Verify(s => s.StartSessionAsync(
+            result.Value.MatchId, _game.Object, It.IsAny<IReadOnlyDictionary<Guid, int>>()), Times.Once);
     }
 
     [Fact]
@@ -64,7 +67,8 @@ public class StartMatchCommandHandlerTests
         var result = await CreateHandler().Handle(command, CancellationToken.None);
 
         result.IsError.Should().BeFalse();
-        _sessionManager.Verify(s => s.StartSessionAsync(result.Value.MatchId, _game.Object), Times.Once);
+        _sessionManager.Verify(s => s.StartSessionAsync(
+            result.Value.MatchId, _game.Object, It.IsAny<IReadOnlyDictionary<Guid, int>>()), Times.Once);
     }
 
     [Fact]
@@ -76,7 +80,8 @@ public class StartMatchCommandHandlerTests
         var result = await CreateHandler().Handle(command, CancellationToken.None);
 
         result.IsError.Should().BeTrue();
-        _sessionManager.Verify(s => s.StartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>()), Times.Never);
+        _sessionManager.Verify(s => s.StartSessionAsync(
+            It.IsAny<Guid>(), It.IsAny<IGame>(), It.IsAny<IReadOnlyDictionary<Guid, int>>()), Times.Never);
     }
 
     [Fact]
@@ -112,7 +117,9 @@ public class StartMatchCommandHandlerTests
         _factory.Setup(f => f.Create(It.IsAny<GameSetup>(), It.IsAny<CancellationToken>())).ReturnsAsync(_game.Object);
         _game.Setup(g => g.GetState()).ReturnsAsync(new GameStateSnapshot(
             Guid.Empty, "x01", GameStatus.InProgress, playerIds[0], 1, 1, [], false, null, null));
-        _sessionManager.Setup(s => s.StartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>())).Returns(Task.CompletedTask);
+        _sessionManager
+            .Setup(s => s.StartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>(), It.IsAny<IReadOnlyDictionary<Guid, int>>()))
+            .Returns(Task.CompletedTask);
         var command = new StartMatchCommand("x01", playerIds, new Dictionary<string, string>());
 
         var result = await CreateHandler().Handle(command, CancellationToken.None);
@@ -155,7 +162,8 @@ public class StartMatchCommandHandlerTests
         var result = await CreateHandler().Handle(command, CancellationToken.None);
 
         result.IsError.Should().BeTrue();
-        _sessionManager.Verify(s => s.StartSessionAsync(It.IsAny<Guid>(), It.IsAny<IGame>()), Times.Never);
+        _sessionManager.Verify(s => s.StartSessionAsync(
+            It.IsAny<Guid>(), It.IsAny<IGame>(), It.IsAny<IReadOnlyDictionary<Guid, int>>()), Times.Never);
     }
 
     [Fact]

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\..\Darts.GameSdk\Darts.GameSdk.csproj" />
@@ -8,17 +8,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <GameId>x01</GameId>
   </PropertyGroup>
-
-  <Target Name="CopyPluginToApi" AfterTargets="Build">
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MSBuildThisFileDirectory)..\..\Darts.Api\plugins\Darts.Games.X01\" />
-  </Target>
-
-  <Target Name="CopyUiToApi" AfterTargets="Build">
-    <ItemGroup>
-      <UiAssets Include="ui\**\*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(UiAssets)" DestinationFolder="$(MSBuildThisFileDirectory)..\..\Darts.Api\wwwroot\plugins\x01\%(RecursiveDir)" />
-  </Target>
 
 </Project>

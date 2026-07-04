@@ -1,9 +1,9 @@
-using Darts.GameSdk;
+using Darts.Application.Common.GameExecution;
 
 namespace Darts.Application.Common.Interfaces.Services;
 
-/// <summary>Pushes a fresh GameStateSnapshot to whatever live clients are watching a match (SignalR, etc).</summary>
+/// <summary>Pushes a fresh MatchStateSnapshotDto to whatever live clients are watching a match (SignalR, etc).</summary>
 public interface IGameNotifier
 {
-    Task NotifyStateChanged(Guid matchId, GameStateSnapshot snapshot, CancellationToken ct);
+    Task NotifyStateChanged(Guid matchId, MatchStateSnapshotDto snapshot, CancellationToken ct);
 }

@@ -1,0 +1,21 @@
+<Project>
+
+  <!--
+    Shared post-build step for every game plugin project under src/Games/.
+    Each game project sets <GameId> to the same route id its IGameFactory
+    exposes (e.g. "x01", "cricket"). This copies the compiled plugin DLL and
+    any ui/ assets (render.js, style.css, ...) into one consolidated folder,
+    src/Darts.Api/plugins/{GameId}/, so a new game needs no MSBuild wiring of
+    its own beyond setting <GameId>.
+  -->
+  <Target Name="CopyPluginToApi" AfterTargets="Build" Condition="'$(GameId)' != ''">
+    <ItemGroup>
+      <PluginAssets Include="$(TargetPath)" />
+      <PluginAssets Include="$(MSBuildProjectDirectory)\ui\**\*" Condition="Exists('$(MSBuildProjectDirectory)\ui')" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(PluginAssets)"
+          DestinationFolder="$(MSBuildThisFileDirectory)..\Darts.Api\plugins\$(GameId)\%(RecursiveDir)" />
+  </Target>
+
+</Project>

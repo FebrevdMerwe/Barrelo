@@ -48,7 +48,7 @@ public sealed class StartMatchCommandHandler(
         var game = await factory.Create(setup, ct);
 
         var matchId = Guid.NewGuid();
-        await sessionManager.StartSessionAsync(matchId, game);
+        await sessionManager.StartSessionAsync(matchId, game, playerGroupsForSetup);
 
         var state = await game.GetState();
         var stamped = state with { MatchId = matchId };

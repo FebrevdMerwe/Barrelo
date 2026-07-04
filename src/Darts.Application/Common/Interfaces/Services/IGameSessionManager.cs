@@ -17,11 +17,16 @@ public interface IGameSessionManager
     /// <summary>
     /// Installs game as the session for matchId and marks it the active match, evicting whatever match
     /// was previously active (its IGame instance is left in place, just no longer reachable via
-    /// TryGetActiveMatchIdAsync).
+    /// TryGetActiveMatchIdAsync). playerGroups (playerId -> groupIndex) is retained for the lifetime of
+    /// the process so callers can later recover team/group membership for a completed match — e.g. to
+    /// resolve placement ties from GameResult.FinalStandings — without the game plugin needing to expose it.
     /// </summary>
-    Task StartSessionAsync(Guid matchId, IGame game);
+    Task StartSessionAsync(Guid matchId, IGame game, IReadOnlyDictionary<Guid, int> playerGroups);
 
     Task<IGame?> TryGetAsync(Guid matchId);
+
+    /// <summary>The playerId -> groupIndex mapping passed to StartSessionAsync for matchId, or null if unknown.</summary>
+    Task<IReadOnlyDictionary<Guid, int>?> TryGetPlayerGroupsAsync(Guid matchId);
 
     /// <summary>Serializes all mutation of a given match's IGame across concurrent producers.</summary>
     Task<IAsyncDisposable> LockAsync(Guid matchId, CancellationToken ct);

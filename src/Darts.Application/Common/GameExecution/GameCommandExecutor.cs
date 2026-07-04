@@ -1,7 +1,9 @@
 using Darts.Application.Common.Dispatch;
 using Darts.Application.Common.Errors;
 using Darts.Application.Common.Interfaces.Services;
+using Darts.Application.Common.Leaderboard;
 using Darts.Application.Common.Notifications;
+using Darts.Application.Queries.Players.ListPlayers;
 using Darts.GameSdk;
 using ErrorOr;
 
@@ -14,18 +16,19 @@ namespace Darts.Application.Common.GameExecution;
 /// </summary>
 public sealed class GameCommandExecutor(
     IGameSessionManager sessionManager,
-    IDispatcher dispatcher)
+    IDispatcher dispatcher,
+    ISessionLeaderboardStore leaderboardStore)
 {
-    public Task<ErrorOr<GameStateSnapshot>> RecordThrow(DetectedThrow detectedThrow, CancellationToken ct) =>
+    public Task<ErrorOr<MatchStateSnapshotDto>> RecordThrow(DetectedThrow detectedThrow, CancellationToken ct) =>
         RunLocked((_, game, c) => game.ReceiveThrow(detectedThrow, c), ct);
 
-    public Task<ErrorOr<GameStateSnapshot>> RecordEndOfTurn(CancellationToken ct) =>
+    public Task<ErrorOr<MatchStateSnapshotDto>> RecordEndOfTurn(CancellationToken ct) =>
         RunLocked((_, game, c) => game.ReceiveEndOfTurn(c), ct);
 
-    public Task<ErrorOr<GameStateSnapshot>> Undo(CancellationToken ct) =>
+    public Task<ErrorOr<MatchStateSnapshotDto>> Undo(CancellationToken ct) =>
         RunLocked((_, game, c) => game.UndoLastThrow(c), ct);
 
-    private async Task<ErrorOr<GameStateSnapshot>> RunLocked(
+    private async Task<ErrorOr<MatchStateSnapshotDto>> RunLocked(
         Func<Guid, IGame, CancellationToken, Task> action,
         CancellationToken ct)
     {
@@ -51,11 +54,35 @@ public sealed class GameCommandExecutor(
         var state = await game.GetState();
         var stamped = state with { MatchId = matchId.Value };
 
+        IReadOnlyList<LeaderboardEntry>? leaderboard = null;
         if (state.IsComplete)
+        {
+            leaderboard = await AwardPoints(matchId.Value, game, ct);
             await sessionManager.EndActiveSessionAsync(matchId.Value);
+        }
 
-        await dispatcher.Publish(new GameStateChangedEvent(matchId.Value, stamped), ct);
+        var dto = MatchStateSnapshotDto.From(stamped, leaderboard);
+        await dispatcher.Publish(new GameStateChangedEvent(matchId.Value, dto), ct);
 
-        return stamped;
+        return dto;
+    }
+
+    private async Task<IReadOnlyList<LeaderboardEntry>> AwardPoints(Guid matchId, IGame game, CancellationToken ct)
+    {
+        var result = await game.GetResult();
+        var playerGroups = await sessionManager.TryGetPlayerGroupsAsync(matchId) ?? new Dictionary<Guid, int>();
+        var pointsByPlayer = LeaderboardPointsCalculator.ComputePointsAwarded(result, playerGroups);
+
+        if (pointsByPlayer.Count > 0)
+        {
+            var players = await dispatcher.Send(new ListPlayersQuery(), ct);
+            var namesById = players.ToDictionary(p => p.Id, p => p.Name);
+            var awards = pointsByPlayer
+                .Select(kv => new LeaderboardEntry(kv.Key, namesById.GetValueOrDefault(kv.Key, "Unknown player"), kv.Value))
+                .ToList();
+            leaderboardStore.RecordResult(matchId, awards);
+        }
+
+        return leaderboardStore.GetStandings();
     }
 }

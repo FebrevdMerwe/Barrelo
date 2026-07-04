@@ -47,6 +47,7 @@ public class DetectionListenerServiceTests : IAsyncLifetime
         services.AddSingleton<IUnitOfWork, UnitOfWork>();
         services.AddSingleton<IGameSessionManager, GameSessionManager>();
         services.AddSingleton<ISessionPlayerStore, SessionPlayerStore>();
+        services.AddSingleton<ISessionLeaderboardStore, SessionLeaderboardStore>();
         services.AddSingleton<IGameCatalog>(new GameCatalog([new X01GameFactory()]));
         services.AddSingleton<IGameNotifier, NullGameNotifier>();
 
