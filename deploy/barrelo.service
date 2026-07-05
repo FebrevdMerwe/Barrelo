@@ -1,0 +1,14 @@
+[Unit]
+Description=Barrelo dart platform
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/barrelo
+ExecStart=/opt/barrelo/Barrelo.Api --urls=http://0.0.0.0:5295
+Restart=always
+RestartSec=5
+Environment=ASPNETCORE_ENVIRONMENT=Production
+
+[Install]
+WantedBy=multi-user.target

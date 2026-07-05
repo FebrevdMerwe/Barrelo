@@ -1,0 +1,14 @@
+[Unit]
+Description=Barrelo Board Simulator
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/barrelo/tools/BoardSimulator
+ExecStart=/opt/barrelo/tools/BoardSimulator/Barrelo.BoardSimulator --urls=http://0.0.0.0:5250
+Restart=always
+RestartSec=5
+Environment=ASPNETCORE_ENVIRONMENT=Production
+
+[Install]
+WantedBy=multi-user.target

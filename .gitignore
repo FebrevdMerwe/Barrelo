@@ -8,5 +8,6 @@ barrelo.db
 barrelo.db-*
 src/Barrelo.Api/plugins/
 Releases/*
+publish/*
 .claude/
 skills-lock.json
