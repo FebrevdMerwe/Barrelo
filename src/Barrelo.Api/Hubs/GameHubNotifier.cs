@@ -7,5 +7,5 @@ namespace Barrelo.Api.Hubs;
 public sealed class GameHubNotifier(IHubContext<GameHub> hubContext) : IGameNotifier
 {
     public Task NotifyStateChanged(Guid matchId, MatchStateSnapshotDto snapshot, CancellationToken ct) =>
-        hubContext.Clients.Group(GameHub.GroupName(matchId)).SendAsync("GameStateUpdated", snapshot, ct);
+        hubContext.Clients.All.SendAsync("GameStateUpdated", snapshot, ct);
 }

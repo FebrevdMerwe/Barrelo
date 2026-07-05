@@ -296,7 +296,8 @@ implementations to copy from.
 4. **Ship a board UI.** Drop a `ui/render.js` next to your game's `.csproj` defining
    `window.renderGameBoard(container, snapshot)` — it's called on every state push with the `#game-board`
    element and the parsed `GameStateSnapshot`, and is what actually draws your game's scores/targets/board
-   state. It's technically optional: if `render.js` is missing, `scoreboard.js` falls back to a raw
+   state. Both `view.js` (the passive TV scoreboard) and `control.js` (the interactive dartboard/scoring
+   page) load it the same way. It's technically optional: if `render.js` is missing, they fall back to a raw
    key/value dump of `Payload` so the match is never unplayable, but that fallback is a debugging aid, not a
    real UI — ship a `render.js` for anything you want players to actually look at.
 

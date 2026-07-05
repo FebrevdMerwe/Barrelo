@@ -1,6 +1,8 @@
 using Barrelo.Application.Common.Dispatch;
+using Barrelo.Application.Common.GameExecution;
 using Barrelo.Application.Common.Interfaces.Persistence;
 using Barrelo.Application.Common.Interfaces.Services;
+using Barrelo.Application.Common.Notifications;
 using Barrelo.GameSdk;
 using ErrorOr;
 using FluentValidation;
@@ -12,6 +14,7 @@ public sealed class StartMatchCommandHandler(
     IPlayerRepository playerRepository,
     ISessionPlayerStore sessionPlayerStore,
     IGameSessionManager sessionManager,
+    IDispatcher dispatcher,
     IValidator<StartMatchCommand> validator)
     : IRequestHandler<StartMatchCommand, ErrorOr<StartMatchResult>>
 {
@@ -52,6 +55,9 @@ public sealed class StartMatchCommandHandler(
 
         var state = await game.GetState();
         var stamped = state with { MatchId = matchId };
+
+        var dto = MatchStateSnapshotDto.From(stamped, sessionLeaderboard: null);
+        await dispatcher.Publish(new GameStateChangedEvent(matchId, dto), ct);
 
         return new StartMatchResult(matchId, stamped);
     }

@@ -61,6 +61,7 @@ if (Directory.Exists(pluginsDirectory))
 
 app.MapGameEndpoints();
 app.MapMatchEndpoints();
+app.MapSessionEndpoints();
 app.MapDetectionEndpoints();
 app.MapPlayerEndpoints();
 app.MapLeaderboardEndpoints();

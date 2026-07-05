@@ -2,10 +2,8 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace Barrelo.Api.Hubs;
 
-public sealed class GameHub : Hub
-{
-    public Task JoinMatch(Guid matchId) =>
-        Groups.AddToGroupAsync(Context.ConnectionId, GroupName(matchId));
-
-    public static string GroupName(Guid matchId) => $"match-{matchId}";
-}
+/// <summary>
+/// At most one match is ever active at a time, so every connection just listens for whatever the
+/// server broadcasts — no per-match group to join.
+/// </summary>
+public sealed class GameHub : Hub;

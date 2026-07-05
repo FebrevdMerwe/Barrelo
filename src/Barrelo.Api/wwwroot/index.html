@@ -1023,10 +1023,8 @@
         startBtn.textContent = "Start match";
         return;
       }
-      var started = await matchRes.json();
-
       saveRoster(bucketOrder);
-      window.location.href = "match.html?matchId=" + encodeURIComponent(started.matchId);
+      window.location.href = "control.html";
     } catch (err) {
       console.error(err);
       alert("Couldn't start the match — is the API running? See console for details.");

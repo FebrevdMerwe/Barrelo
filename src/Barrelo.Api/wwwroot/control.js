@@ -1,21 +1,13 @@
-/* Shell: chrome shared by every game (identity, visit darts, ledger, board input,
-   controls, winner banner), now driven by the real GameStateSnapshot pushed over
-   SignalR instead of a locally-simulated state machine. The shell reads only the
-   universal envelope fields (matchId/gameId/status/currentPlayerId/legNumber/
-   setNumber/recentThrows/isComplete/winnerPlayerIds) plus one soft, best-effort
-   convention on payload (payload.currentVisitThrows, if a game provides it) for
-   the visit-progress strip — everything else in payload is opaque and handed
-   straight to the per-game renderGameBoard. */
+/* Interactive controls: drives the active match (dartboard input, Miss/Undo/End Turn) with no matchId
+   in the URL — meant for the tablet/phone someone actually holds, while view.html sits passively on a
+   TV showing the same state. Bootstraps via GET /api/session/current; if no match is active, shows an
+   idle panel pointing back to setup. A match starting while idle (or finishing while active) arrives
+   as a GameStateUpdated push and flips the UI over automatically — there's only ever one match, so no
+   join/subscribe step is needed. */
 (function () {
   "use strict";
 
-  var params = new URLSearchParams(window.location.search);
-  var matchId = params.get("matchId");
-  if (!matchId) {
-    window.location.href = "index.html";
-    return;
-  }
-
+  var idlePanel = document.getElementById("idlePanel");
   var sceneEl = document.getElementById("scene");
   var gameLabelEl = document.getElementById("gameLabel");
   var legMetaEl = document.getElementById("legMeta");
@@ -41,6 +33,18 @@
   var boardRenderer = null;
   var drawerOpen = false;
   var lastCurrentPlayer = null;
+
+  function showIdle() {
+    idlePanel.hidden = false;
+    sceneEl.hidden = true;
+    inputDrawer.hidden = true;
+  }
+
+  function showActive() {
+    idlePanel.hidden = true;
+    sceneEl.hidden = false;
+    inputDrawer.hidden = false;
+  }
 
   function setDrawerOpen(open) {
     drawerOpen = open;
@@ -146,6 +150,8 @@
   }
 
   async function render(snapshot) {
+    showActive();
+
     var turnChanged = snapshot.currentPlayerId !== lastCurrentPlayer;
     if (turnChanged || snapshot.isComplete) setDrawerOpen(false);
     lastCurrentPlayer = snapshot.currentPlayerId;
@@ -210,40 +216,36 @@
   drawerPeek.addEventListener("click", function () { setDrawerOpen(true); });
   btnCollapseDrawer.addEventListener("click", function () { setDrawerOpen(false); });
 
-  async function connectSignalR() {
+  function connectSignalR() {
     var connection = new signalR.HubConnectionBuilder()
       .withUrl("/hubs/game")
       .withAutomaticReconnect()
       .build();
-    connection.on("GameStateUpdated", function (snapshot) {
-      if (snapshot.matchId === matchId) render(snapshot);
-    });
-    await connection.start();
-    await connection.invoke("JoinMatch", matchId);
+    connection.on("GameStateUpdated", function (snapshot) { render(snapshot); });
+    return connection.start();
   }
 
   async function init() {
     var responses = await Promise.all([
-      fetch("/api/matches/" + encodeURIComponent(matchId)),
+      fetch("/api/session/current"),
       fetch("/api/players"),
       fetch("/api/games"),
     ]);
-    var matchRes = responses[0], playersRes = responses[1], gamesRes = responses[2];
+    var sessionRes = responses[0], playersRes = responses[1], gamesRes = responses[2];
 
-    if (!matchRes.ok) {
-      alert("Couldn't load this match — it may not exist.");
-      window.location.href = "index.html";
-      return;
-    }
-
-    var snapshot = await matchRes.json();
+    var session = await sessionRes.json();
     var players = await playersRes.json();
     var games = await gamesRes.json();
 
     players.forEach(function (p) { playerNames[p.id] = p.name; });
     games.forEach(function (g) { gameNames[g.gameId] = g.displayName; });
 
-    await render(snapshot);
+    if (session.hasActiveMatch) {
+      await render(session.snapshot);
+    } else {
+      showIdle();
+    }
+
     await connectSignalR();
 
     requestAnimationFrame(function () {

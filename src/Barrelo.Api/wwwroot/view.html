@@ -15,18 +15,18 @@
 
   <header class="rail">
     <div class="rail-left">
-      <a class="back-link" href="index.html">&lsaquo; Change game</a>
       <div class="wordmark">Barrelo<small>live scoreboard</small></div>
     </div>
     <div class="meta">
       <span class="game-pill" id="gameLabel">—</span>
       <span class="legmeta" id="legMeta">Leg 1 · Set 1</span>
-      <span class="source-pill manual"><span class="dot"></span>Manual entry — no board connected</span>
     </div>
   </header>
 
   <div class="game-board-wrap">
-    <div id="game-board"></div>
+    <div id="game-board">
+      <p class="hero-sub" id="idleNotice">Waiting for a match to start&hellip;</p>
+    </div>
   </div>
 
   <footer class="ledger">
@@ -34,33 +34,6 @@
     <div class="ledger-strip" id="ledgerStrip"></div>
   </footer>
 
-</div>
-
-<div class="input-drawer" id="inputDrawer">
-  <button class="drawer-peek" id="drawerPeek" type="button">
-    <span class="dp-copy">
-      <span class="dp-turn" id="peekTurn">—</span>
-      <span class="dp-sub" id="peekSub">Dart 1 of 3 · tap to throw</span>
-    </span>
-    <span class="dp-chevron">&#9650;</span>
-  </button>
-
-  <div class="drawer-open" id="drawerOpenPanel">
-    <div class="do-head">
-      <span class="do-title" id="openTitle">Dart 1 of 3</span>
-      <button class="do-collapse" id="btnCollapseDrawer" type="button" aria-label="Collapse board">&#9662;</button>
-    </div>
-    <div class="dart-slots" id="visitSlots"></div>
-    <div class="board-wrap">
-      <svg id="dartboard" role="group" aria-label="Interactive dartboard, click a segment to record a throw"></svg>
-      <div class="flourish" id="flourish"></div>
-    </div>
-    <div class="controls">
-      <button class="pull-btn warn" id="btnMiss">Miss</button>
-      <button class="pull-btn" id="btnUndo">Undo last dart</button>
-      <button class="pull-btn go" id="btnEndTurn">End turn</button>
-    </div>
-  </div>
 </div>
 
 <div class="win-banner" id="winBanner">
@@ -71,12 +44,10 @@
       <h3 class="win-leaderboard-title">Session leaderboard</h3>
       <ol class="leaderboard-list" id="leaderboardList"></ol>
     </div>
-    <button class="pull-btn go" id="btnRack">Back to start</button>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
-<script src="dartboard.js"></script>
-<script src="scoreboard.js"></script>
+<script src="view.js"></script>
 </body>
 </html>

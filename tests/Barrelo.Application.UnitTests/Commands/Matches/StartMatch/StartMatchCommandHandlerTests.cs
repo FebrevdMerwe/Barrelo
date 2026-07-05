@@ -1,4 +1,5 @@
 using Barrelo.Application.Commands.Matches.StartMatch;
+using Barrelo.Application.Common.Dispatch;
 using Barrelo.Application.Common.Interfaces.Persistence;
 using Barrelo.Application.Common.Interfaces.Services;
 using Barrelo.GameSdk;
@@ -15,6 +16,7 @@ public class StartMatchCommandHandlerTests
     private readonly Mock<IPlayerRepository> _playerRepository = new();
     private readonly Mock<ISessionPlayerStore> _sessionPlayerStore = new();
     private readonly Mock<IGameSessionManager> _sessionManager = new();
+    private readonly Mock<IDispatcher> _dispatcher = new();
     private readonly Mock<IGameFactory> _factory = new();
     private readonly Mock<IGame> _game = new();
 
@@ -23,6 +25,7 @@ public class StartMatchCommandHandlerTests
         _playerRepository.Object,
         _sessionPlayerStore.Object,
         _sessionManager.Object,
+        _dispatcher.Object,
         new StartMatchCommandValidator(_catalog.Object));
 
     private void SetUpHappyPath(IReadOnlyList<Guid> playerIds)
