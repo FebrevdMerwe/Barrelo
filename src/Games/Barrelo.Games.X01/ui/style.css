@@ -1,5 +1,5 @@
-/* x01 board: two chalk numeral panels */
-.x01-board{ display:flex; gap: clamp(14px, 3vw, 28px); flex-wrap:wrap; justify-content:center; }
+/* x01 board: dartboard visualization flanked by chalk numeral panels */
+.x01-board{ display:flex; gap: clamp(14px, 3vw, 28px); flex-wrap:wrap; justify-content:center; align-items:center; }
 .x01-panel{
   min-width:170px;
   text-align:center;
@@ -26,3 +26,25 @@
 }
 .x01-remaining.pulse{ animation: pulse .38s ease; }
 @keyframes pulse{ 0%{ transform:scale(1); } 40%{ transform:scale(1.08); color:var(--brass-bright);} 100%{ transform:scale(1);} }
+
+/* dartboard visualization: read-only, order:0 keeps it centered between the flanking panels
+   (which get order:-1/1 assigned in render.js) regardless of DOM/group order. */
+.x01-dartboard-stage{ order:0; flex:0 0 auto; width:min(300px, 40vw); }
+.x01-dartboard-svg{ width:100%; height:auto; display:block; filter: drop-shadow(0 20px 26px rgba(0,0,0,.5)); }
+.x01-num-ring text{ fill: var(--chalk-dim); font-family:'Archivo', sans-serif; }
+
+.x01-dart{
+  transition: transform .34s cubic-bezier(.22,.61,.36,1), opacity .34s ease;
+  transform: translate(var(--land-x), var(--land-y));
+  transform-origin: 0 0;
+  pointer-events:none;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
+}
+.x01-dart--fading{
+  transition: transform .22s ease, opacity .22s ease;
+  opacity:0;
+  transform: translate(var(--land-x), var(--land-y)) scale(.35);
+}
+.x01-dart-tip{ fill: var(--brass-bright); stroke: #2b1c08; stroke-width:1.2; }
+.x01-dart-shaft{ stroke: var(--chalk); stroke-width:2.6; }
+.x01-dart-flight{ fill: var(--chalk); stroke: var(--brass-dim); stroke-width:0.8; }

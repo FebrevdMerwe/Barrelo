@@ -31,6 +31,7 @@ public sealed class X01Game : IGame
     private int _setNumber = 1;
     private int _legsPlayedTotal;
     private List<DetectedThrow> _currentVisitThrows = [];
+    private List<DetectedThrow> _lastEndedVisitThrows = [];
     private List<DetectedThrow> _currentLegThrows = [];
     private bool _isComplete;
     private IReadOnlyList<Guid>? _winnerPlayerIds;
@@ -78,7 +79,8 @@ public sealed class X01Game : IGame
                 .OrderBy(g => g.GroupIndex)
                 .Select(g => new X01GroupScore(g.GroupIndex, g.MemberPlayerIds, g.RemainingScore, g.LegsWon, g.SetsWon))
                 .ToArray(),
-            _currentVisitThrows.ToArray());
+            _currentVisitThrows.ToArray(),
+            _lastEndedVisitThrows.ToArray());
 
         var snapshot = new GameStateSnapshot(
             MatchId: Guid.Empty, // the plugin doesn't know its own MatchId; the host stamps it in
@@ -127,16 +129,21 @@ public sealed class X01Game : IGame
         _setNumber = 1;
         _legsPlayedTotal = 0;
         _currentVisitThrows = [];
+        _lastEndedVisitThrows = [];
         _currentLegThrows = [];
         _isComplete = false;
         _winnerPlayerIds = null;
 
         var visitStartRemaining = _options.StartingScore;
 
-        foreach (var entry in _log)
+        for (var i = 0; i < _log.Count; i++)
         {
+            var entry = _log[i];
+            var isLastEntry = i == _log.Count - 1;
+
             if (entry.Kind == LogEntryKind.EndOfTurn)
             {
+                if (isLastEntry) _lastEndedVisitThrows = _currentVisitThrows;
                 AdvanceToNextPlayer();
                 _currentVisitThrows = [];
                 continue;
@@ -160,6 +167,7 @@ public sealed class X01Game : IGame
             if (isBust)
             {
                 group.RemainingScore = visitStartRemaining;
+                if (isLastEntry) _lastEndedVisitThrows = _currentVisitThrows;
                 AdvanceToNextPlayer();
                 _currentVisitThrows = [];
                 continue;
@@ -169,6 +177,7 @@ public sealed class X01Game : IGame
 
             if (newRemaining == 0)
             {
+                if (isLastEntry) _lastEndedVisitThrows = _currentVisitThrows;
                 WinLeg(group);
                 if (_isComplete) break;
                 continue;
@@ -176,6 +185,7 @@ public sealed class X01Game : IGame
 
             if (_currentVisitThrows.Count == 3)
             {
+                if (isLastEntry) _lastEndedVisitThrows = _currentVisitThrows;
                 AdvanceToNextPlayer();
                 _currentVisitThrows = [];
             }
