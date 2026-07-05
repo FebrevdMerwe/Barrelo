@@ -26,33 +26,52 @@ jobs:
 
       - run: dotnet test Barrelo.slnx -c Release
 
-      - name: Publish Barrelo.Api
+      - name: Publish Barrelo.Api (win-x64)
         run: >
           dotnet publish src/Barrelo.Api/Barrelo.Api.csproj
           -c Release -r win-x64 --self-contained true
           -p:Version=${{ env.VERSION }}
-          -o ./stage/Barrelo
+          -o ./stage/win-x64/Barrelo
 
-      - name: Publish BoardSimulator
+      - name: Publish BoardSimulator (win-x64)
         run: >
           dotnet publish tools/Barrelo.BoardSimulator/Barrelo.BoardSimulator.csproj
           -c Release -r win-x64 --self-contained true
           -p:Version=${{ env.VERSION }}
-          -o ./stage/Barrelo/tools/BoardSimulator
+          -o ./stage/win-x64/Barrelo/tools/BoardSimulator
+
+      - name: Publish Barrelo.Api (linux-x64)
+        run: >
+          dotnet publish src/Barrelo.Api/Barrelo.Api.csproj
+          -c Release -r linux-x64 --self-contained true
+          -p:Version=${{ env.VERSION }}
+          -o ./stage/linux-x64/Barrelo
+
+      - name: Publish BoardSimulator (linux-x64)
+        run: >
+          dotnet publish tools/Barrelo.BoardSimulator/Barrelo.BoardSimulator.csproj
+          -c Release -r linux-x64 --self-contained true
+          -p:Version=${{ env.VERSION }}
+          -o ./stage/linux-x64/Barrelo/tools/BoardSimulator
 
       - name: Add README and LICENSE
         shell: pwsh
         run: |
-          Copy-Item README.md ./stage/Barrelo/README.md
-          Copy-Item LICENSE ./stage/Barrelo/LICENSE
+          Copy-Item README.md ./stage/win-x64/Barrelo/README.md
+          Copy-Item LICENSE ./stage/win-x64/Barrelo/LICENSE
+          Copy-Item README.md ./stage/linux-x64/Barrelo/README.md
+          Copy-Item LICENSE ./stage/linux-x64/Barrelo/LICENSE
 
-      - name: Create zip
+      - name: Create zips
         shell: pwsh
         run: |
-          Compress-Archive -Path ./stage/Barrelo/* -DestinationPath ./Barrelo-${{ env.VERSION }}-win-x64.zip
+          Compress-Archive -Path ./stage/win-x64/Barrelo/* -DestinationPath ./Barrelo-${{ env.VERSION }}-win-x64.zip
+          Compress-Archive -Path ./stage/linux-x64/Barrelo/* -DestinationPath ./Barrelo-${{ env.VERSION }}-linux-x64.zip
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: ./Barrelo-${{ env.VERSION }}-win-x64.zip
+          files: |
+            ./Barrelo-${{ env.VERSION }}-win-x64.zip
+            ./Barrelo-${{ env.VERSION }}-linux-x64.zip

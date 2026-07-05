@@ -128,20 +128,56 @@ there's no separate "install a plugin" step for the games that ship in this repo
 
 No .NET SDK, no clone, no build — just download and run:
 
-1. Grab the latest `Barrelo-*-win-x64.zip` from [Releases](../../releases) and unzip it anywhere.
-2. Run `Barrelo.Api.exe` (double-click it, or run it from a terminal in that folder). It's self-contained —
-   no separate .NET runtime install needed — and applies EF Core migrations to its own `barrelo.db`
-   automatically on first launch.
+1. Grab the latest release for your platform from [Releases](../../releases) and unzip it anywhere:
+   - Windows: `Barrelo-*-win-x64.zip`
+   - Linux (x64): `Barrelo-*-linux-x64.zip`
+2. Run the Api:
+   - Windows: double-click `Barrelo.Api.exe`, or run it from a terminal in that folder.
+   - Linux: zip archives don't preserve the executable bit, so run
+     `chmod +x Barrelo.Api tools/BoardSimulator/Barrelo.BoardSimulator` once, then `./Barrelo.Api`.
+
+   It's self-contained — no separate .NET runtime install needed — and applies EF Core migrations to its own
+   `barrelo.db` automatically on first launch.
 3. Open **http://localhost:5295** in a browser to reach the chalkboard start screen (the same URL as a
    from-source run — see [Configuration](#configuration) to change it).
-4. Optional — for board-simulator play, also run `tools\BoardSimulator\Barrelo.BoardSimulator.exe` from the
-   unzipped folder (defaults to **http://localhost:5250**); the Api is configured to talk to it out of the
-   box. Manual entry via the on-screen dartboard works either way, with or without the simulator running.
+4. Optional — for board-simulator play, also run the Board Simulator from the unzipped folder (defaults to
+   **http://localhost:5250**); the Api is configured to talk to it out of the box:
+   - Windows: `tools\BoardSimulator\Barrelo.BoardSimulator.exe`
+   - Linux: `./tools/BoardSimulator/Barrelo.BoardSimulator`
+
+   Manual entry via the on-screen dartboard works either way, with or without the simulator running.
 
 The package bundles the built-in game plugins (`plugins/x01`, `plugins/cricket`, `plugins/kickoff`) and the
-Board Simulator tool together, so a full match is playable immediately with zero real hardware. Currently
-published for win-x64 only. To change ports, database location, or detection mode, edit `appsettings.json`
-next to `Barrelo.Api.exe` — see [Configuration](#configuration).
+Board Simulator tool together, so a full match is playable immediately with zero real hardware. Published for
+win-x64 and linux-x64. To change ports, database location, or detection mode, edit `appsettings.json` next to
+the Api executable — see [Configuration](#configuration).
+
+### Running continuously on Linux (systemd)
+
+For a headless box (e.g. a Proxmox LXC or a Raspberry Pi sitting next to the board), run the Api as a
+`systemd` service so it survives reboots and crashes:
+
+```ini
+# /etc/systemd/system/barrelo.service
+[Unit]
+Description=Barrelo dart platform
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/barrelo
+ExecStart=/opt/barrelo/Barrelo.Api
+Restart=always
+RestartSec=5
+Environment=ASPNETCORE_ENVIRONMENT=Production
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then `systemctl daemon-reload && systemctl enable --now barrelo`. By default the Api only binds to
+`localhost`; to reach it from other devices on your LAN, add `"Urls": "http://0.0.0.0:5295"` to an
+`appsettings.Production.json` next to `Barrelo.Api` — see [Configuration](#configuration).
 
 ## Playing without hardware
 
@@ -349,6 +385,8 @@ dotnet publish src/Barrelo.Api/Barrelo.Api.csproj \
   `appsettings.Production.json` or environment variables before shipping.
 - Run the published `Barrelo.Api` executable (or `dotnet Barrelo.Api.dll` for a framework-dependent publish)
   on the device that sits next to the board — see [Configuration](#configuration) for what to change first.
+- Deploying to a home server (e.g. a Proxmox LXC) over SSH? See [`deploy/README.md`](deploy/README.md) for a
+  one-command `linux-x64` publish-and-restart script.
 
 ## Project layout
 
