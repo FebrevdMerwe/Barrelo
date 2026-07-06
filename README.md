@@ -317,6 +317,79 @@ implementations to copy from.
    The plugin loader picks it up from there on the next Api startup, and the game appears in the start
    screen's game picker via `GET /api/games` with no core changes and no rebuild of the solution.
 
+### Out-of-process games (any language, any UI engine)
+
+The steps above load a game as a .NET DLL in-process. If you'd rather write a game's rules engine in
+Node/Python/anything else, and/or render its board with PixiJS, Phaser, a Unity WebGL build, or any other
+engine, use the out-of-process path instead — it's additive alongside the in-process plugin loader above,
+not a replacement for it. Barrelo spawns one process per match (never shared across matches) and talks to
+it exclusively over plain HTTP/JSON; your process never links against any Barrelo/.NET code.
+
+**Copy [`examples/barrelo-remote-game-node`](examples/barrelo-remote-game-node) as your starting point** —
+a complete, dependency-free Node.js rules engine with a PixiJS-rendered board, proving this contract end to
+end. What follows is the spec it implements.
+
+1. **Drop a `plugin.json` manifest** in `plugins/{gameId}/` (same folder convention as an in-process
+   plugin's DLL) describing the game and how to launch it:
+
+   ```json
+   {
+     "protocolVersion": 1,
+     "gameId": "yourgame",
+     "displayName": "Your Game",
+     "description": "One-line description shown on the start screen.",
+     "settings": [],
+     "launch": { "command": "node", "args": ["server.js", "--port", "{{port}}"], "cwd": "." },
+     "health": { "path": "/health", "timeoutSeconds": 5 }
+   }
+   ```
+
+   `settings` is the same `GameSettingDefinition` shape (`GameModeSetting`/`PlayerGroupSetting`) a .NET
+   `GameDescriptor` already uses — no separate schema. `{{port}}` in `launch.args` is substituted with a
+   free port Barrelo picks per match. Barrelo only ever reads this file to list the game — nothing is
+   spawned until a player actually starts a match against it.
+
+   **The containing folder's name must match `gameId` exactly** (`plugins/yourgame/plugin.json` for
+   `"gameId": "yourgame"`). The RPC/spawn machinery doesn't care and the game will still play correctly
+   either way, but UI assets are fetched from `/plugins/{gameId}/...` — a mismatched folder name silently
+   404s `ui/index.html`/`render.js` while the game itself keeps working. Barrelo logs a warning on startup
+   if it detects this.
+
+2. **Implement the RPC contract** — one HTTP endpoint per `IGame`/`IGameFactory` method, all JSON, enums as
+   strings:
+
+   | Method | Endpoint | Maps to |
+   |---|---|---|
+   | GET | `/health` | liveness check; response body echoes `protocolVersion` |
+   | POST | `/create` | `IGameFactory.Create(GameSetup, ct)` — called once, right after spawn |
+   | POST | `/throw` | `IGame.ReceiveThrow(DetectedThrow, ct)` |
+   | POST | `/end-turn` | `IGame.ReceiveEndOfTurn(ct)` |
+   | POST | `/undo` | `IGame.UndoLastThrow(ct)` |
+   | GET | `/state` | `IGame.GetState()` → `GameStateSnapshot` |
+   | GET | `/result` | `IGame.GetResult()` → `GameResult` (only meaningful once `IsComplete`) |
+
+   Return `400` with a plain-text/JSON message body for malformed input — Barrelo maps it straight onto
+   `GameRuleViolationException`, the same as an in-process plugin throwing it directly. Your process is
+   spawned fresh per match and is the sole owner of that match's state for its whole lifetime; it's killed
+   the moment the match ends, so there's no multi-match bookkeeping to implement.
+
+3. **Ship a board UI the same way**, but as `ui/index.html` instead of `render.js`: the shell embeds it in
+   an `<iframe>` and posts `{ type: "barrelo:gameState", snapshot, playerNames }` into it via `postMessage`
+   on every state push, instead of calling a global function. This is what lets the board be PixiJS,
+   Phaser, a Unity WebGL build, or anything else — it's fully sandboxed from the host page. (The shell
+   tries `ui/index.html` first, then falls back to the `render.js` convention, then the generic payload
+   dump — existing in-process games are unaffected either way.)
+
+4. **If a match's process crashes or stops responding**, Barrelo doesn't retry or attempt to resume it —
+   the match is marked `Aborted` and the scoreboard shows an explicit "Game interrupted" banner, the same
+   way a normal completion shows a win banner. There's no state to resume from anyway, since a process
+   holds its match's state only in memory.
+
+Automated tests never spawn the Node example or require Node/Python to be installed — `dotnet test`
+exercises the out-of-process plumbing against an in-process HTTP fake instead (see
+`tests/Barrelo.Infrastructure.IntegrationTests/GamePlugins/`), keeping the primary correctness gate
+pure-.NET. Verify the real example manually using the checklist in its own README.
+
 ## Adding a new dart detector
 
 Every detector — a real board, the Board Simulator, manual entry — is just another implementation of

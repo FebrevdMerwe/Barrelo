@@ -48,7 +48,20 @@ public sealed class StartMatchCommandHandler(
             .Zip(groupIndexes, (id, groupIndex) => (id, groupIndex))
             .ToDictionary(x => x.id, x => x.groupIndex);
         var setup = new GameSetup(request.PlayerIds, request.Options, playerGroupsForSetup);
-        var game = await factory.Create(setup, ct);
+
+        IGame game;
+        try
+        {
+            game = await factory.Create(setup, ct);
+        }
+        catch (GameRuleViolationException ex)
+        {
+            return Error.Validation("Game.RuleViolation", ex.Message);
+        }
+        catch (GameUnavailableException ex)
+        {
+            return Error.Failure("Game.Unavailable", ex.Message);
+        }
 
         var matchId = Guid.NewGuid();
         await sessionManager.StartSessionAsync(matchId, game, playerGroupsForSetup);

@@ -49,6 +49,12 @@ if (Directory.Exists(pluginsDirectory))
     pluginContentTypes.Mappings.Clear();
     pluginContentTypes.Mappings[".js"] = "text/javascript";
     pluginContentTypes.Mappings[".css"] = "text/css";
+    // .html + these four cover the out-of-process game UI convention (an iframe'd ui/index.html) — the
+    // last three specifically so a Unity WebGL build's output (.wasm/.data/.framework.js/.loader.js) serves.
+    pluginContentTypes.Mappings[".html"] = "text/html";
+    pluginContentTypes.Mappings[".wasm"] = "application/wasm";
+    pluginContentTypes.Mappings[".data"] = "application/octet-stream";
+    pluginContentTypes.Mappings[".json"] = "application/json";
 
     app.UseStaticFiles(new StaticFileOptions
     {

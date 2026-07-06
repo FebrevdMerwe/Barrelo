@@ -59,12 +59,27 @@ public sealed class GameCommandExecutor(
         {
             leaderboard = await AwardPoints(matchId.Value, game, ct);
             await sessionManager.EndActiveSessionAsync(matchId.Value);
+            await DisposeIfRemote(game);
+        }
+        else if (state.Status == GameStatus.Aborted)
+        {
+            // No winner, no leaderboard award — the game's process is gone, not finished.
+            await sessionManager.EndActiveSessionAsync(matchId.Value);
+            await DisposeIfRemote(game);
         }
 
         var dto = MatchStateSnapshotDto.From(stamped, leaderboard);
         await dispatcher.Publish(new GameStateChangedEvent(matchId.Value, dto), ct);
 
         return dto;
+    }
+
+    /// <summary>Out-of-process games own a spawned process + HttpClient (IAsyncDisposable); first-party
+    /// in-proc games don't implement it, so this is a no-op for them.</summary>
+    private static async Task DisposeIfRemote(IGame game)
+    {
+        if (game is IAsyncDisposable disposable)
+            await disposable.DisposeAsync();
     }
 
     private async Task<IReadOnlyList<LeaderboardEntry>> AwardPoints(Guid matchId, IGame game, CancellationToken ct)

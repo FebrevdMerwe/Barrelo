@@ -331,6 +331,16 @@ body{
    Each plugin's render.js self-injects its own stylesheet — this file only
    owns shell chrome shared by every game. */
 
+/* An out-of-process game's ui/index.html renders inside this instead — fully sandboxed, so it owns
+   whatever it draws (PixiJS/Phaser/a Unity WebGL canvas/etc.) with no host stylesheet reaching in. */
+.game-board-iframe{
+  width:min(640px, 92vw);
+  height:min(640px, 70vh);
+  border:none;
+  border-radius:12px;
+  background:transparent;
+}
+
 /* ---------- input drawer (on-demand board/controls, game view stays full-bleed) ---------- */
 .scene{ padding-bottom: 108px; transition: padding-bottom .3s ease; }
 .scene.drawer-open{ padding-bottom: clamp(400px, 60vh, 480px); }

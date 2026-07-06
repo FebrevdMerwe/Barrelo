@@ -1,0 +1,16 @@
+{
+  "protocolVersion": 1,
+  "gameId": "round-the-clock",
+  "displayName": "Round the Clock",
+  "description": "Hit 1 through 20 in order — first to finish wins. Reference example of an out-of-process game plugin (Node.js rules engine, PixiJS board).",
+  "settings": [],
+  "launch": {
+    "command": "node",
+    "args": ["server.js", "--port", "{{port}}"],
+    "cwd": "."
+  },
+  "health": {
+    "path": "/health",
+    "timeoutSeconds": 5
+  }
+}

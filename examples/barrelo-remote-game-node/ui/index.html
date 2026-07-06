@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Round the Clock</title>
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; background:#0f1712; overflow:hidden; }
+  #app { width:100%; height:100%; }
+</style>
+<!--
+  CDN-loaded for this example's own simplicity only — Barrelo itself ships no build pipeline and needs no
+  internet access to run (see AGENTS.md). A real game should vendor/bundle its own copy of PixiJS/Phaser/etc.
+  so it works fully offline like the rest of the platform; this example just keeps the diff small.
+-->
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.2/dist/pixi.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function () {
+  "use strict";
+
+  var TARGETS_TO_WIN = 20;
+  var PLAYER_COLORS = [0xd98a3d, 0x4fa3c4, 0xc0546e, 0x6fae6a, 0xa88bc4];
+
+  var app = new PIXI.Application({
+    resizeTo: window,
+    backgroundColor: 0x0f1712,
+    antialias: true,
+  });
+  document.getElementById("app").appendChild(app.view);
+
+  var trackLayer = new PIXI.Container();
+  var tokenLayer = new PIXI.Container();
+  var labelLayer = new PIXI.Container();
+  app.stage.addChild(trackLayer, tokenLayer, labelLayer);
+
+  var latest = null; // { snapshot, playerNames }
+
+  function pointFor(index, radius, cx, cy) {
+    // index 0 => number 1, laid out clockwise starting at the top — 20 evenly spaced stops.
+    var angle = (index / TARGETS_TO_WIN) * Math.PI * 2 - Math.PI / 2;
+    return { x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius };
+  }
+
+  function draw() {
+    trackLayer.removeChildren();
+    tokenLayer.removeChildren();
+    labelLayer.removeChildren();
+
+    if (!latest) return;
+    var snapshot = latest.snapshot;
+    var playerNames = latest.playerNames || {};
+    var targets = (snapshot.payload && snapshot.payload.targets) || {};
+    var playerIds = Object.keys(targets);
+
+    var cx = app.renderer.width / 2;
+    var cy = app.renderer.height / 2;
+    var radius = Math.min(cx, cy) * 0.72;
+
+    // The 20-stop ring itself, numbered 1..20.
+    for (var i = 0; i < TARGETS_TO_WIN; i++) {
+      var p = pointFor(i, radius, cx, cy);
+      var isCurrentTarget = playerIds.some(function (id) { return targets[id] === i + 1; });
+
+      var stop = new PIXI.Graphics();
+      stop.beginFill(isCurrentTarget ? 0xd9b23d : 0x24352c);
+      stop.drawCircle(0, 0, isCurrentTarget ? 16 : 11);
+      stop.endFill();
+      stop.x = p.x;
+      stop.y = p.y;
+      trackLayer.addChild(stop);
+
+      var label = new PIXI.Text(String(i + 1), {
+        fontFamily: "monospace", fontSize: 13, fill: 0xe9e4d6,
+      });
+      label.anchor.set(0.5);
+      label.x = p.x;
+      label.y = p.y;
+      labelLayer.addChild(label);
+    }
+
+    // One token per player, resting on their last-completed stop (or center, before their first hit).
+    playerIds.forEach(function (id, playerIndex) {
+      var target = targets[id];
+      var completedIndex = target - 2; // target is "next needed number"; completedIndex is the one before it
+      var pos = completedIndex >= 0 ? pointFor(completedIndex, radius * 0.42, cx, cy) : { x: cx, y: cy };
+
+      var token = new PIXI.Graphics();
+      token.beginFill(PLAYER_COLORS[playerIndex % PLAYER_COLORS.length]);
+      token.drawCircle(0, 0, 10);
+      token.endFill();
+      token.x = pos.x;
+      token.y = pos.y;
+      tokenLayer.addChild(token);
+
+      var name = new PIXI.Text(playerNames[id] || "Player", {
+        fontFamily: "monospace", fontSize: 12, fill: 0xbfd8c8,
+      });
+      name.anchor.set(0.5, 1.6);
+      name.x = pos.x;
+      name.y = pos.y;
+      labelLayer.addChild(name);
+    });
+
+    var turnLabel = new PIXI.Text(
+      snapshot.isComplete
+        ? "Finished"
+        : "Up: " + (playerNames[snapshot.currentPlayerId] || "—") + " needs " + (targets[snapshot.currentPlayerId] || "?"),
+      { fontFamily: "monospace", fontSize: 16, fill: 0xe9e4d6 });
+    turnLabel.anchor.set(0.5, 0);
+    turnLabel.x = cx;
+    turnLabel.y = 8;
+    labelLayer.addChild(turnLabel);
+  }
+
+  window.addEventListener("resize", draw);
+
+  window.addEventListener("message", function (event) {
+    if (!event.data || event.data.type !== "barrelo:gameState") return;
+    latest = { snapshot: event.data.snapshot, playerNames: event.data.playerNames };
+    draw();
+  });
+})();
+</script>
+</body>
+</html>
