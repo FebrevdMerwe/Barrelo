@@ -5,6 +5,7 @@
 (function () {
   "use strict";
 
+  var sceneEl = document.getElementById("scene");
   var gameLabelEl = document.getElementById("gameLabel");
   var legMetaEl = document.getElementById("legMeta");
   var gameBoardEl = document.getElementById("game-board");
@@ -17,6 +18,7 @@
   var gameNames = {};
   var loadedRendererFor = null;
   var boardRenderer = null;
+  var boardRendererIsIframe = false;
 
   function defaultRenderGameBoard(container, snapshot) {
     container.innerHTML = "";
@@ -84,12 +86,17 @@
     var iframeUrl = "/plugins/" + encodeURIComponent(gameId) + "/ui/index.html";
     return fetch(iframeUrl, { method: "HEAD" })
       .then(function (res) {
-        if (res.ok) return createIframeRenderer(iframeUrl);
+        if (res.ok) {
+          boardRendererIsIframe = true;
+          return createIframeRenderer(iframeUrl);
+        }
         console.warn('No ' + iframeUrl + ' for game "' + gameId + '" (HTTP ' + res.status + ') — falling back to render.js.');
+        boardRendererIsIframe = false;
         return loadScriptRenderer(gameId);
       })
       .catch(function (err) {
         console.warn('Fetching ' + iframeUrl + ' failed (' + err + ') — falling back to render.js.');
+        boardRendererIsIframe = false;
         return loadScriptRenderer(gameId);
       })
       .then(function (renderer) {
@@ -137,6 +144,7 @@
     if (loadedRendererFor !== snapshot.gameId) {
       boardRenderer = await loadGameRenderer(snapshot.gameId);
       gameLabelEl.textContent = gameNames[snapshot.gameId] || snapshot.gameId;
+      sceneEl.classList.toggle("board-fullscreen", boardRendererIsIframe);
     }
     boardRenderer(gameBoardEl, snapshot, playerNames);
 

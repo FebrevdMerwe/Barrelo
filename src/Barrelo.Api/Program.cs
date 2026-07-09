@@ -45,16 +45,12 @@ app.UseStaticFiles();
 var pluginsDirectory = PluginsDirectoryResolver.Resolve(builder.Configuration);
 if (Directory.Exists(pluginsDirectory))
 {
+    // Default provider already covers .js/.css/.html/.json/.wasm/images/fonts/audio — the out-of-process
+    // game UI convention (an iframe'd ui/index.html, optionally a Unity WebGL build). Only Unity's .data
+    // pseudo-extension needs adding on top; ServeUnknownFileTypes stays false below so anything else
+    // (e.g. stray .pdb/.cs build artifacts) still 404s instead of being served.
     var pluginContentTypes = new FileExtensionContentTypeProvider();
-    pluginContentTypes.Mappings.Clear();
-    pluginContentTypes.Mappings[".js"] = "text/javascript";
-    pluginContentTypes.Mappings[".css"] = "text/css";
-    // .html + these four cover the out-of-process game UI convention (an iframe'd ui/index.html) — the
-    // last three specifically so a Unity WebGL build's output (.wasm/.data/.framework.js/.loader.js) serves.
-    pluginContentTypes.Mappings[".html"] = "text/html";
-    pluginContentTypes.Mappings[".wasm"] = "application/wasm";
     pluginContentTypes.Mappings[".data"] = "application/octet-stream";
-    pluginContentTypes.Mappings[".json"] = "application/json";
 
     app.UseStaticFiles(new StaticFileOptions
     {

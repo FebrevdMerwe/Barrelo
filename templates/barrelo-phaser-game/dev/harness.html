@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Barrelo Phaser template harness (stand-in for Barrelo)</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #0f1712; color: #e9e4d6; font-family: Arial, sans-serif; }
+  body { display: flex; }
+  #panel { width: 340px; flex: none; padding: 12px; box-sizing: border-box; overflow-y: auto; background: #16201a; border-right: 1px solid #3f4a42; }
+  #stage { flex: 1; display: flex; flex-direction: column; }
+  #stage iframe { flex: 1; border: 0; background: #0f1712; }
+  #iframeBar { display: flex; gap: 6px; padding: 6px; background: #16201a; border-bottom: 1px solid #3f4a42; }
+  h2 { font-size: 14px; margin: 16px 0 6px; text-transform: uppercase; letter-spacing: 0.05em; color: #d9b23d; }
+  h2:first-child { margin-top: 0; }
+  label { display: block; font-size: 12px; margin-top: 8px; margin-bottom: 2px; color: #a1ada5; }
+  input, select { width: 100%; box-sizing: border-box; background: #0f1712; color: #e9e4d6; border: 1px solid #3f4a42; padding: 4px 6px; font-size: 13px; }
+  button { cursor: pointer; background: #d98a3d; color: #0f1712; border: 0; padding: 6px 10px; font-size: 13px; margin-top: 8px; margin-right: 4px; font-weight: bold; }
+  button.secondary { background: #3f4a42; color: #e9e4d6; }
+  button.wide { width: 100%; }
+  .row { display: flex; gap: 6px; }
+  .row > * { flex: 1; }
+  #log { white-space: pre-wrap; font-size: 11px; background: #0f1712; border: 1px solid #3f4a42; padding: 6px; height: 140px; overflow-y: auto; margin-top: 6px; }
+  #stateView { white-space: pre-wrap; font-size: 11px; background: #0f1712; border: 1px solid #3f4a42; padding: 6px; max-height: 220px; overflow-y: auto; margin-top: 6px; }
+  .hint { font-size: 11px; color: #a1ada5; margin-top: 4px; }
+  .hint code { color: #d9b23d; }
+</style>
+</head>
+<body>
+<div id="panel">
+  <h2>Setup</h2>
+  <div class="hint">
+    Requires <code>npx tsx src/server.ts --port 6100</code> and <code>cd ui &amp;&amp; npm run dev</code>
+    (Vite, port 5173) running separately — see the template's README.
+  </div>
+  <label>Player IDs (comma-separated)</label>
+  <input id="playerIds" value="11111111-1111-1111-1111-111111111111,22222222-2222-2222-2222-222222222222" />
+  <label>Player names (optional, same order)</label>
+  <input id="playerNames" value="Alex,Sam" />
+  <button class="wide" id="createBtn">Create match</button>
+
+  <h2>Throw</h2>
+  <div class="row">
+    <div>
+      <label>Segment</label>
+      <select id="segment"></select>
+    </div>
+    <div>
+      <label>Ring</label>
+      <select id="ring">
+        <option>Outer</option>
+        <option>Inner</option>
+        <option>Triple</option>
+        <option>Double</option>
+        <option>Miss</option>
+      </select>
+    </div>
+  </div>
+  <button class="wide" id="throwBtn">Send throw</button>
+  <div class="row">
+    <button class="secondary" id="randomBtn">Random throw</button>
+    <button class="secondary" id="bullBtn">Bullseye</button>
+  </div>
+  <div class="row">
+    <button class="secondary" id="endTurnBtn">End turn</button>
+    <button class="secondary" id="undoBtn">Undo</button>
+  </div>
+
+  <h2>Live state</h2>
+  <label><input type="checkbox" id="autoPoll" checked style="width:auto" /> Auto-poll every 500ms</label>
+  <div id="stateView">(no state yet)</div>
+
+  <h2>Log</h2>
+  <div id="log"></div>
+</div>
+<div id="stage">
+  <div id="iframeBar">
+    <input id="iframeSrc" value="http://localhost:5173" />
+    <button class="secondary" id="loadBtn">Load</button>
+  </div>
+  <iframe id="board" src="http://localhost:5173"></iframe>
+</div>
+
+<script>
+const WEDGE_ORDER = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
+
+const segmentSelect = document.getElementById('segment');
+WEDGE_ORDER.slice().sort((a, b) => a - b).forEach((n) => {
+  const opt = document.createElement('option');
+  opt.value = String(n);
+  opt.textContent = String(n);
+  segmentSelect.appendChild(opt);
+});
+
+let currentPlayerIds = [];
+let currentPlayerNames = {};
+
+function log(message) {
+  const el = document.getElementById('log');
+  const line = document.createElement('div');
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+// All game calls go through the /sim/* helpers on this same harness server (see
+// dev/harness-server.js) so throws can also be fired from curl without hand-building a full
+// DetectedThrow JSON body.
+async function callSim(path) {
+  const res = await fetch(path);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+  return data;
+}
+
+document.getElementById('createBtn').addEventListener('click', async () => {
+  currentPlayerIds = document.getElementById('playerIds').value.split(',').map((s) => s.trim()).filter(Boolean);
+  const names = document.getElementById('playerNames').value.split(',').map((s) => s.trim());
+  currentPlayerNames = {};
+  currentPlayerIds.forEach((id, i) => { currentPlayerNames[id] = names[i] || id; });
+
+  try {
+    await callSim(`/sim/create?playerIds=${encodeURIComponent(currentPlayerIds.join(','))}`);
+    log(`Match created for [${currentPlayerIds.join(', ')}]`);
+  } catch (err) {
+    log(`Create failed: ${err.message}`);
+  }
+});
+
+document.getElementById('throwBtn').addEventListener('click', () => sendThrow(`/sim/throw?segment=${segmentSelect.value}&ring=${document.getElementById('ring').value}`, `segment ${segmentSelect.value}, ${document.getElementById('ring').value}`));
+document.getElementById('bullBtn').addEventListener('click', () => sendThrow('/sim/bull', 'bullseye'));
+document.getElementById('randomBtn').addEventListener('click', () => sendThrow('/sim/random', 'random'));
+
+async function sendThrow(path, description) {
+  try {
+    await callSim(path);
+    log(`Throw: ${description}`);
+  } catch (err) {
+    log(`Throw failed: ${err.message}`);
+  }
+}
+
+document.getElementById('endTurnBtn').addEventListener('click', async () => {
+  try {
+    await callSim('/sim/end-turn');
+    log('End turn');
+  } catch (err) {
+    log(`End turn failed: ${err.message}`);
+  }
+});
+
+document.getElementById('undoBtn').addEventListener('click', async () => {
+  try {
+    await callSim('/sim/undo');
+    log('Undo');
+  } catch (err) {
+    log(`Undo failed: ${err.message}`);
+  }
+});
+
+document.getElementById('loadBtn').addEventListener('click', () => {
+  document.getElementById('board').src = document.getElementById('iframeSrc').value;
+});
+
+async function pollState() {
+  if (!document.getElementById('autoPoll').checked) return;
+  try {
+    const res = await fetch('/state');
+    const snapshot = await res.json();
+    document.getElementById('stateView').textContent = JSON.stringify(snapshot, null, 2);
+
+    const iframe = document.getElementById('board');
+    iframe.contentWindow.postMessage(
+      { type: 'barrelo:gameState', snapshot, playerNames: currentPlayerNames },
+      '*'
+    );
+  } catch (err) {
+    document.getElementById('stateView').textContent = `Poll failed: ${err.message}`;
+  }
+}
+
+setInterval(pollState, 500);
+</script>
+</body>
+</html>

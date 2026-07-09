@@ -325,9 +325,9 @@ engine, use the out-of-process path instead — it's additive alongside the in-p
 not a replacement for it. Barrelo spawns one process per match (never shared across matches) and talks to
 it exclusively over plain HTTP/JSON; your process never links against any Barrelo/.NET code.
 
-**Copy [`examples/barrelo-remote-game-node`](examples/barrelo-remote-game-node) as your starting point** —
-a complete, dependency-free Node.js rules engine with a PixiJS-rendered board, proving this contract end to
-end. What follows is the spec it implements.
+**Copy [`templates/barrelo-phaser-game`](templates/barrelo-phaser-game) as your starting point** — a
+TypeScript + Vite skeleton with all the RPC wiring in place and the actual rules/rendering left as TODOs —
+see its own README for setup. What follows is the spec it implements.
 
 1. **Drop a `plugin.json` manifest** in `plugins/{gameId}/` (same folder convention as an in-process
    plugin's DLL) describing the game and how to launch it:
@@ -385,10 +385,10 @@ end. What follows is the spec it implements.
    way a normal completion shows a win banner. There's no state to resume from anyway, since a process
    holds its match's state only in memory.
 
-Automated tests never spawn the Node example or require Node/Python to be installed — `dotnet test`
+Automated tests never spawn an out-of-process game or require Node/Python to be installed — `dotnet test`
 exercises the out-of-process plumbing against an in-process HTTP fake instead (see
 `tests/Barrelo.Infrastructure.IntegrationTests/GamePlugins/`), keeping the primary correctness gate
-pure-.NET. Verify the real example manually using the checklist in its own README.
+pure-.NET.
 
 ## Adding a new dart detector
 
