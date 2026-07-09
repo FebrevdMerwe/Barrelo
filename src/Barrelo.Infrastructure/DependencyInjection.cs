@@ -30,9 +30,13 @@ public static class DependencyInjection
         services.AddSingleton<IGameCatalog>(sp =>
         {
             var pluginsDirectory = PluginsDirectoryResolver.Resolve(configuration);
-            var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger<PluginGameLoader>();
-            var factories = new PluginGameLoader(logger).LoadFactories(pluginsDirectory);
-            return new GameCatalog(factories);
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+
+            var pluginFactories = new PluginGameLoader(loggerFactory.CreateLogger<PluginGameLoader>())
+                .LoadFactories(pluginsDirectory);
+            var remoteFactories = new RemoteGameLoader(loggerFactory).LoadFactories(pluginsDirectory);
+
+            return new GameCatalog(pluginFactories.Concat(remoteFactories));
         });
 
         var detectionMode = configuration["Detection:Mode"] ?? "Mock";

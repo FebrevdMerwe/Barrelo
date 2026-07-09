@@ -1,0 +1,21 @@
+{
+  "name": "barrelo-phaser-game-template",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Starting point for a Barrelo out-of-process game with a Phaser 4 board.",
+  "workspaces": ["ui"],
+  "scripts": {
+    "dev": "node dev/start-harness.js",
+    "start": "npx tsx src/server.ts",
+    "build": "npm run build --workspace ui",
+    "harness": "node dev/harness-server.js"
+  },
+  "dependencies": {
+    "tsx": "^4.19.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.10.0"
+  }
+}

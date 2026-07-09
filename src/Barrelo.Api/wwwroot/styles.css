@@ -331,6 +331,28 @@ body{
    Each plugin's render.js self-injects its own stylesheet — this file only
    owns shell chrome shared by every game. */
 
+/* An out-of-process game's ui/index.html renders inside this instead — fully sandboxed, so it owns
+   whatever it draws (PixiJS/Phaser/a Unity WebGL canvas/etc.) with no host stylesheet reaching in.
+   #game-board is otherwise a shrink-to-fit flex item (so render.js boards stay centered at their own
+   intrinsic width) — but a percentage-width child can't grow an auto-width parent, so scope the
+   full-width override to when the iframe is actually what #game-board contains. */
+#game-board:has(> .game-board-iframe){ width:100%; }
+.game-board-iframe{
+  width:100%;
+  height:min(640px, 70vh);
+  border:none;
+  border-radius:12px;
+  background:transparent;
+}
+
+/* view.html only: while the active game's board is iframe-backed, drop the header/ledger chrome and
+   let the iframe cover the entire viewport edge-to-edge (toggled by view.js). */
+.scene.board-fullscreen{ padding:0; }
+.scene.board-fullscreen .rail,
+.scene.board-fullscreen .ledger{ display:none; }
+.scene.board-fullscreen .game-board-wrap{ flex:1; margin:0; }
+.scene.board-fullscreen .game-board-iframe{ height:100%; border-radius:0; }
+
 /* ---------- input drawer (on-demand board/controls, game view stays full-bleed) ---------- */
 .scene{ padding-bottom: 108px; transition: padding-bottom .3s ease; }
 .scene.drawer-open{ padding-bottom: clamp(400px, 60vh, 480px); }

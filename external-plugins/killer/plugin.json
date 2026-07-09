@@ -1,0 +1,16 @@
+{
+  "protocolVersion": 1,
+  "gameId": "killer",
+  "displayName": "Killer - WIP",
+  "description": "Hit your double to become the killer, then take your opponents' lives.",
+  "settings": [],
+  "launch": {
+    "command": "node",
+    "args": ["server.js", "--port", "{{port}}"],
+    "cwd": "."
+  },
+  "health": {
+    "path": "/health",
+    "timeoutSeconds": 5
+  }
+}
