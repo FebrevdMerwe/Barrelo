@@ -29,3 +29,5 @@ decoupled from each other.
 - Every detector goes behind `IDetectionSource` — never special-case a specific detector elsewhere.
 - Plugin DLLs land in `plugins/{gameId}/` automatically via `Directory.Build.targets` on build — don't
   hand-copy or hand-edit that folder.
+- A game with no source in this repo (built prebuilt elsewhere) goes under `external-plugins/{gameId}/`
+  (build output only), never `src/Games/` (in-repo source only) — see `external-plugins/README.md`.

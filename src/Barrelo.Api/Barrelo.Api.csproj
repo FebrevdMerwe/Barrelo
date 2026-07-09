@@ -36,10 +36,16 @@
     project load, before those files exist on a clean build — so it never sees them. Globbing
     inside a Target instead defers evaluation until the target actually executes, after all
     referenced game projects (and their copy steps) have already run.
+
+    ..\..\external-plugins is a second, git-tracked source of plugins: prebuilt packages for games
+    whose source lives outside this solution entirely (see external-plugins\README.md). Its
+    README.md/.gitkeep are excluded so they don't ship inside plugins\.
   -->
   <Target Name="CopyPluginsToOutput" AfterTargets="Build">
     <ItemGroup>
       <PluginFiles Include="$(MSBuildProjectDirectory)\plugins\**\*" />
+      <PluginFiles Include="$(MSBuildProjectDirectory)\..\..\external-plugins\**\*"
+                    Exclude="$(MSBuildProjectDirectory)\..\..\external-plugins\README.md;$(MSBuildProjectDirectory)\..\..\external-plugins\.gitkeep" />
     </ItemGroup>
     <Copy SourceFiles="@(PluginFiles)"
           DestinationFolder="$(OutDir)plugins\%(RecursiveDir)"
@@ -49,6 +55,8 @@
   <Target Name="CopyPluginsToPublishDir" AfterTargets="Publish">
     <ItemGroup>
       <PluginFilesForPublish Include="$(MSBuildProjectDirectory)\plugins\**\*" />
+      <PluginFilesForPublish Include="$(MSBuildProjectDirectory)\..\..\external-plugins\**\*"
+                              Exclude="$(MSBuildProjectDirectory)\..\..\external-plugins\README.md;$(MSBuildProjectDirectory)\..\..\external-plugins\.gitkeep" />
     </ItemGroup>
     <Copy SourceFiles="@(PluginFilesForPublish)"
           DestinationFolder="$(PublishDir)plugins\%(RecursiveDir)"

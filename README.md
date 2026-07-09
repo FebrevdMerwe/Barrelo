@@ -317,6 +317,14 @@ implementations to copy from.
    The plugin loader picks it up from there on the next Api startup, and the game appears in the start
    screen's game picker via `GET /api/games` with no core changes and no rebuild of the solution.
 
+   **Vendoring a prebuilt plugin in this repo.** The copy above is for a deployment you don't want to
+   rebuild — it lands on a running server's filesystem and isn't tracked anywhere. If instead you want the
+   plugin to ship with every clone/publish of this repo (without pulling its source into `src/Games/`), drop
+   the same built output into [`external-plugins/{gameId}/`](external-plugins/README.md) at the repo root
+   instead. It's git-tracked, and `Barrelo.Api.csproj`'s existing plugin-copy targets fold it into
+   `plugins/{gameId}/` automatically on every `dotnet build`/`dotnet run`/`dotnet publish` — no manual
+   copying, no solution/project wiring, no source included.
+
 ### Out-of-process games (any language, any UI engine)
 
 The steps above load a game as a .NET DLL in-process. If you'd rather write a game's rules engine in
@@ -330,7 +338,8 @@ TypeScript + Vite skeleton with all the RPC wiring in place and the actual rules
 see its own README for setup. What follows is the spec it implements.
 
 1. **Drop a `plugin.json` manifest** in `plugins/{gameId}/` (same folder convention as an in-process
-   plugin's DLL) describing the game and how to launch it:
+   plugin's DLL) describing the game and how to launch it — or, to vendor it into this repo instead of a
+   running deployment, [`external-plugins/{gameId}/`](external-plugins/README.md) works the same way:
 
    ```json
    {
@@ -478,6 +487,7 @@ tests/
   Barrelo.*.UnitTests / .IntegrationTests   one per src/ project, plus tests/Games/* per game plugin
 tools/
   Barrelo.BoardSimulator       standalone, zero-Barrelo-dependency stand-in for a real detector
+external-plugins/              vendored, prebuilt game plugin packages (no source) — see its own README
 diagrams/                     architecture diagrams (Mermaid)
 docs/                         README assets
 ```
