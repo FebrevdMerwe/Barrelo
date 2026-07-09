@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "Starting point for a Barrelo out-of-process game with a Phaser 3 board.",
+  "description": "Starting point for a Barrelo out-of-process game with a Phaser 4 board.",
   "workspaces": ["ui"],
   "scripts": {
     "dev": "node dev/start-harness.js",

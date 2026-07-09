@@ -1,6 +1,6 @@
 # barrelo-phaser-game — Phaser out-of-process game template
 
-A starting point for building a Barrelo game with a [Phaser 3](https://phaser.io/) board, using Phaser's
+A starting point for building a Barrelo game with a [Phaser 4](https://phaser.io/) board, using Phaser's
 own modern project conventions (TypeScript + Vite) instead of a hand-rolled `<script>` tag. This is a
 deliberately blank skeleton: every RPC endpoint and the `GameStateSnapshot` envelope are wired correctly,
 but the actual rules and rendering are TODOs for you to fill in.
