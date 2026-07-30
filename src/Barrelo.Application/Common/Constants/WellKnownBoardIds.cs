@@ -12,4 +12,7 @@ public static class WellKnownBoardIds
 
     /// <summary>The BoardId the board simulator stamps on its DetectedThrows.</summary>
     public const string Simulator = "simulator";
+
+    /// <summary>The BoardId the AutoDarts adapter stamps on its DetectedThrows.</summary>
+    public const string AutoDarts = "autodarts";
 }

@@ -50,6 +50,16 @@ public static class DependencyInjection
             });
             services.AddSingleton<IDetectionSource>(sp => sp.GetRequiredService<BoardSimulatorDetectionSource>());
         }
+        else if (string.Equals(detectionMode, "AutoDarts", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddSingleton(sp =>
+            {
+                var url = configuration["Detection:AutoDarts:Url"] ?? "ws://localhost:3180/api/events";
+                var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger<AutoDartsDetectionSource>();
+                return new AutoDartsDetectionSource(new Uri(url), WellKnownBoardIds.AutoDarts, logger);
+            });
+            services.AddSingleton<IDetectionSource>(sp => sp.GetRequiredService<AutoDartsDetectionSource>());
+        }
         else
         {
             services.AddSingleton<MockDetectionSource>();

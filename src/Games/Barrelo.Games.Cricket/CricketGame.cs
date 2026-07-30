@@ -130,14 +130,27 @@ public sealed class CricketGame : IGame
         _isComplete = false;
         _winnerPlayerIds = null;
 
+        // A visit can end two ways that both land in the log: an explicit EndOfTurn (from the UI or a
+        // detection source) or this loop noticing the 3rd dart on its own. Detection sources (e.g.
+        // AutoDarts) fire EndOfTurn unconditionally once the board is cleared, even for a visit this
+        // loop already ended — so an EndOfTurn immediately following an auto-ended visit must be a
+        // no-op, or the player would get advanced twice for the same physical turn.
+        var turnAlreadyEnded = false;
+
         foreach (var entry in _log)
         {
             if (entry.Kind == LogEntryKind.EndOfTurn)
             {
-                AdvanceToNextPlayer();
-                _currentVisitThrows = [];
+                if (!turnAlreadyEnded)
+                {
+                    AdvanceToNextPlayer();
+                    _currentVisitThrows = [];
+                }
+                turnAlreadyEnded = false;
                 continue;
             }
+
+            turnAlreadyEnded = false;
 
             var detectedThrow = entry.Throw!;
             var throwingPlayerId = _players[_currentPlayerIndex];
@@ -157,6 +170,7 @@ public sealed class CricketGame : IGame
 
             if (_currentVisitThrows.Count == 3)
             {
+                turnAlreadyEnded = true;
                 AdvanceToNextPlayer();
                 _currentVisitThrows = [];
             }

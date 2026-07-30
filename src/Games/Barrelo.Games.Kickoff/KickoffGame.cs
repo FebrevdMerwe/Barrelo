@@ -153,21 +153,33 @@ public sealed class KickoffGame : IGame
         _isComplete = false;
         _winnerPlayerIds = null;
 
+        // A visit can end two ways that both land in the log: an explicit EndOfTurn (from the UI or a
+        // detection source) or ApplyKick noticing an out-of-bounds kick, a goal, or the 3rd kick on its
+        // own. Detection sources (e.g. AutoDarts) fire EndOfTurn unconditionally once the board is
+        // cleared, even for a visit that already ended — so an EndOfTurn immediately following an
+        // auto-ended visit must be a no-op, or the side would get advanced (and NextMemberIndex
+        // incremented) twice for the same physical turn.
+        var turnAlreadyEnded = false;
+
         foreach (var entry in _log)
         {
             if (entry.Kind == LogEntryKind.EndOfTurn)
             {
-                _lastEvent = null;
-                EndVisit(nextSide: 1 - _currentSide, resetBall: false);
+                if (!turnAlreadyEnded)
+                {
+                    _lastEvent = null;
+                    EndVisit(nextSide: 1 - _currentSide, resetBall: false);
+                }
+                turnAlreadyEnded = false;
                 continue;
             }
 
-            ApplyKick(entry.Throw!);
+            turnAlreadyEnded = ApplyKick(entry.Throw!);
             if (_isComplete) break;
         }
     }
 
-    private void ApplyKick(DetectedThrow detectedThrow)
+    private bool ApplyKick(DetectedThrow detectedThrow)
     {
         var throwingSide = _currentSide;
         _currentVisitThrows.Add(detectedThrow);
@@ -209,7 +221,7 @@ public sealed class KickoffGame : IGame
             PushTrail();
             _lastEvent = new KickoffEvent("OUT! — their throw-in", "bad");
             EndVisit(nextSide: 1 - throwingSide, resetBall: false);
-            return;
+            return true;
         }
 
         if (outcome == "goal")
@@ -230,7 +242,7 @@ public sealed class KickoffGame : IGame
                 {
                     _isComplete = true;
                     _winnerPlayerIds = scoringGroup.MemberPlayerIds;
-                    return;
+                    return true;
                 }
 
                 foreach (var g in _groupStates.Values)
@@ -240,14 +252,19 @@ public sealed class KickoffGame : IGame
             // The side that conceded (1 - owner) kicks off — usually the other side from whoever just
             // kicked, except on an own goal, where the kicking side concedes and keeps the ball.
             EndVisit(nextSide: 1 - owner, resetBall: true);
-            return;
+            return true;
         }
 
         _ball = new BallPosition(newX, newY);
         PushTrail();
 
         if (_currentVisitThrows.Count == 3)
+        {
             EndVisit(nextSide: 1 - throwingSide, resetBall: false);
+            return true;
+        }
+
+        return false;
     }
 
     private static bool InGoalMouth(double y) => y is >= GoalMouthMin and <= GoalMouthMax;

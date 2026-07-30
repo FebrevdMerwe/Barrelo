@@ -129,25 +129,40 @@ public sealed class X01Game : IGame
         _setNumber = 1;
         _legsPlayedTotal = 0;
         _currentVisitThrows = [];
-        _lastEndedVisitThrows = [];
         _currentLegThrows = [];
         _isComplete = false;
         _winnerPlayerIds = null;
 
         var visitStartRemaining = _options.StartingScore;
 
+        // A visit can end two ways that both land in the log: an explicit EndOfTurn (from the UI or a
+        // detection source) or this loop noticing 3 darts/bust/checkout on its own. Detection sources
+        // (e.g. AutoDarts) fire EndOfTurn unconditionally once the board is cleared, even for a visit
+        // this loop already ended — so an EndOfTurn immediately following an auto-ended visit must be
+        // a no-op, or the player would get advanced twice for the same physical turn.
+        var turnAlreadyEnded = false;
+        List<DetectedThrow> lastEndedVisitThrows = [];
+        var justEndedVisit = false;
+
         for (var i = 0; i < _log.Count; i++)
         {
             var entry = _log[i];
-            var isLastEntry = i == _log.Count - 1;
 
             if (entry.Kind == LogEntryKind.EndOfTurn)
             {
-                if (isLastEntry) _lastEndedVisitThrows = _currentVisitThrows;
-                AdvanceToNextPlayer();
-                _currentVisitThrows = [];
+                if (!turnAlreadyEnded)
+                {
+                    lastEndedVisitThrows = _currentVisitThrows;
+                    justEndedVisit = true;
+                    AdvanceToNextPlayer();
+                    _currentVisitThrows = [];
+                }
+                turnAlreadyEnded = false;
                 continue;
             }
+
+            justEndedVisit = false;
+            turnAlreadyEnded = false;
 
             var detectedThrow = entry.Throw!;
             var throwingPlayerId = _players[_currentPlayerIndex];
@@ -167,7 +182,9 @@ public sealed class X01Game : IGame
             if (isBust)
             {
                 group.RemainingScore = visitStartRemaining;
-                if (isLastEntry) _lastEndedVisitThrows = _currentVisitThrows;
+                lastEndedVisitThrows = _currentVisitThrows;
+                justEndedVisit = true;
+                turnAlreadyEnded = true;
                 AdvanceToNextPlayer();
                 _currentVisitThrows = [];
                 continue;
@@ -177,7 +194,9 @@ public sealed class X01Game : IGame
 
             if (newRemaining == 0)
             {
-                if (isLastEntry) _lastEndedVisitThrows = _currentVisitThrows;
+                lastEndedVisitThrows = _currentVisitThrows;
+                justEndedVisit = true;
+                turnAlreadyEnded = true;
                 WinLeg(group);
                 if (_isComplete) break;
                 continue;
@@ -185,11 +204,15 @@ public sealed class X01Game : IGame
 
             if (_currentVisitThrows.Count == 3)
             {
-                if (isLastEntry) _lastEndedVisitThrows = _currentVisitThrows;
+                lastEndedVisitThrows = _currentVisitThrows;
+                justEndedVisit = true;
+                turnAlreadyEnded = true;
                 AdvanceToNextPlayer();
                 _currentVisitThrows = [];
             }
         }
+
+        _lastEndedVisitThrows = justEndedVisit ? lastEndedVisitThrows : [];
     }
 
     private void WinLeg(X01GroupState group)
