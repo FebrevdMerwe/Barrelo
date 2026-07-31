@@ -53,7 +53,7 @@ public class X01GameUndoTests
         var p2 = Guid.NewGuid();
         var game = await X01TestGame.Create([p1, p2], new Dictionary<string, string> { ["startingScore"] = "25" });
 
-        await game.ReceiveThrow(TestThrow.Of(Ring.Inner, 20), CancellationToken.None); // 25-20=5
+        await game.ReceiveThrow(TestThrow.Of(Ring.InnerSingle, 20), CancellationToken.None); // 25-20=5
         await game.ReceiveThrow(TestThrow.Of(Ring.Triple, 20), CancellationToken.None); // busts: 5-60<0, reverts to 25, turn passes to P2
 
         var busted = await game.GetState();

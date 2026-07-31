@@ -28,14 +28,14 @@ public static class BoardGeometry
 
     /// <summary>
     /// Deterministic geometric center of a segment/ring wedge: angular center of the segment, radial
-    /// midpoint of the ring band. Ignores <paramref name="segment"/> for Miss/InnerBull/OuterBull, which
+    /// midpoint of the ring band. Ignores <paramref name="segment"/> for Miss and the bull rings, which
     /// have no wedge. Throws for segment values outside 1-20 when ring requires a wedge.
     /// </summary>
     public static BoardPosition CenterOf(int segment, Ring ring)
     {
-        var (inner, outer) = RadialBand(ring);
+        var (inner, outer) = RadialBand(ring, segment);
         var radius = (inner + outer) / 2.0;
-        var angleDeg = ring is Ring.Miss or Ring.InnerBull or Ring.OuterBull ? 0.0 : AngleForSegment(segment);
+        var angleDeg = ring == Ring.Miss || DartScoring.IsBull(ring, segment) ? 0.0 : AngleForSegment(segment);
         return FromPolar(radius, angleDeg);
     }
 
@@ -44,17 +44,21 @@ public static class BoardGeometry
     /// Kickoff mapping a kick's segment to a direction across the pitch.</summary>
     public static double AngleDegreesForSegment(int segment) => AngleForSegment(segment);
 
-    private static (double Inner, double Outer) RadialBand(Ring ring) => ring switch
+    private static (double Inner, double Outer) RadialBand(Ring ring, int segment)
     {
-        Ring.Miss => (MissRadius, MissRadius),
-        Ring.InnerBull => (0.0, BullInner),
-        Ring.OuterBull => (BullInner, BullOuter),
-        Ring.Inner => (BullOuter, TripleInner),
-        Ring.Triple => (TripleInner, TripleOuter),
-        Ring.Outer => (TripleOuter, DoubleInner),
-        Ring.Double => (DoubleInner, DoubleOuter),
-        _ => throw new ArgumentOutOfRangeException(nameof(ring), ring, null),
-    };
+        if (DartScoring.IsBull(ring, segment))
+            return ring == Ring.Double ? (0.0, BullInner) : (BullInner, BullOuter);
+
+        return ring switch
+        {
+            Ring.Miss => (MissRadius, MissRadius),
+            Ring.InnerSingle => (BullOuter, TripleInner),
+            Ring.Triple => (TripleInner, TripleOuter),
+            Ring.OuterSingle => (TripleOuter, DoubleInner),
+            Ring.Double => (DoubleInner, DoubleOuter),
+            _ => throw new ArgumentOutOfRangeException(nameof(ring), ring, null),
+        };
+    }
 
     private static double AngleForSegment(int segment)
     {

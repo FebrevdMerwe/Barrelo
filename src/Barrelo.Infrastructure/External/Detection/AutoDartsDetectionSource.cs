@@ -146,8 +146,8 @@ public sealed class AutoDartsDetectionSource : IDetectionSource, IAsyncDisposabl
 
     private DetectionEvent BuildThrowEvent(AutoDartsThrow dart)
     {
-        var ring = MapRing(dart.Segment.Bed);
         var segment = dart.Segment.Number;
+        var ring = MapRing(dart.Segment.Bed, segment);
         var position = dart.Coords is { } c ? new BoardPosition(c.X, c.Y) : BoardGeometry.CenterOf(segment, ring);
         var detectedThrow = new DetectedThrow(
             ThrowId: Guid.NewGuid(), Segment: segment, Ring: ring,
@@ -158,19 +158,21 @@ public sealed class AutoDartsDetectionSource : IDetectionSource, IAsyncDisposabl
         return new DetectionEvent(DetectionEventType.Throw, _boardId, detectedThrow);
     }
 
-    // "Double"/"DoubleBull"/"Bull" are unconfirmed against real AutoDarts samples (only SingleOuter,
-    // SingleInner, Triple and Outside have been observed) — deliberately not caught, so a wrong guess
-    // surfaces immediately via the reconnect loop's exception logging instead of silently mis-scoring.
-    private static Ring MapRing(string bed) => bed switch
+    // Confirmed against real AutoDarts samples: bull hits arrive as Bed "Single"/"Double" with
+    // Number 25 (Barrelo.GameSdk.Ring.Single/Double), same as any other segment — not the literal
+    // "Bull"/"DoubleBull" strings this mapping used to (wrongly) guess. Wedge doubles at ("Double",
+    // 1-20) remain unconfirmed against a real sample, so any other unrecognized bed/number pair is
+    // deliberately not caught, letting a wrong guess surface immediately via the reconnect loop's
+    // exception logging instead of silently mis-scoring.
+    private static Ring MapRing(string bed, int number) => (bed, number) switch
     {
-        "SingleOuter" => Ring.Outer,
-        "SingleInner" => Ring.Inner,
-        "Triple" => Ring.Triple,
-        "Double" => Ring.Double,
-        "DoubleBull" => Ring.InnerBull,
-        "Bull" => Ring.OuterBull,
-        "Outside" => Ring.Miss,
-        _ => throw new InvalidOperationException($"Unrecognized AutoDarts bed: '{bed}'"),
+        ("SingleOuter", _) => Ring.OuterSingle,
+        ("SingleInner", _) => Ring.InnerSingle,
+        ("Triple", _) => Ring.Triple,
+        ("Double", _) => Ring.Double,
+        ("Single", 25) => Ring.Single,
+        ("Outside", _) => Ring.Miss,
+        _ => throw new InvalidOperationException($"Unrecognized AutoDarts bed/number: '{bed}'/{number}"),
     };
 
     public async ValueTask DisposeAsync()

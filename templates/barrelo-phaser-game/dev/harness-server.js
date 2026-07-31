@@ -31,25 +31,28 @@ const HARNESS_HTML = fs.readFileSync(path.join(__dirname, "harness.html"));
 // `position` for simulated throws.
 const WEDGE_ORDER = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
 const RING_RADIUS_FRACTION = {
-  Outer: 0.75,
-  Inner: 0.4,
+  OuterSingle: 0.75,
+  InnerSingle: 0.4,
   Triple: 0.605,
   Double: 0.976,
   Miss: 1.05,
 };
 const RING_MULTIPLIER = {
-  Outer: 1,
-  Inner: 1,
+  OuterSingle: 1,
+  InnerSingle: 1,
   Triple: 3,
   Double: 2,
   Miss: 0,
-  InnerBull: 1,
-  OuterBull: 1,
 };
 
+// The bullseye (25 or 50) is the board's only segment with no wedge — Single/Double at segment 25.
+function isBull(segment, ring) {
+  return segment === 25 && (ring === "Single" || ring === "Double");
+}
+
 function computePosition(segment, ring) {
-  if (ring === "InnerBull" || ring === "OuterBull") {
-    return { x: 0, y: ring === "InnerBull" ? 0 : 0.05 };
+  if (isBull(segment, ring)) {
+    return { x: 0, y: ring === "Double" ? 0 : 0.05 };
   }
   const index = WEDGE_ORDER.indexOf(segment);
   const angleRad = ((index >= 0 ? index : 0) * 18 * Math.PI) / 180;
@@ -61,8 +64,7 @@ function computePosition(segment, ring) {
 }
 
 function computeScore(segment, ring) {
-  if (ring === "InnerBull") return 50;
-  if (ring === "OuterBull") return 25;
+  // Ring.Single falls through the default multiplier (1) — same value a bull-single (25) needs.
   return segment * (RING_MULTIPLIER[ring] ?? 1);
 }
 
@@ -141,17 +143,17 @@ function handleSim(req, res, url) {
 
   if (url.pathname === "/sim/throw") {
     const segment = Number(params.get("segment"));
-    const ring = params.get("ring") || "Outer";
+    const ring = params.get("ring") || "OuterSingle";
     return sendSimResult(res, callGameServer("POST", "/throw", buildDetectedThrow(segment, ring)));
   }
 
   if (url.pathname === "/sim/bull") {
-    return sendSimResult(res, callGameServer("POST", "/throw", buildDetectedThrow(25, "InnerBull")));
+    return sendSimResult(res, callGameServer("POST", "/throw", buildDetectedThrow(25, "Double")));
   }
 
   if (url.pathname === "/sim/random") {
     const segment = WEDGE_ORDER[Math.floor(Math.random() * WEDGE_ORDER.length)];
-    const ring = ["Outer", "Inner", "Triple", "Double"][Math.floor(Math.random() * 4)];
+    const ring = ["OuterSingle", "InnerSingle", "Triple", "Double"][Math.floor(Math.random() * 4)];
     return sendSimResult(res, callGameServer("POST", "/throw", buildDetectedThrow(segment, ring)));
   }
 

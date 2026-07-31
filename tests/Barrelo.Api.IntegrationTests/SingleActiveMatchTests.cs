@@ -42,7 +42,7 @@ public class SingleActiveMatchTests(BarreloApiFactory factory) : IClassFixture<B
         // A manual throw now targets the second (active) match, not the first.
         var throwResponse = await client.PostAsJsonAsync(
             "/api/detection/manual-throw",
-            new ManualThrowRequest(20, Ring.Outer),
+            new ManualThrowRequest(20, Ring.OuterSingle),
             JsonTestOptions.Options);
         throwResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var afterThrow = await throwResponse.Content.ReadFromJsonAsync<GameStateSnapshot>(JsonTestOptions.Options);

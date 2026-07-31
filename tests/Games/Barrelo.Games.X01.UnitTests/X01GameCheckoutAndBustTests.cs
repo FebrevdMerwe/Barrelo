@@ -24,7 +24,7 @@ public class X01GameCheckoutAndBustTests
         var player = Guid.NewGuid();
         var game = await X01TestGame.Create([player], new Dictionary<string, string> { ["startingScore"] = "21" });
 
-        await game.ReceiveThrow(TestThrow.Of(Ring.Outer, 20), CancellationToken.None); // scores 20, leaves 1
+        await game.ReceiveThrow(TestThrow.Of(Ring.OuterSingle, 20), CancellationToken.None); // scores 20, leaves 1
 
         var payload = await game.Payload();
         payload.Groups.Single().RemainingScore.Should().Be(21);
@@ -49,7 +49,7 @@ public class X01GameCheckoutAndBustTests
         var player = Guid.NewGuid();
         var game = await X01TestGame.Create([player], new Dictionary<string, string> { ["startingScore"] = "50" });
 
-        await game.ReceiveThrow(TestThrow.Of(Ring.InnerBull), CancellationToken.None); // 50
+        await game.ReceiveThrow(TestThrow.Of(Ring.Double, 25), CancellationToken.None); // 50
 
         var payload = await game.Payload();
         payload.Groups.Single().LegsWon.Should().Be(1);
@@ -61,7 +61,7 @@ public class X01GameCheckoutAndBustTests
         var player = Guid.NewGuid();
         var game = await X01TestGame.Create([player], new Dictionary<string, string> { ["startingScore"] = "25" });
 
-        await game.ReceiveThrow(TestThrow.Of(Ring.OuterBull), CancellationToken.None); // 25, but not a double
+        await game.ReceiveThrow(TestThrow.Of(Ring.Single, 25), CancellationToken.None); // 25, but not a double
 
         var payload = await game.Payload();
         payload.Groups.Single().RemainingScore.Should().Be(25);
@@ -76,7 +76,7 @@ public class X01GameCheckoutAndBustTests
             [player],
             new Dictionary<string, string> { ["startingScore"] = "25", ["doubleOut"] = "false" });
 
-        await game.ReceiveThrow(TestThrow.Of(Ring.OuterBull), CancellationToken.None); // 25, straight out
+        await game.ReceiveThrow(TestThrow.Of(Ring.Single, 25), CancellationToken.None); // 25, straight out
 
         var payload = await game.Payload();
         payload.Groups.Single().LegsWon.Should().Be(1);

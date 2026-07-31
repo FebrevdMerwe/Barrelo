@@ -67,10 +67,10 @@ public class CricketGameTeamScoringTests
         await game.ReceiveEndOfTurn(CancellationToken.None); // -> A2
         await game.ReceiveThrow(TestThrow.Of(Ring.Triple, 15), CancellationToken.None); // A2 closes 15
         await game.ReceiveEndOfTurn(CancellationToken.None); // -> A1
-        await game.ReceiveThrow(TestThrow.Of(Ring.OuterBull), CancellationToken.None); // A1: bull mark 1/3
+        await game.ReceiveThrow(TestThrow.Of(Ring.Single, 25), CancellationToken.None); // A1: bull mark 1/3
         await game.ReceiveEndOfTurn(CancellationToken.None); // -> B1
         await game.ReceiveEndOfTurn(CancellationToken.None); // -> A2
-        await game.ReceiveThrow(TestThrow.Of(Ring.InnerBull), CancellationToken.None); // A2: bull closed (3/3), still tied 0-0
+        await game.ReceiveThrow(TestThrow.Of(Ring.Double, 25), CancellationToken.None); // A2: bull closed (3/3), still tied 0-0
 
         var beforeLead = await game.GetState();
         beforeLead.IsComplete.Should().BeFalse(); // closed everything but tied — not a win yet

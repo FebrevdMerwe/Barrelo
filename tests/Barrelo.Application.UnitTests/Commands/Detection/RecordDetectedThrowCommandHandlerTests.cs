@@ -88,7 +88,7 @@ public class RecordDetectedThrowCommandHandlerTests
     [Fact]
     public async Task Invalid_segment_fails_validation_before_checking_for_an_active_match()
     {
-        var command = new RecordDetectedThrowCommand(25, Ring.Inner);
+        var command = new RecordDetectedThrowCommand(25, Ring.InnerSingle);
 
         var result = await CreateHandler().Handle(command, CancellationToken.None);
 

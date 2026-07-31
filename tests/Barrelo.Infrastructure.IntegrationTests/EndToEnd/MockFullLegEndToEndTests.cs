@@ -99,7 +99,7 @@ public class MockFullLegEndToEndTests : IAsyncLifetime
         // P1 visit 3: 141 -> 21 -> 20 (deliberately not a checkout dart, to set up the finish next visit)
         await Throw(20, Ring.Triple);
         await Throw(20, Ring.Triple);
-        var afterVisit3 = await Throw(1, Ring.Inner);
+        var afterVisit3 = await Throw(1, Ring.InnerSingle);
         afterVisit3.Payload.Should().NotBeNull();
 
         // P2 visit 3

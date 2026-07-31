@@ -29,7 +29,10 @@
 
   /* Same magnitude table as Kickoff — one learned mental model of "how hard
      each ring hits" across every dart-driven plugin. */
-  var MAGNITUDE = { InnerBull: 0.08, OuterBull: 0.08, Inner: 0.16, Outer: 0.26, Triple: 0.38, Double: 0.5 };
+  var MAGNITUDE = { InnerSingle: 0.16, OuterSingle: 0.26, Triple: 0.38, Double: 0.5 };
+  function magnitudeFor(ring, segment) {
+    return DartScoring.isBull(ring, segment) ? 0.08 : (MAGNITUDE[ring] || 0);
+  }
 
   var HOLES = [
     { tee: { x: 0.50, y: 0.88 }, cup: { x: 0.50, y: 0.12 } },
@@ -138,7 +141,7 @@
     var order = DartScoring.NUMBERS.indexOf(segment);
     var angle = order >= 0 ? order * 18 : 0;
     var rad = (angle * Math.PI) / 180;
-    var magnitude = MAGNITUDE[ring] || 0; /* "Miss" isn't in the table — 0 distance, still a stroke */
+    var magnitude = magnitudeFor(ring, segment); /* "Miss" isn't in the table — 0 distance, still a stroke */
     var rawX = state.balls[p].x + Math.sin(rad) * magnitude;
     var rawY = state.balls[p].y - Math.cos(rad) * magnitude;
     var newBall = { x: reflect01(rawX), y: reflect01(rawY) };

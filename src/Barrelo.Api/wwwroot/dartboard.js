@@ -28,27 +28,26 @@
     return e;
   }
 
+  /** The bullseye (25 or 50) is the board's only segment with no wedge — Single/Double at segment 25. */
+  function isBull(ring, segment) { return segment === 25 && (ring === "Single" || ring === "Double"); }
   function scoreFor(ring, segment) {
     switch (ring) {
       case "Miss": return 0;
-      case "InnerBull": return 50;
-      case "OuterBull": return 25;
       case "Double": return segment * 2;
       case "Triple": return segment * 3;
       default: return segment;
     }
   }
   function notationFor(ring, segment) {
+    if (isBull(ring, segment)) return ring === "Double" ? "BULL" : "25";
     switch (ring) {
       case "Miss": return "MISS";
-      case "InnerBull": return "BULL";
-      case "OuterBull": return "25";
       case "Double": return "D" + segment;
       case "Triple": return "T" + segment;
       default: return String(segment);
     }
   }
-  function isValidCheckoutRing(ring) { return ring === "Double" || ring === "InnerBull"; }
+  function isValidCheckoutRing(ring) { return ring === "Double"; }
 
   /**
    * Builds the interactive SVG dartboard inside `svgEl` and returns a controller.
@@ -83,9 +82,9 @@
       var singleFill = isA ? "var(--chalk)" : "var(--slate-2)";
       var accentFill = isA ? "var(--board-red)" : "var(--board-green)";
 
-      addWedge(R.bullOut, R.tripleIn, a1, a2, singleFill, seg, "Inner", "Segment " + seg + " single");
+      addWedge(R.bullOut, R.tripleIn, a1, a2, singleFill, seg, "InnerSingle", "Segment " + seg + " single");
       addWedge(R.tripleIn, R.tripleOut, a1, a2, accentFill, seg, "Triple", "Segment " + seg + " triple, scores " + (seg * 3));
-      addWedge(R.tripleOut, R.doubleIn, a1, a2, singleFill, seg, "Outer", "Segment " + seg + " single");
+      addWedge(R.tripleOut, R.doubleIn, a1, a2, singleFill, seg, "OuterSingle", "Segment " + seg + " single");
       addWedge(R.doubleIn, R.doubleOut, a1, a2, accentFill, seg, "Double", "Segment " + seg + " double, scores " + (seg * 2));
 
       var np = polar(R.numRing, i * 18);
@@ -94,8 +93,8 @@
       gNumbers.appendChild(t);
     }
 
-    var bullOuter = el("circle", { class: "wedge-hit", cx: 0, cy: 0, r: R.bullOut, fill: "var(--board-green)", stroke: "#6b4d20", "stroke-width": "0.6", "data-segment": 25, "data-ring": "OuterBull", tabindex: "0", role: "button", "aria-label": "Outer bull, scores 25" });
-    var bullInner = el("circle", { class: "wedge-hit", cx: 0, cy: 0, r: R.bullIn, fill: "var(--board-red)", stroke: "#6b4d20", "stroke-width": "0.6", "data-segment": 50, "data-ring": "InnerBull", tabindex: "0", role: "button", "aria-label": "Inner bull, scores 50" });
+    var bullOuter = el("circle", { class: "wedge-hit", cx: 0, cy: 0, r: R.bullOut, fill: "var(--board-green)", stroke: "#6b4d20", "stroke-width": "0.6", "data-segment": 25, "data-ring": "Single", tabindex: "0", role: "button", "aria-label": "Outer bull, scores 25" });
+    var bullInner = el("circle", { class: "wedge-hit", cx: 0, cy: 0, r: R.bullIn, fill: "var(--board-red)", stroke: "#6b4d20", "stroke-width": "0.6", "data-segment": 25, "data-ring": "Double", tabindex: "0", role: "button", "aria-label": "Inner bull, scores 50" });
     gBulls.appendChild(bullOuter);
     gBulls.appendChild(bullInner);
 
@@ -136,15 +135,14 @@
         var all = svgEl.querySelectorAll("[data-ring]");
         all.forEach(function (node) {
           var ring = node.getAttribute("data-ring");
-          var isBull = ring === "InnerBull" || ring === "OuterBull";
           var segment = parseInt(node.getAttribute("data-segment"), 10);
-          var isDead = isBull ? dead.has("BULL") : dead.has(segment);
+          var isDead = isBull(ring, segment) ? dead.has("BULL") : dead.has(segment);
           node.classList.toggle("dead", isDead);
         });
       }
     };
   }
 
-  global.DartScoring = { NUMBERS: NUMBERS, scoreFor: scoreFor, notationFor: notationFor, isValidCheckoutRing: isValidCheckoutRing };
+  global.DartScoring = { NUMBERS: NUMBERS, scoreFor: scoreFor, notationFor: notationFor, isValidCheckoutRing: isValidCheckoutRing, isBull: isBull };
   global.createDartboard = createDartboard;
 })(window);

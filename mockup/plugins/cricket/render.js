@@ -40,7 +40,7 @@
   }
 
   function targetIndexFor(ring, segment) {
-    if (ring === "InnerBull" || ring === "OuterBull") return 6;
+    if (segment === 25 && (ring === "Single" || ring === "Double")) return 6;
     if (ring === "Miss") return -1;
     return TARGET_NUMBERS.indexOf(segment);
   }
@@ -48,8 +48,7 @@
     switch (ring) {
       case "Triple": return 3;
       case "Double": return 2;
-      case "InnerBull": return 2;
-      case "Inner": case "Outer": case "OuterBull": return 1;
+      case "InnerSingle": case "OuterSingle": case "Single": return 1;
       default: return 0;
     }
   }

@@ -34,7 +34,7 @@ public class ManualFullLegEndToEndTests(BarreloApiFactory factory) : IClassFixtu
 
         // P1 visit 1: a Miss, then an early end-turn after only 2 darts (never reaching the 3rd).
         await Throw(0, Ring.Miss);
-        await Throw(1, Ring.Inner);
+        await Throw(1, Ring.InnerSingle);
         await EndTurn(); // P1 remaining: 41 -> 40
 
         // P2 visit 1: three misses.

@@ -442,8 +442,8 @@ language that can speak HTTP/JSON.
      });
    }
 
-   function isBullseye(ring) {
-     return ring === "InnerBull" || ring === "OuterBull";
+   function isBullseye(ring, segment) {
+     return segment === 25 && (ring === "Single" || ring === "Double");
    }
 
    function snapshot() {
@@ -488,7 +488,7 @@ language that can speak HTTP/JSON.
        if (state.winner) return json(res, 400, { message: "Match is already over." });
        const detectedThrow = await readJson(req);
        const playerId = state.players[state.currentPlayerIndex];
-       const wonMatch = isBullseye(detectedThrow.ring);
+       const wonMatch = isBullseye(detectedThrow.ring, detectedThrow.segment);
        state.throwLog.push({ playerId, throw: detectedThrow, wonMatch });
        if (wonMatch) state.winner = playerId;
        return json(res, 200, {});
@@ -581,7 +581,7 @@ language that can speak HTTP/JSON.
    ```bash
    curl -X POST http://localhost:5295/api/detection/manual-throw \
      -H "Content-Type: application/json" \
-     -d '{ "segment": 25, "ring": "InnerBull" }'
+     -d '{ "segment": 25, "ring": "Double" }'
    ```
 
    The scoreboard should immediately show a win banner for whichever player was up. If it doesn't, check

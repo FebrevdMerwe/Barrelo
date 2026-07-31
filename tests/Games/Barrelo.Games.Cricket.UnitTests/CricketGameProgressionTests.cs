@@ -43,7 +43,7 @@ public class CricketGameProgressionTests
         var game = await CricketTestGame.Create([p1]);
 
         await game.ReceiveThrow(TestThrow.Of(Ring.Double, 20), CancellationToken.None); // 2 marks
-        await game.ReceiveThrow(TestThrow.Of(Ring.Outer, 20), CancellationToken.None);  // 1 mark closes it exactly
+        await game.ReceiveThrow(TestThrow.Of(Ring.OuterSingle, 20), CancellationToken.None);  // 1 mark closes it exactly
 
         var payload = await game.Payload();
         payload.GroupFor(p1).Marks[0].Should().Be(3);
@@ -56,7 +56,7 @@ public class CricketGameProgressionTests
         var p1 = Guid.NewGuid();
         var game = await CricketTestGame.Create([p1]);
 
-        await game.ReceiveThrow(TestThrow.Of(Ring.Outer, 7), CancellationToken.None);
+        await game.ReceiveThrow(TestThrow.Of(Ring.OuterSingle, 7), CancellationToken.None);
         await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
 
         var payload = await game.Payload();
@@ -71,10 +71,10 @@ public class CricketGameProgressionTests
         var p2 = Guid.NewGuid();
         var game = await CricketTestGame.Create([p1, p2]);
 
-        await game.ReceiveThrow(TestThrow.Of(Ring.Outer, 7), CancellationToken.None);
-        await game.ReceiveThrow(TestThrow.Of(Ring.Outer, 7), CancellationToken.None);
+        await game.ReceiveThrow(TestThrow.Of(Ring.OuterSingle, 7), CancellationToken.None);
+        await game.ReceiveThrow(TestThrow.Of(Ring.OuterSingle, 7), CancellationToken.None);
         (await game.GetState()).CurrentPlayerId.Should().Be(p1);
-        await game.ReceiveThrow(TestThrow.Of(Ring.Outer, 7), CancellationToken.None);
+        await game.ReceiveThrow(TestThrow.Of(Ring.OuterSingle, 7), CancellationToken.None);
 
         (await game.GetState()).CurrentPlayerId.Should().Be(p2);
     }

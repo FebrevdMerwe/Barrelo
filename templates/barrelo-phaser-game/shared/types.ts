@@ -6,7 +6,7 @@
  * this contract is defined so the two sides can't drift apart.
  */
 
-export type Ring = "Miss" | "Inner" | "Outer" | "Triple" | "Double" | "InnerBull" | "OuterBull";
+export type Ring = "Miss" | "InnerSingle" | "OuterSingle" | "Triple" | "Double" | "Single";
 
 export type GameStatus = "InProgress" | "Complete" | "Aborted";
 

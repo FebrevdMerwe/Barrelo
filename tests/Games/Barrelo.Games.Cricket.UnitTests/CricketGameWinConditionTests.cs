@@ -18,10 +18,10 @@ public class CricketGameWinConditionTests
             await game.ReceiveEndOfTurn(CancellationToken.None); // -> P2
             await game.ReceiveEndOfTurn(CancellationToken.None); // P2 does nothing, -> P1
         }
-        await game.ReceiveThrow(TestThrow.Of(Ring.OuterBull), CancellationToken.None); // bull mark 1/3
+        await game.ReceiveThrow(TestThrow.Of(Ring.Single, 25), CancellationToken.None); // bull mark 1/3
         await game.ReceiveEndOfTurn(CancellationToken.None); // -> P2
         await game.ReceiveEndOfTurn(CancellationToken.None); // -> P1
-        await game.ReceiveThrow(TestThrow.Of(Ring.InnerBull), CancellationToken.None); // bull closed (3/3), still tied 0-0
+        await game.ReceiveThrow(TestThrow.Of(Ring.Double, 25), CancellationToken.None); // bull closed (3/3), still tied 0-0
 
         var tied = await game.GetState();
         tied.IsComplete.Should().BeFalse();
@@ -64,9 +64,9 @@ public class CricketGameWinConditionTests
             TestThrow.Of(Ring.Triple, 17),
             TestThrow.Of(Ring.Triple, 16),
             TestThrow.Of(Ring.Triple, 15),
-            TestThrow.Of(Ring.InnerBull), // bull 2/3, no overflow
-            TestThrow.Of(Ring.InnerBull), // bull closes (3/3) + 25 overflow, still tied with P3
-            TestThrow.Of(Ring.InnerBull), // +50 more overflow — takes the outright lead, wins
+            TestThrow.Of(Ring.Double, 25), // bull 2/3, no overflow
+            TestThrow.Of(Ring.Double, 25), // bull closes (3/3) + 25 overflow, still tied with P3
+            TestThrow.Of(Ring.Double, 25), // +50 more overflow — takes the outright lead, wins
         };
         var p2Actions = new DetectedThrow?[]
         {
@@ -76,8 +76,8 @@ public class CricketGameWinConditionTests
         };
         var p3Actions = new DetectedThrow?[]
         {
-            TestThrow.Of(Ring.InnerBull), // bull 2/3, no overflow
-            TestThrow.Of(Ring.InnerBull), // bull closes (3/3) + 25 overflow
+            TestThrow.Of(Ring.Double, 25), // bull 2/3, no overflow
+            TestThrow.Of(Ring.Double, 25), // bull closes (3/3) + 25 overflow
             null, null, null, null, null, null,
         };
 

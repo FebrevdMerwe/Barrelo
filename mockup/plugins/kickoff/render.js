@@ -26,7 +26,10 @@
   var GOAL_X_MAX = 0.65;
   var TRAIL_MAX = 8;
 
-  var MAGNITUDE = { InnerBull: 0.08, OuterBull: 0.08, Inner: 0.16, Outer: 0.26, Triple: 0.38, Double: 0.5 };
+  var MAGNITUDE = { InnerSingle: 0.16, OuterSingle: 0.26, Triple: 0.38, Double: 0.5 };
+  function magnitudeFor(ring, segment) {
+    return DartScoring.isBull(ring, segment) ? 0.08 : (MAGNITUDE[ring] || 0);
+  }
 
   function clamp01(v) { return Math.max(0, Math.min(1, v)); }
 
@@ -69,7 +72,7 @@
     var ring = ev.ring, segment = ev.segment;
     var p = state.currentPlayer;
     var notation = DartScoring.notationFor(ring, segment);
-    var magnitude = MAGNITUDE[ring] || 0;
+    var magnitude = magnitudeFor(ring, segment);
     var order = DartScoring.NUMBERS.indexOf(segment);
     var angle = order >= 0 ? order * 18 : 0;
     var rad = (angle * Math.PI) / 180;

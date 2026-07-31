@@ -186,8 +186,8 @@ public sealed class KickoffGame : IGame
         _currentLegThrows.Add(detectedThrow);
         _lastEvent = null;
 
-        var magnitude = Magnitude(detectedThrow.Ring);
-        var angleDeg = detectedThrow.Ring is Ring.Miss or Ring.InnerBull or Ring.OuterBull
+        var magnitude = Magnitude(detectedThrow.Ring, detectedThrow.Segment);
+        var angleDeg = detectedThrow.Ring == Ring.Miss || DartScoring.IsBull(detectedThrow.Ring, detectedThrow.Segment)
             ? 0.0
             : BoardGeometry.AngleDegreesForSegment(detectedThrow.Segment);
         var rad = angleDeg * Math.PI / 180.0;
@@ -293,14 +293,16 @@ public sealed class KickoffGame : IGame
 
     private static double Clamp01(double v) => Math.Clamp(v, 0.0, 1.0);
 
-    private static double Magnitude(Ring ring) => ring switch
+    private static double Magnitude(Ring ring, int segment)
     {
-        Ring.InnerBull => 0.08,
-        Ring.OuterBull => 0.08,
-        Ring.Inner => 0.16,
-        Ring.Outer => 0.26,
-        Ring.Triple => 0.38,
-        Ring.Double => 0.5,
-        _ => 0.0,
-    };
+        if (DartScoring.IsBull(ring, segment)) return 0.08;
+        return ring switch
+        {
+            Ring.InnerSingle => 0.16,
+            Ring.OuterSingle => 0.26,
+            Ring.Triple => 0.38,
+            Ring.Double => 0.5,
+            _ => 0.0,
+        };
+    }
 }

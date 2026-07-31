@@ -32,7 +32,7 @@
     var list = el("div", { class: "number-list" });
     for (var seg = 1; seg <= 20; seg++) {
       var row = el("div", { class: "number-row" });
-      addButton(row, "Outer", seg, String(seg), "num-single");
+      addButton(row, "OuterSingle", seg, String(seg), "num-single");
       addButton(row, "Double", seg, "D", "num-double");
       addButton(row, "Triple", seg, "T", "num-triple");
       list.appendChild(row);
@@ -40,8 +40,8 @@
     containerEl.appendChild(list);
 
     var bullRow = el("div", { class: "number-row bull-row" });
-    addButton(bullRow, "OuterBull", 25, "25 (Outer Bull)", "num-bull");
-    addButton(bullRow, "InnerBull", 50, "50 (Inner Bull)", "num-bull");
+    addButton(bullRow, "Single", 25, "25 (Outer Bull)", "num-bull");
+    addButton(bullRow, "Double", 25, "50 (Inner Bull)", "num-bull");
     containerEl.appendChild(bullRow);
 
     return {

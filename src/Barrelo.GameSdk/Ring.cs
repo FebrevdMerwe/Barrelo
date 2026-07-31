@@ -4,10 +4,12 @@ namespace Barrelo.GameSdk;
 public enum Ring
 {
     Miss,
-    Inner,
-    Outer,
+    InnerSingle,
+    OuterSingle,
     Triple,
     Double,
-    InnerBull,
-    OuterBull,
+
+    /// <summary>The 25-point bull ring. Always paired with segment 25 — see <see cref="DartScoring.IsBull"/>.
+    /// The 50-point bull is <see cref="Double"/> at segment 25, since it genuinely is a double.</summary>
+    Single,
 }

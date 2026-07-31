@@ -68,8 +68,8 @@ public class CricketGameUndoTests
 
         foreach (var segment in new[] { 20, 19, 18, 17, 16, 15 })
             await game.ReceiveThrow(TestThrow.Of(Ring.Triple, segment), CancellationToken.None);
-        await game.ReceiveThrow(TestThrow.Of(Ring.OuterBull), CancellationToken.None); // bull 1/3
-        await game.ReceiveThrow(TestThrow.Of(Ring.InnerBull), CancellationToken.None); // bull closes -> wins outright
+        await game.ReceiveThrow(TestThrow.Of(Ring.Single, 25), CancellationToken.None); // bull 1/3
+        await game.ReceiveThrow(TestThrow.Of(Ring.Double, 25), CancellationToken.None); // bull closes -> wins outright
 
         (await game.GetState()).IsComplete.Should().BeTrue();
 
@@ -78,7 +78,7 @@ public class CricketGameUndoTests
         var state = await game.GetState();
         state.IsComplete.Should().BeFalse();
         state.WinnerPlayerIds.Should().BeNull();
-        (await game.Payload()).Groups.Single().Marks[6].Should().Be(1); // only the OuterBull mark remains
+        (await game.Payload()).Groups.Single().Marks[6].Should().Be(1); // only the single-bull mark remains
     }
 
     [Fact]

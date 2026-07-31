@@ -6,23 +6,28 @@ public static class DartScoring
     public static int Score(Ring ring, int segment) => ring switch
     {
         Ring.Miss => 0,
-        Ring.InnerBull => 50,
-        Ring.OuterBull => 25,
         Ring.Double => segment * 2,
         Ring.Triple => segment * 3,
         _ => segment,
     };
 
-    public static string Notation(Ring ring, int segment) => ring switch
+    public static string Notation(Ring ring, int segment)
     {
-        Ring.Miss => "MISS",
-        Ring.InnerBull => "BULL",
-        Ring.OuterBull => "25",
-        Ring.Double => $"D{segment}",
-        Ring.Triple => $"T{segment}",
-        _ => segment.ToString(),
-    };
+        if (IsBull(ring, segment)) return ring == Ring.Double ? "BULL" : "25";
+        return ring switch
+        {
+            Ring.Miss => "MISS",
+            Ring.Double => $"D{segment}",
+            Ring.Triple => $"T{segment}",
+            _ => segment.ToString(),
+        };
+    }
 
-    /// <summary>A valid double-out checkout finisher: an outer double ring, or the inner bull (50). The outer bull (25) is not a double.</summary>
-    public static bool IsValidCheckoutRing(Ring ring) => ring is Ring.Double or Ring.InnerBull;
+    /// <summary>A valid double-out checkout finisher: any double ring, including the inner bull (50, which is
+    /// Ring.Double at segment 25). The outer bull (25, Ring.Single) is not a double.</summary>
+    public static bool IsValidCheckoutRing(Ring ring) => ring is Ring.Double;
+
+    /// <summary>Whether this ring/segment combination is the bullseye (25 or 50), the board's only segment
+    /// with no wedge. Centralizes the "segment 25 is special" fact so no call site hardcodes it independently.</summary>
+    public static bool IsBull(Ring ring, int segment) => segment == 25 && ring is Ring.Single or Ring.Double;
 }

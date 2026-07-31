@@ -9,9 +9,9 @@ public class BoardGeometryTests
 
     [Theory]
     [MemberData(nameof(AllSegments))]
-    public void CenterOf_inner_stays_within_inner_band(int segment)
+    public void CenterOf_inner_single_stays_within_inner_band(int segment)
     {
-        var position = BoardGeometry.CenterOf(segment, Ring.Inner);
+        var position = BoardGeometry.CenterOf(segment, Ring.InnerSingle);
         var radius = Magnitude(position);
         radius.Should().BeInRange(15.0 / 100.0, 58.0 / 100.0);
     }
@@ -27,9 +27,9 @@ public class BoardGeometryTests
 
     [Theory]
     [MemberData(nameof(AllSegments))]
-    public void CenterOf_outer_stays_within_outer_band(int segment)
+    public void CenterOf_outer_single_stays_within_outer_band(int segment)
     {
-        var position = BoardGeometry.CenterOf(segment, Ring.Outer);
+        var position = BoardGeometry.CenterOf(segment, Ring.OuterSingle);
         var radius = Magnitude(position);
         radius.Should().BeInRange(64.0 / 100.0, 94.0 / 100.0);
     }
@@ -44,16 +44,16 @@ public class BoardGeometryTests
     }
 
     [Fact]
-    public void CenterOf_inner_bull_does_not_throw_regardless_of_segment()
+    public void CenterOf_bull_double_lands_in_the_innermost_band()
     {
-        var position = BoardGeometry.CenterOf(segment: 0, Ring.InnerBull);
+        var position = BoardGeometry.CenterOf(segment: 25, Ring.Double);
         Magnitude(position).Should().BeInRange(0.0, 6.0 / 100.0);
     }
 
     [Fact]
-    public void CenterOf_outer_bull_does_not_throw_regardless_of_segment()
+    public void CenterOf_bull_single_lands_in_the_ring_around_the_bull_double()
     {
-        var position = BoardGeometry.CenterOf(segment: 0, Ring.OuterBull);
+        var position = BoardGeometry.CenterOf(segment: 25, Ring.Single);
         Magnitude(position).Should().BeInRange(6.0 / 100.0, 15.0 / 100.0);
     }
 

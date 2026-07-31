@@ -17,7 +17,7 @@ internal static class CricketTargets
     /// <summary>-1 for Miss or any segment that isn't a Cricket number (e.g. 1-14).</summary>
     public static int IndexFor(Ring ring, int segment)
     {
-        if (ring is Ring.InnerBull or Ring.OuterBull) return BullIndex;
+        if (DartScoring.IsBull(ring, segment)) return BullIndex;
         if (ring == Ring.Miss) return -1;
         return Array.IndexOf(Numbers, segment);
     }
@@ -26,8 +26,7 @@ internal static class CricketTargets
     {
         Ring.Triple => 3,
         Ring.Double => 2,
-        Ring.InnerBull => 2,
-        Ring.Inner or Ring.Outer or Ring.OuterBull => 1,
+        Ring.InnerSingle or Ring.OuterSingle or Ring.Single => 1,
         _ => 0,
     };
 }
