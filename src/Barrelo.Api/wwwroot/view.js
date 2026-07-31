@@ -1,7 +1,11 @@
 /* Passive viewer: renders whatever match is currently active, with no matchId in the URL — meant
    to sit open on a TV indefinitely while a separate device (control.html) drives the game. Bootstraps
    via GET /api/session/current, then just re-renders on every GameStateUpdated push. There's only ever
-   one match active at a time, so no join/subscribe step is needed — every connection gets every push. */
+   one match active at a time, so no join/subscribe step is needed — every connection gets every push.
+
+   Deliberately reports no match result: this page only watches, and a match must be ended by the device
+   someone is actually holding. It does still report its replay hash, because divergence is only visible
+   by comparing two screens — see IReplayDivergenceMonitor. */
 (function () {
   "use strict";
 
@@ -16,93 +20,25 @@
 
   var playerNames = {};
   var gameNames = {};
-  var loadedRendererFor = null;
-  var boardRenderer = null;
-  var boardRendererIsIframe = false;
+  var lastSnapshot = null;
+  var displayHint = null;
 
-  function defaultRenderGameBoard(container, snapshot) {
-    container.innerHTML = "";
-    var pre = document.createElement("pre");
-    pre.className = "default-payload-dump";
-    pre.textContent = JSON.stringify(snapshot.payload, null, 2);
-    container.appendChild(pre);
-  }
+  var gameFrame = createGameFrame({
+    onDisplay: function (hint) {
+      displayHint = hint;
+      if (lastSnapshot) renderChrome(lastSnapshot);
+    },
+    onGameChanged: function (gameId, isIframe) {
+      gameLabelEl.textContent = gameNames[gameId] || gameId;
+      sceneEl.classList.toggle("board-fullscreen", isIframe);
+      displayHint = null;
+    },
+  });
 
-  /* Board UI resolution, tried in order per gameId:
-       1. /plugins/{gameId}/ui/index.html — iframe'd, fed GameStateSnapshot via postMessage. This is what
-          lets a game's board be PixiJS/Phaser/a Unity WebGL build/anything else, fully sandboxed from the
-          host page.
-       2. /plugins/{gameId}/render.js — defines window.renderGameBoard(container, snapshot), called directly.
-       3. Neither present — generic payload dump, so a game that ships no UI still works. */
-  function createIframeRenderer(url) {
-    var iframe = null;
-    var ready = false;
-    var pending = null;
-
-    function send(snapshot, playerNames) {
-      if (iframe && iframe.contentWindow) {
-        iframe.contentWindow.postMessage(
-          { type: "barrelo:gameState", snapshot: snapshot, playerNames: playerNames || {} },
-          window.location.origin);
-      }
-    }
-
-    return function (container, snapshot, playerNames) {
-      if (!iframe) {
-        container.innerHTML = "";
-        iframe = document.createElement("iframe");
-        iframe.className = "game-board-iframe";
-        iframe.title = "Game board";
-        iframe.addEventListener("load", function () {
-          ready = true;
-          if (pending) { send(pending.snapshot, pending.playerNames); pending = null; }
-        });
-        iframe.src = url;
-        container.appendChild(iframe);
-      }
-      if (ready) send(snapshot, playerNames); else pending = { snapshot: snapshot, playerNames: playerNames };
-    };
-  }
-
-  function loadScriptRenderer(gameId) {
-    return new Promise(function (resolve) {
-      window.renderGameBoard = undefined;
-      var script = document.createElement("script");
-      script.src = "/plugins/" + encodeURIComponent(gameId) + "/render.js";
-      script.onload = function () {
-        resolve(typeof window.renderGameBoard === "function" ? window.renderGameBoard : defaultRenderGameBoard);
-      };
-      script.onerror = function () {
-        console.warn('No render.js for game "' + gameId + '" — using the default board renderer.');
-        resolve(defaultRenderGameBoard);
-      };
-      document.head.appendChild(script);
-    });
-  }
-
-  function loadGameRenderer(gameId) {
-    if (loadedRendererFor === gameId && boardRenderer) return Promise.resolve(boardRenderer);
-
-    var iframeUrl = "/plugins/" + encodeURIComponent(gameId) + "/ui/index.html";
-    return fetch(iframeUrl, { method: "HEAD" })
-      .then(function (res) {
-        if (res.ok) {
-          boardRendererIsIframe = true;
-          return createIframeRenderer(iframeUrl);
-        }
-        console.warn('No ' + iframeUrl + ' for game "' + gameId + '" (HTTP ' + res.status + ') — falling back to render.js.');
-        boardRendererIsIframe = false;
-        return loadScriptRenderer(gameId);
-      })
-      .catch(function (err) {
-        console.warn('Fetching ' + iframeUrl + ' failed (' + err + ') — falling back to render.js.');
-        boardRendererIsIframe = false;
-        return loadScriptRenderer(gameId);
-      })
-      .then(function (renderer) {
-        loadedRendererFor = gameId;
-        return renderer;
-      });
+  function legMetaOf(snapshot) {
+    var leg = displayHint && displayHint.legNumber !== undefined ? displayHint.legNumber : snapshot.legNumber;
+    var set = displayHint && displayHint.setNumber !== undefined ? displayHint.setNumber : snapshot.setNumber;
+    return "Leg " + leg + " · Set " + set;
   }
 
   function renderLedger(snapshot) {
@@ -138,23 +74,16 @@
     winLeaderboard.hidden = standings.length === 0;
   }
 
-  async function render(snapshot) {
+  /* Everything outside the board region. Split out from render() because a display hint arriving from
+     the game re-runs this on its own, without re-pushing state into the board. */
+  function renderChrome(snapshot) {
     renderLedger(snapshot);
 
-    if (loadedRendererFor !== snapshot.gameId) {
-      boardRenderer = await loadGameRenderer(snapshot.gameId);
-      gameLabelEl.textContent = gameNames[snapshot.gameId] || snapshot.gameId;
-      sceneEl.classList.toggle("board-fullscreen", boardRendererIsIframe);
-    }
-    boardRenderer(gameBoardEl, snapshot, playerNames);
-
-    legMetaEl.textContent = snapshot.isComplete
-      ? "Match complete"
-      : "Leg " + snapshot.legNumber + " · Set " + snapshot.setNumber;
+    legMetaEl.textContent = snapshot.isComplete ? "Match complete" : legMetaOf(snapshot);
 
     if (snapshot.status === "Aborted") {
       document.getElementById("winTitle").textContent = "Game interrupted";
-      document.getElementById("winSub").textContent = "The game's process stopped responding — this match can't continue.";
+      document.getElementById("winSub").textContent = "This match was abandoned and can't continue.";
       winLeaderboard.hidden = true;
       winBanner.classList.add("show");
     } else if (snapshot.isComplete) {
@@ -167,6 +96,12 @@
     } else {
       winBanner.classList.remove("show");
     }
+  }
+
+  async function render(snapshot) {
+    lastSnapshot = snapshot;
+    renderChrome(snapshot);
+    await gameFrame.render(gameBoardEl, snapshot, playerNames);
   }
 
   function connectSignalR() {

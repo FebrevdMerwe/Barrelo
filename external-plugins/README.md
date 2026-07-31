@@ -7,7 +7,7 @@ files, no `bin`/`obj`. Everything under here is copied into `plugins/{gameId}/` 
 copying, no solution/project wiring.
 
 Each subfolder name **must** equal the game's `gameId` exactly — plugin UI assets are served from
-`/plugins/{gameId}/...`, and (for out-of-process games) the folder name is also matched against the
+`/plugins/{gameId}/...`, and (for client-owned games) the folder name is also matched against the
 `gameId` in `plugin.json`.
 
 If you'd rather not check a build artifact into git at all — e.g. copying straight onto an already-running,
@@ -28,15 +28,18 @@ external-plugins/
 Build the plugin project elsewhere (referencing only `Barrelo.GameSdk`) and copy just its output DLL plus
 `ui/render.js` / `ui/style.css` here — same layout the in-repo `src/Games/*` projects produce.
 
-## Out-of-process (any language) plugin
+## Client-owned (browser) plugin
 
 ```
 external-plugins/
   yourgame/
     plugin.json
-    ui/index.html   (optional — falls back to render.js convention, then a raw payload dump)
-    server/...       (whatever your launch command in plugin.json needs)
+    ui/index.html   (your board; falls back to the render.js convention, then a raw payload dump)
+    ui/assets/...   (whatever your board loads)
 ```
 
-See the main README's ["Out-of-process games"](../README.md#out-of-process-games-any-language-any-ui-engine)
-section for the `plugin.json` schema and RPC contract.
+Static files only — nothing is spawned and nothing is installed, so there's no `node_modules` to vendor
+and no runtime for the deployment machine to provide.
+
+See the main README's ["Client-owned games"](../README.md#client-owned-games-any-ui-engine-no-net) section
+for the `plugin.json` schema and the postMessage contract.

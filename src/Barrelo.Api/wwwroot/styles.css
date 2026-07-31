@@ -331,7 +331,7 @@ body{
    Each plugin's render.js self-injects its own stylesheet — this file only
    owns shell chrome shared by every game. */
 
-/* An out-of-process game's ui/index.html renders inside this instead — fully sandboxed, so it owns
+/* A client-owned game's ui/index.html renders inside this instead — fully sandboxed, so it owns
    whatever it draws (PixiJS/Phaser/a Unity WebGL canvas/etc.) with no host stylesheet reaching in.
    #game-board is otherwise a shrink-to-fit flex item (so render.js boards stay centered at their own
    intrinsic width) — but a percentage-width child can't grow an auto-width parent, so scope the

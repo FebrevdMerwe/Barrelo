@@ -5,7 +5,8 @@ public enum GameStatus
     InProgress,
     Complete,
 
-    /// <summary>The game's process/connection was lost mid-match (out-of-process games only) and cannot
-    /// continue. Distinct from Complete — no winner, no leaderboard award, just a dead match.</summary>
+    /// <summary>The match cannot continue and gave up rather than finished. Distinct from Complete — no
+    /// winner, no leaderboard award, just a dead match whose session slot is freed so the next one can
+    /// start.</summary>
     Aborted,
 }

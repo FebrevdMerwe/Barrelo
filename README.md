@@ -325,214 +325,135 @@ implementations to copy from.
    `plugins/{gameId}/` automatically on every `dotnet build`/`dotnet run`/`dotnet publish` — no manual
    copying, no solution/project wiring, no source included.
 
-### Out-of-process games (any language, any UI engine)
+### Client-owned games (any UI engine, no .NET)
 
-The steps above load a game as a .NET DLL in-process. If you'd rather write a game's rules engine in
-Node/Python/anything else, and/or render its board with PixiJS, Phaser, a Unity WebGL build, or any other
-engine, use the out-of-process path instead — it's additive alongside the in-process plugin loader above,
-not a replacement for it. Barrelo spawns one process per match (never shared across matches) and talks to
-it exclusively over plain HTTP/JSON; your process never links against any Barrelo/.NET code.
+The steps above load a game as a .NET DLL in-process. If you'd rather write your rules in TypeScript and
+render the board with Phaser, PixiJS, a Unity WebGL build, or anything else, use the **client-owned** path
+instead — it's additive alongside the in-process plugin loader above, not a replacement for it.
+
+A client-owned game is **entirely a browser app**. There is no server half, no process for Barrelo to
+spawn, and no HTTP contract to implement. Barrelo records what was thrown and pushes that log to your
+board; your board works out what it means. Deployment is a manifest plus a folder of static files — the
+machine running Barrelo needs no Node, no Python, and no runtime of any kind beyond the browser already
+showing the scoreboard.
 
 **Copy [`templates/barrelo-phaser-game`](templates/barrelo-phaser-game) as your starting point** — a
-TypeScript + Vite skeleton with all the RPC wiring in place and the actual rules/rendering left as TODOs —
-see its own README for setup. What follows is the spec it implements.
+TypeScript + Vite + Phaser skeleton with all the wiring in place and the rules/rendering left as TODOs.
+What follows is the contract it implements.
 
 1. **Drop a `plugin.json` manifest** in `plugins/{gameId}/` (same folder convention as an in-process
-   plugin's DLL) describing the game and how to launch it — or, to vendor it into this repo instead of a
-   running deployment, [`external-plugins/{gameId}/`](external-plugins/README.md) works the same way:
+   plugin's DLL) — or, to vendor it into this repo instead of a running deployment,
+   [`external-plugins/{gameId}/`](external-plugins/README.md) works the same way:
 
    ```json
    {
-     "protocolVersion": 1,
+     "protocolVersion": 2,
      "gameId": "yourgame",
      "displayName": "Your Game",
      "description": "One-line description shown on the start screen.",
-     "settings": [],
-     "launch": { "command": "node", "args": ["server.js", "--port", "{{port}}"], "cwd": "." },
-     "health": { "path": "/health", "timeoutSeconds": 5 }
+     "stateOwner": "client",
+     "settings": []
    }
    ```
 
    `settings` is the same `GameSettingDefinition` shape (`GameModeSetting`/`PlayerGroupSetting`) a .NET
-   `GameDescriptor` already uses — no separate schema. `{{port}}` in `launch.args` is substituted with a
-   free port Barrelo picks per match. Barrelo only ever reads this file to list the game — nothing is
-   spawned until a player actually starts a match against it.
+   `GameDescriptor` already uses — no separate schema.
 
    **The containing folder's name must match `gameId` exactly** (`plugins/yourgame/plugin.json` for
-   `"gameId": "yourgame"`). The RPC/spawn machinery doesn't care and the game will still play correctly
-   either way, but UI assets are fetched from `/plugins/{gameId}/...` — a mismatched folder name silently
-   404s `ui/index.html`/`render.js` while the game itself keeps working. Barrelo logs a warning on startup
-   if it detects this.
+   `"gameId": "yourgame"`), because UI assets are fetched from `/plugins/{gameId}/...`. A mismatch
+   silently 404s `ui/index.html` while the game still appears in the picker; Barrelo logs a warning on
+   startup if it detects this.
 
-2. **Implement the RPC contract** — one HTTP endpoint per `IGame`/`IGameFactory` method, all JSON, enums as
-   strings:
+2. **Ship your board as `ui/index.html`.** The shell embeds it in a sandboxed `<iframe>` and talks to it
+   over `postMessage`. Barrelo pushes state down on every change:
 
-   | Method | Endpoint | Maps to |
+   ```jsonc
+   { "type": "barrelo:gameState",
+     "snapshot": { /* GameStateSnapshot; the interesting part is payload */ },
+     "playerNames": { "<playerId>": "Alex" } }
+   ```
+
+   `snapshot.payload` is everything Barrelo knows about the match, which is deliberately only who's
+   playing, how it was set up, and what has been thrown:
+
+   ```jsonc
+   { "seed": 1234,
+     "playerIds": ["…"],
+     "options": { "startingScore": "501" },
+     "playerGroups": { "<playerId>": 0 },
+     "visits": [ { "throws": [ /* DetectedThrow */ ], "ended": true },
+                 { "throws": [ /* … */ ],            "ended": false } ] }
+   ```
+
+   The log is grouped into **visits** — one player's turn at the board — rather than kept flat, because
+   that's the shape darts actually has, and because detectors like AutoDarts report a whole visit at a
+   time. A visit is open (`ended: false`) until the turn boundary arrives; only the last one can be open.
+   Visits are created lazily, on the first dart, so an open-but-empty visit never appears.
+
+   Note what a visit deliberately does **not** carry: a player id. Whose turn it is is a *rules* decision
+   — an elimination game skips dead players, a "hit a bull, throw again" game doesn't rotate at all — so
+   the host doesn't guess. For the same reason `snapshot.currentPlayerId` is always `null` and
+   `legNumber`/`setNumber` are always `1` for a client-owned game. Derive them from your own replay.
+
+   Undo needs no code on your side: Barrelo shortens the log (popping the last dart, or re-opening the
+   visit if the last thing that happened was the turn ending) and you re-derive from what's left.
+
+3. **Send two messages back up.** Your rules know things the host doesn't, so the iframe talks back:
+
+   | Message | When | Effect |
    |---|---|---|
-   | GET | `/health` | liveness check; response body echoes `protocolVersion` |
-   | POST | `/create` | `IGameFactory.Create(GameSetup, ct)` — called once, right after spawn |
-   | POST | `/throw` | `IGame.ReceiveThrow(DetectedThrow, ct)` |
-   | POST | `/end-turn` | `IGame.ReceiveEndOfTurn(ct)` |
-   | POST | `/undo` | `IGame.UndoLastThrow(ct)` |
-   | GET | `/state` | `IGame.GetState()` → `GameStateSnapshot` |
-   | GET | `/result` | `IGame.GetResult()` → `GameResult` (only meaningful once `IsComplete`) |
+   | `barrelo:display` | every state change | Drives the chrome around your board: `currentPlayerId`, `legNumber`, `setNumber`, `visitThrows` (the dart 1/2/3 slots), `deadTargets` (segments to grey out on the input dartboard). All fields optional; anything omitted falls back to what the host already shows. Advisory — never trusted for scoring. |
+   | `barrelo:matchComplete` | once, when your rules say the match is over | `{ winnerPlayerIds, finalStandings }`. Ends the session and awards session-leaderboard points by placement. Both lists are validated against the match roster and rejected if they don't match. |
 
-   Return `400` with a plain-text/JSON message body for malformed input — Barrelo maps it straight onto
-   `GameRuleViolationException`, the same as an in-process plugin throwing it directly. Your process is
-   spawned fresh per match and is the sole owner of that match's state for its whole lifetime; it's killed
-   the moment the match ends, so there's no multi-match bookkeeping to implement.
+   `barrelo:display` should also carry `logHash` and `stateHash` — see the determinism contract below.
 
-3. **Ship a board UI the same way**, but as `ui/index.html` instead of `render.js`: the shell embeds it in
-   an `<iframe>` and posts `{ type: "barrelo:gameState", snapshot, playerNames }` into it via `postMessage`
-   on every state push, instead of calling a global function. This is what lets the board be PixiJS,
-   Phaser, a Unity WebGL build, or anything else — it's fully sandboxed from the host page. (The shell
-   tries `ui/index.html` first, then falls back to the `render.js` convention, then the generic payload
-   dump — existing in-process games are unaffected either way.)
+4. **Determinism is a contract, not a suggestion.** Barrelo keeps the log; **every screen replays it
+   independently** — the control tablet, the TV, and any tab refreshed mid-match. They agree only if
+   replaying the same log always produces the same state. So inside your replay:
 
-4. **If a match's process crashes or stops responding**, Barrelo doesn't retry or attempt to resume it —
-   the match is marked `Aborted` and the scoreboard shows an explicit "Game interrupted" banner, the same
-   way a normal completion shows a win banner. There's no state to resume from anyway, since a process
-   holds its match's state only in memory.
+   - No `Math.random()` — derive randomness from `payload.seed`, which is fixed for the match and
+     identical on every screen.
+   - No `Date.now()` / `new Date()` — use `throw.detectedAtUtc` from the log.
+   - No `crypto.randomUUID()` — derive ids from the log (e.g. `throw.throwId`).
+   - No module-level mutable state, no `localStorage`, no `fetch`.
 
-Automated tests never spawn an out-of-process game or require Node/Python to be installed — `dotnet test`
-exercises the out-of-process plumbing against an in-process HTTP fake instead (see
-`tests/Barrelo.Infrastructure.IntegrationTests/GamePlugins/`), keeping the primary correctness gate
-pure-.NET.
+   Break one of these and the TV quietly shows something different from the tablet. Because that is
+   near-impossible to diagnose after the fact, each screen reports a hash of the log it replayed plus a
+   hash of the state it derived; Barrelo logs a warning when the *same* log yields *different* states.
+   Keying on the log hash is what keeps it quiet for screens that are simply observing the match a moment
+   apart.
 
-### Walkthrough: building your first out-of-process game
+5. **If a client-owned game misbehaves**, there is no process to crash and nothing to abort — the match
+   simply doesn't progress, and reloading the page rebuilds state from the log via
+   `GET /api/session/current`.
 
-The spec above is easier to follow with a concrete example. This walks through a complete, minimal
-plugin — a two-player "first to hit a bullseye wins" game — implementing every endpoint in the RPC table.
-It's plain Node.js with zero dependencies, but nothing here is Node-specific; the same steps apply in any
-language that can speak HTTP/JSON.
+Automated tests never launch a browser or require Node — `dotnet test` covers the host half (the visit
+log, undo semantics, manifest loading) directly, keeping the primary correctness gate pure-.NET.
+
+**Known limitation.** Protocol versioning is all-or-nothing: `ClientGameLoader` checks a manifest's
+`protocolVersion` against a single supported constant and skips the game entirely on a mismatch, so
+bumping the protocol is a breaking change for every existing plugin until they're updated.
+
+### Walkthrough: building your first client-owned game
+
+The contract above is easier to follow with a concrete example. This is a complete, minimal game — "first
+to hit a bullseye wins" — in one HTML file with no build step and no dependencies.
 
 1. **Write the manifest.** Create `plugins/bullseye-duel/plugin.json`:
 
    ```json
    {
-     "protocolVersion": 1,
+     "protocolVersion": 2,
      "gameId": "bullseye-duel",
      "displayName": "Bullseye Duel",
      "description": "First player to hit any bullseye wins.",
-     "settings": [],
-     "launch": { "command": "node", "args": ["server.js", "--port", "{{port}}"], "cwd": "." },
-     "health": { "path": "/health", "timeoutSeconds": 5 }
+     "stateOwner": "client",
+     "settings": []
    }
    ```
 
-2. **Write the game server.** Create `plugins/bullseye-duel/server.js` next to it. State lives entirely in
-   process memory — there's exactly one match per process, so nothing needs to be keyed by match id:
-
-   ```js
-   import http from "node:http";
-
-   let state = null;
-
-   function json(res, status, body) {
-     res.writeHead(status, { "Content-Type": "application/json" });
-     res.end(JSON.stringify(body));
-   }
-
-   function readJson(req) {
-     return new Promise((resolve, reject) => {
-       let raw = "";
-       req.on("data", (chunk) => (raw += chunk));
-       req.on("end", () => resolve(raw ? JSON.parse(raw) : null));
-       req.on("error", reject);
-     });
-   }
-
-   function isBullseye(ring, segment) {
-     return segment === 25 && (ring === "Single" || ring === "Double");
-   }
-
-   function snapshot() {
-     const winner = state.winner;
-     return {
-       matchId: state.matchId,
-       gameId: "bullseye-duel",
-       status: winner ? "Complete" : "InProgress",
-       currentPlayerId: winner ? null : state.players[state.currentPlayerIndex],
-       legNumber: 1,
-       setNumber: 1,
-       recentThrows: state.throwLog.slice(-5).map((entry) => entry.throw),
-       isComplete: Boolean(winner),
-       winnerPlayerIds: winner ? [winner] : null,
-       payload: {
-         dartsThrown: state.throwLog.length,
-         message: winner ? "We have a winner!" : "Aiming for the bull...",
-       },
-     };
-   }
-
-   const server = http.createServer(async (req, res) => {
-     const url = new URL(req.url, "http://localhost");
-
-     if (req.method === "GET" && url.pathname === "/health") {
-       return json(res, 200, { status: "ok", protocolVersion: 1 });
-     }
-
-     if (req.method === "POST" && url.pathname === "/create") {
-       const setup = await readJson(req);
-       state = {
-         matchId: crypto.randomUUID(),
-         players: setup.playerIds,
-         currentPlayerIndex: 0,
-         throwLog: [],
-         winner: null,
-       };
-       return json(res, 200, {});
-     }
-
-     if (req.method === "POST" && url.pathname === "/throw") {
-       if (state.winner) return json(res, 400, { message: "Match is already over." });
-       const detectedThrow = await readJson(req);
-       const playerId = state.players[state.currentPlayerIndex];
-       const wonMatch = isBullseye(detectedThrow.ring, detectedThrow.segment);
-       state.throwLog.push({ playerId, throw: detectedThrow, wonMatch });
-       if (wonMatch) state.winner = playerId;
-       return json(res, 200, {});
-     }
-
-     if (req.method === "POST" && url.pathname === "/end-turn") {
-       if (!state.winner) {
-         state.currentPlayerIndex = (state.currentPlayerIndex + 1) % state.players.length;
-       }
-       return json(res, 200, {});
-     }
-
-     if (req.method === "POST" && url.pathname === "/undo") {
-       const last = state.throwLog.pop();
-       if (last?.wonMatch) state.winner = null;
-       return json(res, 200, {});
-     }
-
-     if (req.method === "GET" && url.pathname === "/state") {
-       return json(res, 200, snapshot());
-     }
-
-     if (req.method === "GET" && url.pathname === "/result") {
-       const winner = state.winner;
-       return json(res, 200, {
-         winnerPlayerIds: winner ? [winner] : [],
-         finalStandings: winner ? [winner, ...state.players.filter((id) => id !== winner)] : [],
-       });
-     }
-
-     json(res, 404, { message: "Not found" });
-   });
-
-   const portFlag = process.argv.indexOf("--port");
-   server.listen(portFlag === -1 ? 4000 : process.argv[portFlag + 1]);
-   ```
-
-   `IGame.UndoLastThrow` only needs to undo the *last thrown dart* — not turn rotation — so popping the
-   last `throwLog` entry (and clearing `winner` if that throw is what set it) is enough to satisfy the
-   contract. A game with more state to unwind would keep a richer log, but the principle is the same:
-   replay from a log rather than trying to write an inverse of every mutation.
-
-3. **Ship a minimal board UI.** Create `plugins/bullseye-duel/ui/index.html` — it only needs to listen for
-   the `postMessage` the host sends on every state push:
+2. **Write the board.** Create `plugins/bullseye-duel/ui/index.html`. The whole game is the `replay()`
+   function — a pure fold over the visit log:
 
    ```html
    <!doctype html>
@@ -548,35 +469,76 @@ language that can speak HTTP/JSON.
        <h1 id="message">Waiting for the match to start…</h1>
        <p>Current player: <span id="current" class="current">–</span></p>
        <p>Darts thrown: <span id="darts">0</span></p>
+
        <script>
+         let reportedComplete = false;
+
+         function isBullseye(t) {
+           return t.segment === 25 && (t.ring === "Single" || t.ring === "Double");
+         }
+
+         // The entire rules engine: same log in, same state out, every time.
+         function replay(payload) {
+           const players = payload.playerIds;
+           let turnIndex = 0;
+           let winner = null;
+           let dartsThrown = 0;
+
+           for (const visit of payload.visits) {
+             for (const t of visit.throws) {
+               dartsThrown++;
+               if (!winner && isBullseye(t)) winner = players[turnIndex];
+             }
+             if (visit.ended || visit.throws.length >= 3) {
+               turnIndex = (turnIndex + 1) % players.length;
+             }
+           }
+
+           return { winner, dartsThrown, currentPlayerId: winner ? null : players[turnIndex] };
+         }
+
          window.addEventListener("message", (event) => {
            if (event.data?.type !== "barrelo:gameState") return;
            const { snapshot, playerNames } = event.data;
-           const currentName = snapshot.currentPlayerId
-             ? (playerNames[snapshot.currentPlayerId] ?? snapshot.currentPlayerId)
-             : "–";
-           document.getElementById("message").textContent = snapshot.payload.message;
-           document.getElementById("current").textContent = currentName;
-           document.getElementById("darts").textContent = snapshot.payload.dartsThrown;
+           const state = replay(snapshot.payload);
+
+           document.getElementById("message").textContent =
+             state.winner ? "We have a winner!" : "Aiming for the bull...";
+           document.getElementById("current").textContent =
+             state.currentPlayerId ? (playerNames[state.currentPlayerId] ?? "–") : "–";
+           document.getElementById("darts").textContent = state.dartsThrown;
+
+           // Tell Barrelo whose turn it is — it has no way to know.
+           window.parent.postMessage(
+             { type: "barrelo:display", currentPlayerId: state.currentPlayerId },
+             window.location.origin);
+
+           if (state.winner && !reportedComplete) {
+             reportedComplete = true;
+             const losers = snapshot.payload.playerIds.filter((id) => id !== state.winner);
+             window.parent.postMessage(
+               { type: "barrelo:matchComplete",
+                 winnerPlayerIds: [state.winner],
+                 finalStandings: [state.winner, ...losers] },
+               window.location.origin);
+           }
          });
        </script>
      </body>
    </html>
    ```
 
-4. **Try it out.** With `plugins/bullseye-duel/{plugin.json,server.js,ui/index.html}` in place:
+3. **Try it out.** With `plugins/bullseye-duel/{plugin.json,ui/index.html}` in place:
 
    ```bash
    dotnet run --project src/Barrelo.Api
    ```
 
-   Open `http://localhost:5295` — the chalkboard start screen — and "Bullseye Duel" should already appear
-   in the game picker (Barrelo only reads the manifest to list it; nothing is spawned yet). Add at least
-   two players, click **Start match**, and you'll land on the controls page with `server.js` now running as
-   a child process bound to a port Barrelo picked for it.
+   Open `http://localhost:5295` — the chalkboard start screen — and "Bullseye Duel" should appear in the
+   game picker. Add at least two players and click **Start match**.
 
    Play it with **manual entry** — no Board Simulator needed — by clicking segments on the on-page
-   dartboard, or by calling the same endpoints it uses directly:
+   dartboard, or by calling the same endpoint it uses:
 
    ```bash
    curl -X POST http://localhost:5295/api/detection/manual-throw \
@@ -585,25 +547,10 @@ language that can speak HTTP/JSON.
    ```
 
    The scoreboard should immediately show a win banner for whichever player was up. If it doesn't, check
-   the Api's console output first — a manifest that fails validation, or a process that fails its health
-   check, is logged there rather than surfaced in the browser.
+   the browser console first (your rules run there now), then the Api's console — a manifest that fails
+   validation is logged there rather than surfaced in the browser.
 
-**Known limitations**, worth knowing before relying on this path for something beyond a hobby project:
-
-- **Protocol versioning is all-or-nothing.** `RemoteGameLoader` checks a manifest's `protocolVersion`
-  against a single supported constant and skips the game entirely on any mismatch — there's no negotiation
-  or multi-version support, so bumping the protocol is a breaking change for every existing plugin until
-  they're updated too.
-- **No sandboxing.** The spawned process runs with the same user/filesystem/network access as the Api
-  itself. This is fine for games you wrote or vendored yourself; it is not an isolation boundary suitable
-  for running untrusted third-party code as-is.
-- **Port selection has a small TOCTOU race** (`FreePortFinder` releases a bound port before handing it to
-  your process) — accepted as fine for a single-machine, low-contention host, not something to rely on
-  under heavy concurrent match starts.
-
-From here, [`external-plugins/killer`](external-plugins/killer) is a complete (if intentionally
-work-in-progress) real game plugin to read, and
-[`templates/barrelo-phaser-game`](templates/barrelo-phaser-game) is a fuller TypeScript/Vite/Phaser
+From here, [`templates/barrelo-phaser-game`](templates/barrelo-phaser-game) is a fuller TypeScript/Vite
 scaffold to copy if you want a real rendering engine instead of a hand-rolled HTML page.
 
 ## Adding a new dart detector

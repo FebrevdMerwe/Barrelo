@@ -5,6 +5,6 @@ public interface IGameFactory
 {
     GameDescriptor Describe();
 
-    /// <summary>Async so a future out-of-process proxy can spawn/attach to a subprocess before the game is ready. In-process factories just Task.FromResult.</summary>
+    /// <summary>Async so a factory that has real work to do before the game is ready isn't forced to block. In-process factories just Task.FromResult.</summary>
     Task<IGame> Create(GameSetup setup, CancellationToken ct);
 }

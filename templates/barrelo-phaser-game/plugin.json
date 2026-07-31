@@ -1,16 +1,8 @@
 {
-  "protocolVersion": 1,
+  "protocolVersion": 2,
   "gameId": "your-game-id",
   "displayName": "Your Game",
   "description": "One-line description shown on the start screen.",
-  "settings": [],
-  "launch": {
-    "command": "node",
-    "args": ["node_modules/tsx/dist/cli.mjs", "src/server.ts", "--port", "{{port}}"],
-    "cwd": "."
-  },
-  "health": {
-    "path": "/health",
-    "timeoutSeconds": 5
-  }
+  "stateOwner": "client",
+  "settings": []
 }

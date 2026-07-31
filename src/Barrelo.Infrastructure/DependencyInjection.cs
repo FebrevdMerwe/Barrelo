@@ -27,6 +27,7 @@ public static class DependencyInjection
         services.AddSingleton<IGameSessionManager, GameSessionManager>();
         services.AddSingleton<ISessionPlayerStore, SessionPlayerStore>();
         services.AddSingleton<ISessionLeaderboardStore, SessionLeaderboardStore>();
+        services.AddSingleton<IReplayDivergenceMonitor, ReplayDivergenceMonitor>();
         services.AddSingleton<IGameCatalog>(sp =>
         {
             var pluginsDirectory = PluginsDirectoryResolver.Resolve(configuration);
@@ -34,9 +35,9 @@ public static class DependencyInjection
 
             var pluginFactories = new PluginGameLoader(loggerFactory.CreateLogger<PluginGameLoader>())
                 .LoadFactories(pluginsDirectory);
-            var remoteFactories = new RemoteGameLoader(loggerFactory).LoadFactories(pluginsDirectory);
+            var clientFactories = new ClientGameLoader(loggerFactory).LoadFactories(pluginsDirectory);
 
-            return new GameCatalog(pluginFactories.Concat(remoteFactories));
+            return new GameCatalog(pluginFactories.Concat(clientFactories));
         });
 
         var detectionMode = configuration["Detection:Mode"] ?? "Mock";

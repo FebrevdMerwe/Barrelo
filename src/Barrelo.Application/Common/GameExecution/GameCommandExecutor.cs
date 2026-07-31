@@ -28,6 +28,15 @@ public sealed class GameCommandExecutor(
     public Task<ErrorOr<MatchStateSnapshotDto>> Undo(CancellationToken ct) =>
         RunLocked((_, game, c) => game.UndoLastThrow(c), ct);
 
+    /// <summary>A client-owned game's rules run in the browser, so the host is told the outcome rather
+    /// than working it out. Everything after this — awarding points, ending the session, pushing the
+    /// final snapshot — is the same tail every other command runs, because GetState() now reports
+    /// complete.</summary>
+    public Task<ErrorOr<MatchStateSnapshotDto>> ReportClientResult(GameResult result, CancellationToken ct) =>
+        RunLocked((_, game, c) => game is IClientReportedGame client
+            ? client.ReportResult(result, c)
+            : throw new GameRuleViolationException("This game determines its own result and cannot be told one."), ct);
+
     private async Task<ErrorOr<MatchStateSnapshotDto>> RunLocked(
         Func<Guid, IGame, CancellationToken, Task> action,
         CancellationToken ct)
@@ -59,27 +68,18 @@ public sealed class GameCommandExecutor(
         {
             leaderboard = await AwardPoints(matchId.Value, game, ct);
             await sessionManager.EndActiveSessionAsync(matchId.Value);
-            await DisposeIfRemote(game);
         }
         else if (state.Status == GameStatus.Aborted)
         {
-            // No winner, no leaderboard award — the game's process is gone, not finished.
+            // No winner, no leaderboard award — the game gave up rather than finished. Freeing the slot
+            // anyway is what stops a dead match from blocking the next one.
             await sessionManager.EndActiveSessionAsync(matchId.Value);
-            await DisposeIfRemote(game);
         }
 
         var dto = MatchStateSnapshotDto.From(stamped, leaderboard);
         await dispatcher.Publish(new GameStateChangedEvent(matchId.Value, dto), ct);
 
         return dto;
-    }
-
-    /// <summary>Out-of-process games own a spawned process + HttpClient (IAsyncDisposable); first-party
-    /// in-proc games don't implement it, so this is a no-op for them.</summary>
-    private static async Task DisposeIfRemote(IGame game)
-    {
-        if (game is IAsyncDisposable disposable)
-            await disposable.DisposeAsync();
     }
 
     private async Task<IReadOnlyList<LeaderboardEntry>> AwardPoints(Guid matchId, IGame game, CancellationToken ct)

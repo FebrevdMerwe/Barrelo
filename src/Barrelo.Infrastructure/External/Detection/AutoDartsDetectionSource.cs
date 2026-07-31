@@ -15,10 +15,14 @@ namespace Barrelo.Infrastructure.External.Detection;
 /// per-visit "state" events onto the canonical, detector-agnostic DetectedThrow.
 ///
 /// AutoDarts sends the *cumulative* set of darts for the current visit on every "Throw detected" event
-/// (numThrows/throws grows to up to 3), not one message per dart, so this adapter diffs against the
-/// last-seen throws to emit one DetectionEvent.Throw per new dart. Turn boundary is the "Takeout finished"
-/// event (board cleared, numThrows back to 0) rather than "Takeout started", so EndOfTurn only fires once
-/// the visit is fully wrapped up.
+/// (numThrows/throws grows to up to 3), not one message per dart. This adapter passes that through as-is,
+/// as a VisitUpdated event carrying the whole visit — working out which darts are new is
+/// DetectionListenerService's VisitDiffer's job. Keeping the adapter stateless is deliberate: a
+/// reconnect-and-resend then self-corrects, whereas an adapter holding its own "darts emitted so far"
+/// count silently swallowed a whole visit whenever a reconnect straddled a takeout.
+///
+/// Turn boundary is the "Takeout finished" event (board cleared, numThrows back to 0) rather than
+/// "Takeout started", so EndOfTurn only fires once the visit is fully wrapped up.
 /// </summary>
 public sealed class AutoDartsDetectionSource : IDetectionSource, IAsyncDisposable
 {
@@ -35,7 +39,6 @@ public sealed class AutoDartsDetectionSource : IDetectionSource, IAsyncDisposabl
 
     private volatile ClientWebSocket? _socket;
     private int _disposed;
-    private IReadOnlyList<AutoDartsThrow> _lastThrows = [];
 
     public AutoDartsDetectionSource(Uri eventsUri, string boardId, ILogger<AutoDartsDetectionSource> logger)
     {
@@ -124,14 +127,11 @@ public sealed class AutoDartsDetectionSource : IDetectionSource, IAsyncDisposabl
         switch (data.Event)
         {
             case "Throw detected":
-                var throws = data.Throws ?? [];
-                for (var i = _lastThrows.Count; i < throws.Count; i++)
-                    yield return BuildThrowEvent(throws[i]);
-                _lastThrows = throws;
+                var visit = (data.Throws ?? []).Select(BuildThrow).ToList();
+                yield return new DetectionEvent(DetectionEventType.VisitUpdated, _boardId, null, visit);
                 break;
 
             case "Takeout finished":
-                _lastThrows = [];
                 yield return new DetectionEvent(DetectionEventType.EndOfTurn, _boardId, null);
                 break;
 
@@ -144,18 +144,17 @@ public sealed class AutoDartsDetectionSource : IDetectionSource, IAsyncDisposabl
         }
     }
 
-    private DetectionEvent BuildThrowEvent(AutoDartsThrow dart)
+    private DetectedThrow BuildThrow(AutoDartsThrow dart)
     {
         var segment = dart.Segment.Number;
         var ring = MapRing(dart.Segment.Bed, segment);
         var position = dart.Coords is { } c ? new BoardPosition(c.X, c.Y) : BoardGeometry.CenterOf(segment, ring);
-        var detectedThrow = new DetectedThrow(
+
+        return new DetectedThrow(
             ThrowId: Guid.NewGuid(), Segment: segment, Ring: ring,
             Score: DartScoring.Score(ring, segment), RawNotation: DartScoring.Notation(ring, segment),
             Position: position, Confidence: null, BoardId: _boardId, CameraIndex: null,
             DetectedAtUtc: DateTimeOffset.UtcNow, Source: DetectionSourceType.AutoDarts);
-
-        return new DetectionEvent(DetectionEventType.Throw, _boardId, detectedThrow);
     }
 
     // Confirmed against real AutoDarts samples: bull hits arrive as Bed "Single"/"Double" with

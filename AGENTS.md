@@ -31,3 +31,10 @@ decoupled from each other.
   hand-copy or hand-edit that folder.
 - A game with no source in this repo (built prebuilt elsewhere) goes under `external-plugins/{gameId}/`
   (build output only), never `src/Games/` (in-repo source only) — see `external-plugins/README.md`.
+- A game is either an in-process .NET plugin or **client-owned** (rules run in the browser). There is no
+  out-of-process/server path — the host never spawns a game process.
+- For a client-owned game the host records visits and interprets none of it. Never put a player id on a
+  visit, and never derive whose turn it is host-side: turn order is a game rule. `CurrentPlayerId` and the
+  leg/set counters come back up from the game as advisory display hints.
+- A client-owned game's replay must be deterministic (seed from the payload, `DetectedAtUtc` as the only
+  clock) — every screen replays the same log independently.
