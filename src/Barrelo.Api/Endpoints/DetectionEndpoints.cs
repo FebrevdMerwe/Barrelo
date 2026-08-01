@@ -4,6 +4,8 @@ using Barrelo.Application.Commands.Detection.RecordDetectedThrow;
 using Barrelo.Application.Commands.Detection.RecordEndOfTurn;
 using Barrelo.Application.Commands.Detection.UndoLastThrow;
 using Barrelo.Application.Common.Dispatch;
+using Barrelo.Application.Common.Interfaces.Services;
+using Barrelo.Application.Common.Notifications;
 
 namespace Barrelo.Api.Endpoints;
 
@@ -12,6 +14,12 @@ public static class DetectionEndpoints
     public static void MapDetectionEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/detection").WithTags("Detection");
+
+        // What the board pill reads on page load. Every change after that arrives as a
+        // DetectionStatusChanged push on the game hub, so a board that drops mid-match updates the screen
+        // without a refresh.
+        group.MapGet("/status", async (IDetectionSource detectionSource) =>
+            Results.Ok(new DetectionStatus(detectionSource.SourceType, await detectionSource.IsConnectedAsync())));
 
         group.MapPost("/manual-throw", async (ManualThrowRequest request, IDispatcher dispatcher, CancellationToken ct) =>
         {

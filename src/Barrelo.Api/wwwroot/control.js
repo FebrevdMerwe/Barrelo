@@ -31,6 +31,8 @@
   var openTitleEl = document.getElementById("openTitle");
 
   var dartboard = createDartboard(document.getElementById("dartboard"));
+  var boardStatus = createBoardStatusPill(
+    document.getElementById("boardPill"), document.getElementById("boardLabel"));
 
   var playerNames = {};
   var gameNames = {};
@@ -240,10 +242,13 @@
       .withAutomaticReconnect()
       .build();
     connection.on("GameStateUpdated", function (snapshot) { render(snapshot); });
+    boardStatus.listen(connection);
     return connection.start();
   }
 
   async function init() {
+    boardStatus.load();
+
     var responses = await Promise.all([
       fetch("/api/session/current"),
       fetch("/api/players"),

@@ -23,6 +23,9 @@
   var lastSnapshot = null;
   var displayHint = null;
 
+  var boardStatus = createBoardStatusPill(
+    document.getElementById("boardPill"), document.getElementById("boardLabel"));
+
   var gameFrame = createGameFrame({
     onDisplay: function (hint) {
       displayHint = hint;
@@ -110,10 +113,13 @@
       .withAutomaticReconnect()
       .build();
     connection.on("GameStateUpdated", function (snapshot) { render(snapshot); });
+    boardStatus.listen(connection);
     return connection.start();
   }
 
   async function init() {
+    boardStatus.load();
+
     var responses = await Promise.all([
       fetch("/api/session/current"),
       fetch("/api/players"),

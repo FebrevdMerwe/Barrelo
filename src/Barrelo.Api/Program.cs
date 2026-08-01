@@ -24,6 +24,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddSignalR().AddJsonProtocol(options =>
     options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddScoped<IGameNotifier, GameHubNotifier>();
+builder.Services.AddSingleton<IDetectionStatusNotifier, DetectionStatusHubNotifier>();
 
 var app = builder.Build();
 

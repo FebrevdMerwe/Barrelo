@@ -128,7 +128,21 @@ body{
   background: var(--chalk-dim);
   box-shadow: 0 0 0 3px rgba(169,181,172,.15);
 }
+/* Manual entry: amber, because nothing is wrong — there is simply no board to be connected to. */
 .source-pill.manual .dot{ background:#d9b04c; box-shadow:0 0 0 3px rgba(217,176,76,.18); }
+.source-pill.live .dot{ background:#6fbf73; box-shadow:0 0 0 3px rgba(111,191,115,.18); }
+/* Offline is the one state worth pulling someone's eye across the room: the board is meant to be there
+   and isn't, and darts thrown right now are going nowhere. */
+.source-pill.offline{ border-color: rgba(211,90,79,.65); color:#e8a49b; }
+.source-pill.offline .dot{
+  background:#d35a4f;
+  box-shadow:0 0 0 3px rgba(211,90,79,.22);
+  animation: board-offline-pulse 1.6s ease-in-out infinite;
+}
+@keyframes board-offline-pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.3; } }
+@media (prefers-reduced-motion: reduce){
+  .source-pill.offline .dot{ animation:none; }
+}
 
 .icon-btn{
   width:32px; height:32px; border-radius:50%;

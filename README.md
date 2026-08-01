@@ -215,8 +215,9 @@ environment variable (`Detection__Mode=Mock`) or `appsettings.Production.json` f
 |---|---|---|
 | `ConnectionStrings:BarreloDb` | `Data Source=barrelo.db` | SQLite connection string. |
 | `Plugins:Directory` | `plugins` | Folder (relative to the Api's working directory) scanned for game plugin DLLs on startup. |
-| `Detection:Mode` | `Simulator` | Which streaming `IDetectionSource` to run: `Simulator` (Board Simulator over WebSocket) or `Mock` (in-process, driven only by tests/code). Manual REST entry works regardless of this setting. |
+| `Detection:Mode` | `AutoDarts` | Which streaming `IDetectionSource` to run: `AutoDarts` (a local AutoDarts board manager), `Simulator` (Board Simulator over WebSocket) or `Mock` (in-process, driven only by tests/code). Manual REST entry works regardless of this setting. |
 | `Detection:Simulator:Url` | `ws://localhost:5250/stream` | WebSocket endpoint of a running `Barrelo.BoardSimulator` instance. |
+| `Detection:AutoDarts:Url` | `ws://localhost:3180/api/events` | Event-stream endpoint of the local AutoDarts board manager. The connection reconnects with backoff on its own; the header pill shows whether it is currently up. |
 
 ## Adding a new game
 
@@ -563,15 +564,24 @@ Every detector — a real board, the Board Simulator, manual entry — is just a
 ```csharp
 public interface IDetectionSource
 {
+    DetectionSourceType SourceType { get; }
     IAsyncEnumerable<DetectionEvent> EventsAsync(CancellationToken ct);
     Task<bool> IsConnectedAsync();
 }
 ```
 
-1. **Implement the interface** under `src/Barrelo.Infrastructure/External/Detection/`, using
-   [`BoardSimulatorDetectionSource.cs`](src/Barrelo.Infrastructure/External/Detection/BoardSimulatorDetectionSource.cs)
-   as the template — connect however your hardware/API talks (WebSocket, HTTP polling, a native SDK), map
-   every incoming event onto the canonical, detector-agnostic `DetectedThrow`. See also
+`SourceType` and `IsConnectedAsync()` are what the board pill in the header rail renders, via
+`GET /api/detection/status` on load and a `DetectionStatusChanged` push on the game hub thereafter. Naming
+a detector on screen is a lookup in `wwwroot/board-status.js`, so a new detector needs one entry there and
+nothing else UI-side.
+
+1. **Implement the interface** under `src/Barrelo.Infrastructure/External/Detection/`. If your detector
+   speaks WebSocket, derive from
+   [`WebSocketDetectionSource`](src/Barrelo.Infrastructure/External/Detection/WebSocketDetectionSource.cs)
+   and implement `ParseMessage` alone — connecting, reconnecting with backoff, keep-alive with a ping
+   deadline, dropping an uninterpretable message without losing the socket, and publishing connection
+   transitions are all handled for you. Otherwise connect however your hardware/API talks (HTTP polling, a
+   native SDK) and map every incoming event onto the canonical, detector-agnostic `DetectedThrow`. See also
    [`AutoDartsDetectionSource.cs`](src/Barrelo.Infrastructure/External/Detection/AutoDartsDetectionSource.cs)
    for an example against a real third-party detector, including diffing a source that reports the
    *cumulative* darts of a visit on every event rather than one message per dart:
@@ -588,8 +598,10 @@ public interface IDetectionSource
    `BoardGeometry.CenterOf(segment, ring)` in `Barrelo.GameSdk` are available if your source doesn't already
    provide a computed score or a click position.
 
-2. **Wire reconnect/backoff** if the source is a persistent connection — `BoardSimulatorDetectionSource`'s
-   exponential-backoff reconnect loop is the pattern to reuse.
+2. **Publish connection transitions** if the source is a persistent connection, as
+   `DetectionEvent.ConnectionChanged(boardId, isConnected)` on the same stream as the darts.
+   `WebSocketDetectionSource` already does this; a source that connects some other way should do the same,
+   so a board that goes away says so on every screen instead of just going quiet.
 
 3. **Register it behind the `Detection:Mode` switch** in
    [`DependencyInjection.cs`](src/Barrelo.Infrastructure/DependencyInjection.cs):

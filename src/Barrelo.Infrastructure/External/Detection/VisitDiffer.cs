@@ -2,6 +2,10 @@ using Barrelo.GameSdk;
 
 namespace Barrelo.Infrastructure.External.Detection;
 
+/// <summary>The darts in a reported visit that haven't been emitted yet, plus whether that report began a
+/// new visit — see <see cref="VisitDiffer"/> for why the second half matters.</summary>
+public sealed record VisitDiff(IReadOnlyList<DetectedThrow> NewThrows, bool StartedNewVisit);
+
 /// <summary>
 /// Turns a detector's absolute "here is the whole current visit" reports into the per-dart events the
 /// rest of the platform consumes, so IGame keeps its one simple contract (ReceiveThrow, one dart at a
@@ -18,20 +22,29 @@ namespace Barrelo.Infrastructure.External.Detection;
 /// resynchronised stream), and the differ resets and replays the whole thing rather than trying to
 /// reconcile. Being wrong then costs a duplicate dart, which a human can undo; the old behaviour lost
 /// darts silently, which a human cannot even notice.
+///
+/// A visit that *shrank* is reported separately, as <see cref="VisitDiff.StartedNewVisit"/>. Fewer darts
+/// on the board than last time can only mean the board was cleared, so if no takeout event arrived the
+/// stream must have been down when it happened. The caller needs that distinction: without closing the
+/// previous turn the game still has the previous player at the oche holding a full visit, and refuses
+/// every dart of the new one as a fourth dart — the match simply stops. A mismatch at equal-or-greater
+/// length is deliberately *not* reported as a new visit, because that shape is a detector revising a call
+/// it already made, not a takeout.
 /// </summary>
 public sealed class VisitDiffer
 {
     private List<DetectedThrow> _lastSeen = [];
 
-    /// <summary>The darts in <paramref name="visit"/> that haven't been emitted yet.</summary>
-    public IReadOnlyList<DetectedThrow> Diff(IReadOnlyList<DetectedThrow> visit)
+    public VisitDiff Diff(IReadOnlyList<DetectedThrow> visit)
     {
+        var startedNewVisit = _lastSeen.Count > 0 && visit.Count < _lastSeen.Count;
+
         if (!ExtendsLastSeen(visit))
             _lastSeen = [];
 
         var newThrows = visit.Skip(_lastSeen.Count).ToList();
         _lastSeen = [.. visit];
-        return newThrows;
+        return new VisitDiff(newThrows, startedNewVisit);
     }
 
     /// <summary>Called at a turn boundary: the next visit starts from nothing.</summary>

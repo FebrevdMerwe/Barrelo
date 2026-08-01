@@ -27,7 +27,7 @@
     <div class="meta">
       <span class="game-pill" id="gameLabel">—</span>
       <span class="legmeta" id="legMeta">Leg 1 · Set 1</span>
-      <span class="source-pill manual"><span class="dot"></span>Manual entry — no board connected</span>
+      <span class="source-pill" id="boardPill"><span class="dot"></span><span id="boardLabel">Checking board&hellip;</span></span>
     </div>
   </header>
 
@@ -83,6 +83,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
 <script src="dartboard.js"></script>
+<script src="board-status.js"></script>
 <script src="game-frame.js"></script>
 <script src="control.js"></script>
 </body>

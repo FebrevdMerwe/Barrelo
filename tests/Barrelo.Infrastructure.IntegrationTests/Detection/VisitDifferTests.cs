@@ -34,9 +34,9 @@ public sealed class VisitDifferTests
     {
         var differ = new VisitDiffer();
 
-        differ.Diff([T20]).Should().Equal(T20);
-        differ.Diff([T20, S5]).Should().Equal(S5);
-        differ.Diff([T20, S5, D19]).Should().Equal(D19);
+        differ.Diff([T20]).NewThrows.Should().Equal(T20);
+        differ.Diff([T20, S5]).NewThrows.Should().Equal(S5);
+        differ.Diff([T20, S5, D19]).NewThrows.Should().Equal(D19);
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public sealed class VisitDifferTests
         var differ = new VisitDiffer();
         differ.Diff([T20, S5]);
 
-        differ.Diff([T20, S5]).Should().BeEmpty();
+        differ.Diff([T20, S5]).NewThrows.Should().BeEmpty();
     }
 
     [Fact]
@@ -56,8 +56,8 @@ public sealed class VisitDifferTests
 
         // The socket dropped and the board manager resent current state on reconnect. Same darts, same
         // order — nothing new to record.
-        differ.Diff([T20, S5]).Should().BeEmpty();
-        differ.Diff([T20, S5, D19]).Should().Equal(D19);
+        differ.Diff([T20, S5]).NewThrows.Should().BeEmpty();
+        differ.Diff([T20, S5, D19]).NewThrows.Should().Equal(D19);
     }
 
     [Fact]
@@ -70,8 +70,31 @@ public sealed class VisitDifferTests
         // the differ still believes three darts are on the board. The next visit's first dart arrives at
         // index 0. Under the old count-based diffing this yielded nothing, and every dart of this visit
         // was lost until a takeout happened to get through.
-        differ.Diff([S5]).Should().Equal(S5);
-        differ.Diff([S5, T20]).Should().Equal(T20);
+        differ.Diff([S5]).NewThrows.Should().Equal(S5);
+        differ.Diff([S5, T20]).NewThrows.Should().Equal(T20);
+    }
+
+    [Fact]
+    public void A_reconnect_that_straddles_a_takeout_reports_that_a_new_visit_began()
+    {
+        var differ = new VisitDiffer();
+        differ.Diff([T20, S5, D19]);
+
+        // Darts came off the board without a takeout event, so the caller has to close the turn itself —
+        // otherwise the game still has the previous player at the oche and refuses this dart as a fourth.
+        differ.Diff([S5]).StartedNewVisit.Should().BeTrue();
+
+        // ...but only on the message that revealed it. The rest of the visit is an ordinary extension.
+        differ.Diff([S5, T20]).StartedNewVisit.Should().BeFalse();
+    }
+
+    [Fact]
+    public void The_first_visit_of_a_match_does_not_count_as_a_new_visit()
+    {
+        var differ = new VisitDiffer();
+
+        // Nothing was on the board to be taken out, so there is no turn to close.
+        differ.Diff([T20]).StartedNewVisit.Should().BeFalse();
     }
 
     [Fact]
@@ -82,7 +105,7 @@ public sealed class VisitDifferTests
 
         // Fewer darts than before can't be an extension of what we saw, so the differ stops trusting its
         // history and treats the whole array as new.
-        differ.Diff([T20, S5]).Should().Equal(T20, S5);
+        differ.Diff([T20, S5]).NewThrows.Should().Equal(T20, S5);
     }
 
     [Fact]
@@ -94,7 +117,18 @@ public sealed class VisitDifferTests
         // The detector revised its call for the second dart. The prefix no longer matches, so rather than
         // silently keeping the stale dart, everything is re-reported — a duplicate a human can undo beats
         // a wrong score nobody notices.
-        differ.Diff([T20, D19]).Should().Equal(T20, D19);
+        differ.Diff([T20, D19]).NewThrows.Should().Equal(T20, D19);
+    }
+
+    [Fact]
+    public void A_revised_dart_at_the_same_length_is_not_treated_as_a_new_visit()
+    {
+        var differ = new VisitDiffer();
+        differ.Diff([T20, S5]);
+
+        // Same number of darts on the board, so nothing was taken out — this is the detector changing its
+        // mind, not a turn boundary. Ending the turn here would hand the oche over mid-visit.
+        differ.Diff([T20, D19]).StartedNewVisit.Should().BeFalse();
     }
 
     [Fact]
@@ -105,7 +139,12 @@ public sealed class VisitDifferTests
 
         differ.Reset();
 
-        differ.Diff([T20]).Should().Equal(T20);
+        var diff = differ.Diff([T20]);
+        diff.NewThrows.Should().Equal(T20);
+
+        // The takeout was seen, so the caller has already ended the turn — saying so again would skip a
+        // player.
+        diff.StartedNewVisit.Should().BeFalse();
     }
 
     [Fact]
@@ -114,7 +153,7 @@ public sealed class VisitDifferTests
         var differ = new VisitDiffer();
         differ.Diff([T20, S5]);
 
-        differ.Diff([]).Should().BeEmpty();
-        differ.Diff([D19]).Should().Equal(D19);
+        differ.Diff([]).NewThrows.Should().BeEmpty();
+        differ.Diff([D19]).NewThrows.Should().Equal(D19);
     }
 }

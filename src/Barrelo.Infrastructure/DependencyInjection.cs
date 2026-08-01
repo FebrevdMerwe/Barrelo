@@ -70,6 +70,7 @@ public static class DependencyInjection
         services.AddHostedService<DetectionListenerService>();
 
         services.AddScoped<IGameNotifier, NullGameNotifier>();
+        services.AddSingleton<IDetectionStatusNotifier, NullDetectionStatusNotifier>();
 
         return services;
     }
