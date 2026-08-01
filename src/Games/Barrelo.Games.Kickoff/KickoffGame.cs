@@ -28,6 +28,13 @@ public sealed class KickoffGame : IGame
     private const double GoalMouthMax = 0.65;
     private const int TrailMax = 8;
 
+    /// <summary>
+    /// A visit holds at most this many kicks, but reaching it does not end the visit — only an explicit
+    /// EndOfTurn does (or a rule that ends it early: out of play, or a goal). Possession follows the
+    /// physical takeout, which is what a detection source reports.
+    /// </summary>
+    private const int DartsPerVisit = 3;
+
     private enum LogEntryKind { Throw, EndOfTurn }
 
     private sealed record LogEntry(LogEntryKind Kind, DetectedThrow? Throw);
@@ -63,6 +70,7 @@ public sealed class KickoffGame : IGame
     public Task ReceiveThrow(DetectedThrow detectedThrow, CancellationToken ct)
     {
         EnsureNotComplete();
+        EnsureVisitHasRoom();
         _log.Add(new LogEntry(LogEntryKind.Throw, detectedThrow));
         Rebuild();
         return Task.CompletedTask;
@@ -135,6 +143,18 @@ public sealed class KickoffGame : IGame
             throw new GameRuleViolationException("The game has already finished.");
     }
 
+    /// <summary>
+    /// Kick count alone no longer ends a visit, so a fourth kick would otherwise keep moving the ball for
+    /// a side whose three darts are already in the board — and stay invisible, since the visit is only
+    /// ever displayed three darts wide. Refusing it surfaces the missing takeout instead.
+    /// </summary>
+    private void EnsureVisitHasRoom()
+    {
+        if (_currentVisitThrows.Count >= DartsPerVisit)
+            throw new GameRuleViolationException(
+                "This visit already has three darts — end the turn before throwing again.");
+    }
+
     private void Rebuild()
     {
         var distinctGroups = _players.Select(id => _groupByPlayer[id]).Distinct().OrderBy(g => g).ToArray();
@@ -153,12 +173,12 @@ public sealed class KickoffGame : IGame
         _isComplete = false;
         _winnerPlayerIds = null;
 
-        // A visit can end two ways that both land in the log: an explicit EndOfTurn (from the UI or a
-        // detection source) or ApplyKick noticing an out-of-bounds kick, a goal, or the 3rd kick on its
-        // own. Detection sources (e.g. AutoDarts) fire EndOfTurn unconditionally once the board is
-        // cleared, even for a visit that already ended — so an EndOfTurn immediately following an
-        // auto-ended visit must be a no-op, or the side would get advanced (and NextMemberIndex
-        // incremented) twice for the same physical turn.
+        // A visit ends on an explicit EndOfTurn (from the UI or a detection source), or early when
+        // ApplyKick sees the ball go out of play or into a goal. Kick count deliberately doesn't end one:
+        // possession follows the physical takeout. Detection sources (e.g. AutoDarts) fire EndOfTurn
+        // unconditionally once the board is cleared, including for a visit an out or a goal already
+        // ended — so an EndOfTurn immediately following one of those must be a no-op, or the side would
+        // get advanced (and NextMemberIndex incremented) twice for the same physical turn.
         var turnAlreadyEnded = false;
 
         foreach (var entry in _log)
@@ -257,13 +277,6 @@ public sealed class KickoffGame : IGame
 
         _ball = new BallPosition(newX, newY);
         PushTrail();
-
-        if (_currentVisitThrows.Count == 3)
-        {
-            EndVisit(nextSide: 1 - throwingSide, resetBall: false);
-            return true;
-        }
-
         return false;
     }
 

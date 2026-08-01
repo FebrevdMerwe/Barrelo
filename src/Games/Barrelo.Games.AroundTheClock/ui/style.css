@@ -1,0 +1,224 @@
+/* Around The Clock board. Surfaces, rules and muted labels come from the shell's chalk/brass custom
+   properties so the board belongs to the same room as the rail above it; --atc-team is set per element
+   by render.js and carries the design's saturated team colour, which is the only thing tying a
+   standings row to the spotlight. */
+
+.atc-board{
+  width: min(1360px, 94vw);
+  display:grid;
+  grid-template-columns: minmax(300px, 380px) minmax(280px, 1fr) minmax(320px, 420px);
+  gap: 22px;
+  align-items:start;
+}
+
+@media (max-width: 1180px){
+  .atc-board{ grid-template-columns: 1fr; width: min(640px, 94vw); }
+}
+
+.atc-label{
+  font-family:'JetBrains Mono', monospace; font-size:10px; font-weight:500;
+  letter-spacing:.2em; text-transform:uppercase; color: var(--chalk-dim);
+}
+
+.atc-dot{
+  width:11px; height:11px; border-radius:50%; flex:none;
+  background: var(--atc-team);
+  box-shadow: 0 0 10px var(--atc-team);
+}
+
+/* ---------- spotlight ---------- */
+
+.atc-spotlight{
+  display:flex; flex-direction:column;
+  padding: 20px 22px 18px;
+  border:1px solid var(--slate-line);
+  border-left:3px solid var(--atc-team);
+  border-radius: 10px;
+  background: rgba(0,0,0,.16);
+  box-shadow: 0 14px 26px -14px var(--ink);
+}
+
+.atc-eyebrow{
+  display:flex; align-items:center; gap:9px;
+  font-family:'JetBrains Mono', monospace; font-size:10px;
+  letter-spacing:.2em; text-transform:uppercase; color: var(--chalk-dim);
+}
+
+.atc-thrower{
+  margin-top:6px;
+  font-family:'Big Shoulders Display', sans-serif; font-weight:900; font-size:54px; line-height:.94;
+  color: var(--atc-team);
+  text-shadow: 0 0 26px var(--atc-team-soft);
+}
+
+.atc-mates{
+  margin-top:2px;
+  font-family:'Caveat', cursive; font-weight:600; font-size:19px; color: var(--chalk-dim);
+}
+
+.atc-target-block{
+  margin-top:16px; padding-top:16px;
+  border-top:1px solid var(--slate-line);
+  display:flex; flex-direction:column; align-items:center;
+}
+
+.atc-target-huge{
+  font-family:'Big Shoulders Display', sans-serif; font-weight:900; font-size:118px; line-height:.86;
+  color: var(--atc-team);
+  text-shadow: 0 0 34px var(--atc-team-soft);
+}
+
+.atc-target-sub{
+  margin-top:2px;
+  font-family:'JetBrains Mono', monospace; font-size:10px;
+  letter-spacing:.12em; text-transform:uppercase; color: var(--chalk-dim);
+}
+
+.atc-progress{ margin-top:16px; }
+.atc-progress-head{
+  display:flex; justify-content:space-between;
+  font-family:'JetBrains Mono', monospace; font-size:10px;
+  letter-spacing:.16em; text-transform:uppercase; color: var(--chalk-dim);
+  margin-bottom:6px;
+}
+.atc-progress-track{
+  height:10px; border-radius:999px; overflow:hidden;
+  background: rgba(0,0,0,.35);
+  border:1px solid var(--slate-line);
+}
+.atc-progress-fill{
+  height:100%; border-radius:999px;
+  background: var(--atc-team);
+  box-shadow: 0 0 12px var(--atc-team-soft);
+  transition: width .35s ease;
+}
+
+.atc-visit{ margin-top:18px; }
+.atc-darts{ display:flex; gap:9px; margin-top:8px; }
+
+.atc-dart{
+  flex:1; height:74px; border-radius:8px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  border:1px solid var(--slate-line);
+  background: rgba(0,0,0,.2);
+}
+.atc-dart.empty{ border-style:dashed; }
+.atc-dart.hit{
+  border-color: var(--atc-team);
+  background: var(--atc-team-soft);
+}
+.atc-dart-label{
+  font-family:'Big Shoulders Display', sans-serif; font-weight:800; font-size:27px; line-height:1;
+  color: var(--chalk);
+}
+.atc-dart.empty .atc-dart-label{ color: var(--chalk-dim); opacity:.5; }
+.atc-dart.hit .atc-dart-label{ color: var(--atc-team); }
+.atc-dart-sub{
+  margin-top:4px;
+  font-family:'JetBrains Mono', monospace; font-size:9px;
+  letter-spacing:.14em; text-transform:uppercase; color: var(--chalk-dim);
+}
+
+/* ---------- dartboard column ---------- */
+
+.atc-boardcol{
+  display:flex; flex-direction:column; align-items:center;
+  padding-top:6px;
+}
+
+.atc-target-tag{
+  margin:8px 0 12px;
+  padding:5px 18px; border-radius:999px;
+  background: var(--atc-team);
+  color: var(--baize-deep);
+  font-family:'Big Shoulders Display', sans-serif; font-weight:800; font-size:19px;
+  letter-spacing:.06em;
+}
+
+.atc-board-frame{ width:min(440px, 78vw); }
+.atc-board-svg{
+  width:100%; height:auto; display:block;
+  filter: drop-shadow(0 18px 32px var(--ink));
+}
+.atc-board-num{
+  font-family:'Big Shoulders Display', sans-serif; font-weight:700; font-size:20px;
+  fill: var(--chalk-dim);
+}
+/* Sits on top of a saturated team colour, so it needs the darkest ground we have, not --chalk. */
+.atc-band-marker{
+  font-family:'Big Shoulders Display', sans-serif; font-weight:900; font-size:12px;
+  fill: var(--baize-deep);
+}
+
+/* ---------- standings ---------- */
+
+.atc-standings{ display:flex; flex-direction:column; gap:10px; }
+
+.atc-standings-head{
+  display:flex; align-items:baseline; justify-content:space-between;
+  padding-bottom:6px; border-bottom:1px solid var(--slate-line);
+}
+.atc-round{
+  font-family:'JetBrains Mono', monospace; font-size:10px;
+  letter-spacing:.18em; text-transform:uppercase; color: var(--chalk-dim);
+}
+.atc-round b{ color: var(--brass-bright); font-size:13px; }
+
+.atc-rows{ display:flex; flex-direction:column; gap:8px; }
+
+.atc-row{
+  padding:10px 12px; border-radius:8px;
+  border:1px solid var(--slate-line);
+  background: rgba(0,0,0,.14);
+  display:flex; flex-direction:column; gap:8px;
+  transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+.atc-row.active{
+  border-color: var(--atc-team);
+  background: var(--atc-team-soft);
+  transform: translateX(3px);
+  box-shadow: 0 0 0 1px var(--atc-team), 0 14px 22px -16px var(--ink);
+}
+.atc-row.done{ border-color: var(--brass-bright); }
+
+.atc-row-top{ display:flex; align-items:center; gap:9px; }
+.atc-row-name{
+  font-family:'Big Shoulders Display', sans-serif; font-weight:800; font-size:22px; line-height:1;
+  color: var(--chalk);
+}
+.atc-throwing{
+  font-family:'JetBrains Mono', monospace; font-size:9px;
+  letter-spacing:.16em; text-transform:uppercase; color: var(--atc-team);
+}
+.atc-row-spacer{ flex:1; }
+.atc-row-on{
+  font-family:'JetBrains Mono', monospace; font-size:9px;
+  letter-spacing:.16em; text-transform:uppercase; color: var(--chalk-dim);
+}
+.atc-row-target{
+  font-family:'Big Shoulders Display', sans-serif; font-weight:900; font-size:26px; line-height:1;
+  color: var(--atc-team);
+  min-width:48px; text-align:right;
+}
+
+.atc-ladder{ display:flex; align-items:center; gap:2px; }
+.atc-cell{
+  flex:1; height:9px; border-radius:2px;
+  background: rgba(237,230,214,.09);
+}
+.atc-cell.filled{
+  background: var(--atc-team);
+  box-shadow: 0 0 6px var(--atc-team-soft);
+}
+/* The last rung is the bull — kept distinct from the numbers in both states so it reads as the finish. */
+.atc-cell.bull{ background: rgba(233,194,106,.22); }
+.atc-cell.bull.filled{
+  background: var(--brass-bright);
+  box-shadow: 0 0 8px rgba(233,194,106,.7);
+}
+.atc-remaining{
+  margin-left:8px; min-width:30px; text-align:right;
+  font-family:'Big Shoulders Display', sans-serif; font-weight:800; font-size:18px;
+  color: var(--chalk-dim);
+}
+.atc-row.done .atc-remaining{ color: var(--brass-bright); }

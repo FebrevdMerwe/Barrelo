@@ -47,25 +47,40 @@ public class X01GameProgressionTests
     }
 
     [Fact]
-    public async Task Explicit_end_of_turn_after_a_completed_visit_does_not_double_advance()
+    public async Task Three_darts_do_not_hand_over_the_turn_on_their_own()
     {
-        // Detection sources (e.g. AutoDarts) fire an EndOfTurn event once the board is cleared,
-        // regardless of whether the visit already auto-ended (3 darts thrown, bust, or checkout).
-        // That EndOfTurn must be a no-op in that case, or the turn skips straight past the next
-        // player and lands back on the one who just threw.
+        // The oche changes hands when the darts come out of the board, not when the third one goes in —
+        // a detection source reports that takeout as EndOfTurn, and only that advances the player.
         var p1 = Guid.NewGuid();
         var p2 = Guid.NewGuid();
         var game = await X01TestGame.Create([p1, p2]);
 
         await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
         await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
-        await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None); // 3rd dart auto-advances to p2
+        await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
+
+        (await game.GetState()).CurrentPlayerId.Should().Be(p1);
+        (await game.Payload()).CurrentVisitThrows.Should().HaveCount(3);
+
+        await game.ReceiveEndOfTurn(CancellationToken.None);
 
         (await game.GetState()).CurrentPlayerId.Should().Be(p2);
+    }
 
-        await game.ReceiveEndOfTurn(CancellationToken.None); // hardware confirms the same visit ended
+    [Fact]
+    public async Task A_fourth_dart_before_end_of_turn_is_refused()
+    {
+        var p1 = Guid.NewGuid();
+        var game = await X01TestGame.Create([p1, Guid.NewGuid()]);
 
-        (await game.GetState()).CurrentPlayerId.Should().Be(p2);
+        await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
+        await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
+        await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
+
+        var act = () => game.ReceiveThrow(TestThrow.Of(Ring.Triple, 20), CancellationToken.None);
+
+        await act.Should().ThrowAsync<GameRuleViolationException>();
+        (await game.Payload()).GroupFor(p1).RemainingScore.Should().Be(501); // and it scored nothing
     }
 
     [Fact]

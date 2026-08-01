@@ -72,7 +72,8 @@ flowchart LR
 
 ## Features
 
-- 🎯 **Plugin-based games** — ships with **X01** (301/501/701, double-out) and **Cricket** today; see
+- 🎯 **Plugin-based games** — ships with **X01** (301/501/701, double-out), **Cricket**, **Kickoff** and
+  **Around The Clock** (race 1→20 then finish on the bull) today; see
   [Adding a new game](#adding-a-new-game) to add your own.
 - 🖱️ **Play with zero hardware** — click a virtual SVG dartboard, or drive throws through the standalone
   **Board Simulator** tool over WebSocket.
@@ -147,7 +148,8 @@ No .NET SDK, no clone, no build — just download and run:
 
    Manual entry via the on-screen dartboard works either way, with or without the simulator running.
 
-The package bundles the built-in game plugins (`plugins/x01`, `plugins/cricket`, `plugins/kickoff`) and the
+The package bundles the built-in game plugins (`plugins/x01`, `plugins/cricket`, `plugins/kickoff`,
+`plugins/around-the-clock`) and the
 Board Simulator tool together, so a full match is playable immediately with zero real hardware. Published for
 win-x64 and linux-x64. To change ports, database location, or detection mode, edit `appsettings.json` next to
 the Api executable — see [Configuration](#configuration).
@@ -640,6 +642,8 @@ src/
   Games/
     Barrelo.Games.X01          reference game: classic 301/501/701
     Barrelo.Games.Cricket       reference game: standard Cricket
+    Barrelo.Games.Kickoff       reference game: one shared ball, two goals
+    Barrelo.Games.AroundTheClock  reference game: 1→20 then the bull, doubles/trebles jump
 tests/
   Barrelo.*.UnitTests / .IntegrationTests   one per src/ project, plus tests/Games/* per game plugin
 tools/
@@ -661,7 +665,8 @@ dotnet test Barrelo.slnx
 
 Test projects mirror the solution layout 1:1 — `Barrelo.Domain.UnitTests`, `Barrelo.Application.UnitTests`,
 `Barrelo.GameSdk.UnitTests`, `Barrelo.Infrastructure.IntegrationTests`, `Barrelo.Api.IntegrationTests`, and
-`tests/Games/Barrelo.Games.X01.UnitTests` / `Barrelo.Games.Cricket.UnitTests` for the rules engines. The
+`tests/Games/Barrelo.Games.X01.UnitTests` / `Barrelo.Games.Cricket.UnitTests` /
+`Barrelo.Games.Kickoff.UnitTests` / `Barrelo.Games.AroundTheClock.UnitTests` for the rules engines. The
 integration tests script full matches end-to-end (mock stream and pure manual entry) through the real
 dispatcher/plugin-loader stack — the primary correctness gate before any UI change.
 

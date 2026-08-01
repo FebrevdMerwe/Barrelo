@@ -107,14 +107,24 @@
     }
   }
 
+  /* A visit is full at three darts but does not end there — only a takeout (End turn) hands the oche
+     over, which is what a detection source reports. So a fourth dart is refused by the game, and the
+     board has to say so rather than let someone tap into a rejected request. */
+  function visitIsFull(snapshot) {
+    return visitThrows(snapshot).length >= 3;
+  }
+
   function updateDrawerCopy(snapshot) {
     var name = playerNames[currentPlayerOf(snapshot)] || "—";
+    var full = visitIsFull(snapshot);
     var dartNum = Math.min(visitThrows(snapshot).length + 1, 3);
     peekTurnEl.textContent = snapshot.isComplete ? "Match complete" : name + "'s turn";
     peekSubEl.textContent = snapshot.isComplete
       ? "Tap below to start a new match"
-      : "Dart " + dartNum + " of 3 · tap to throw";
-    openTitleEl.textContent = "Dart " + dartNum + " of 3";
+      : full
+        ? "Three darts in · end the turn"
+        : "Dart " + dartNum + " of 3 · tap to throw";
+    openTitleEl.textContent = full ? "Three darts in — end the turn" : "Dart " + dartNum + " of 3";
     drawerPeek.disabled = snapshot.isComplete;
   }
 
@@ -163,8 +173,9 @@
     updateDrawerCopy(snapshot);
     renderLedger(snapshot);
 
-    dartboard.setDisabled(snapshot.isComplete);
+    dartboard.setDisabled(snapshot.isComplete || visitIsFull(snapshot));
     dartboard.setDeadTargets((displayHint && displayHint.deadTargets) || []);
+    document.getElementById("btnMiss").disabled = snapshot.isComplete || visitIsFull(snapshot);
 
     legMetaEl.textContent = snapshot.isComplete ? "Match complete" : legMetaOf(snapshot);
 

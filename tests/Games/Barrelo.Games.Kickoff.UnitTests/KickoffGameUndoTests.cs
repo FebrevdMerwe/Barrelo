@@ -40,7 +40,7 @@ public class KickoffGameUndoTests
     }
 
     [Fact]
-    public async Task Undo_of_the_third_kick_in_a_visit_restores_turn_ownership()
+    public async Task Undo_of_the_end_of_turn_after_a_full_visit_restores_possession()
     {
         var side0 = Guid.NewGuid();
         var side1 = Guid.NewGuid();
@@ -48,15 +48,16 @@ public class KickoffGameUndoTests
 
         await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
         await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
-        await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None); // 3rd kick auto-advances
+        await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
+        await game.ReceiveEndOfTurn(CancellationToken.None);
 
         (await game.GetState()).CurrentPlayerId.Should().Be(side1);
 
-        await game.UndoLastThrow(CancellationToken.None); // undo the 3rd kick
+        await game.UndoLastThrow(CancellationToken.None); // undo the takeout, not a kick
 
         var state = await game.GetState();
         state.CurrentPlayerId.Should().Be(side0);
-        (await game.Payload()).CurrentVisitThrows.Should().HaveCount(2);
+        (await game.Payload()).CurrentVisitThrows.Should().HaveCount(3);
     }
 
     [Fact]

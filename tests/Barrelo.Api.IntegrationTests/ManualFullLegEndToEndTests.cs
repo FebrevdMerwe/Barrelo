@@ -37,10 +37,11 @@ public class ManualFullLegEndToEndTests(BarreloApiFactory factory) : IClassFixtu
         await Throw(1, Ring.InnerSingle);
         await EndTurn(); // P1 remaining: 41 -> 40
 
-        // P2 visit 1: three misses.
+        // P2 visit 1: three misses, then the takeout — three darts on their own never hand the oche over.
         await Throw(0, Ring.Miss);
         await Throw(0, Ring.Miss);
         await Throw(0, Ring.Miss);
+        await EndTurn();
 
         // P1 visit 2: busts (40 - 60 < 0).
         var busted = await Throw(20, Ring.Triple);
@@ -66,10 +67,11 @@ public class ManualFullLegEndToEndTests(BarreloApiFactory factory) : IClassFixtu
         legOneWon.LegNumber.Should().Be(2);
         legOneWon.CurrentPlayerId.Should().Be(p2);
 
-        // P2 visit (leg 2): three misses.
+        // P2 visit (leg 2): three misses, then the takeout.
         await Throw(0, Ring.Miss);
         await Throw(0, Ring.Miss);
         await Throw(0, Ring.Miss);
+        await EndTurn();
 
         // P1 visit (leg 2), remaining 41: finish with a double checkout to win leg 2 and the match.
         await Throw(13, Ring.Triple); // 41 -> 2

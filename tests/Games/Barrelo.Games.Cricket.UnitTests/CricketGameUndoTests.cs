@@ -41,7 +41,7 @@ public class CricketGameUndoTests
     }
 
     [Fact]
-    public async Task Undo_of_the_third_dart_in_a_visit_restores_turn_ownership()
+    public async Task Undo_of_the_end_of_turn_after_a_full_visit_restores_turn_ownership()
     {
         var p1 = Guid.NewGuid();
         var p2 = Guid.NewGuid();
@@ -49,15 +49,16 @@ public class CricketGameUndoTests
 
         await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
         await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
-        await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None); // 3rd dart auto-advances the turn
+        await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
+        await game.ReceiveEndOfTurn(CancellationToken.None);
 
         (await game.GetState()).CurrentPlayerId.Should().Be(p2);
 
-        await game.UndoLastThrow(CancellationToken.None); // undo the 3rd dart
+        await game.UndoLastThrow(CancellationToken.None); // undo the takeout, not a dart
 
         var state = await game.GetState();
-        state.CurrentPlayerId.Should().Be(p1); // turn ownership reverts, not advanced to P2
-        (await game.Payload()).CurrentVisitThrows.Should().HaveCount(2);
+        state.CurrentPlayerId.Should().Be(p1);
+        (await game.Payload()).CurrentVisitThrows.Should().HaveCount(3);
     }
 
     [Fact]
@@ -66,10 +67,21 @@ public class CricketGameUndoTests
         var p1 = Guid.NewGuid();
         var game = await CricketTestGame.Create([p1]); // solo game: wins the instant it closes everything
 
-        foreach (var segment in new[] { 20, 19, 18, 17, 16, 15 })
-            await game.ReceiveThrow(TestThrow.Of(Ring.Triple, segment), CancellationToken.None);
-        await game.ReceiveThrow(TestThrow.Of(Ring.Single, 25), CancellationToken.None); // bull 1/3
-        await game.ReceiveThrow(TestThrow.Of(Ring.Double, 25), CancellationToken.None); // bull closes -> wins outright
+        DetectedThrow[] darts =
+        [
+            TestThrow.Of(Ring.Triple, 20), TestThrow.Of(Ring.Triple, 19), TestThrow.Of(Ring.Triple, 18),
+            TestThrow.Of(Ring.Triple, 17), TestThrow.Of(Ring.Triple, 16), TestThrow.Of(Ring.Triple, 15),
+            TestThrow.Of(Ring.Single, 25),  // bull 1/3
+            TestThrow.Of(Ring.Double, 25),  // bull closes -> wins outright
+        ];
+
+        for (var i = 0; i < darts.Length; i++)
+        {
+            // Nothing ends a visit on dart count, so the takeout between visits has to be explicit.
+            if (i > 0 && i % 3 == 0)
+                await game.ReceiveEndOfTurn(CancellationToken.None);
+            await game.ReceiveThrow(darts[i], CancellationToken.None);
+        }
 
         (await game.GetState()).IsComplete.Should().BeTrue();
 

@@ -20,6 +20,13 @@ namespace Barrelo.Games.Cricket;
 /// </summary>
 public sealed class CricketGame : IGame
 {
+    /// <summary>
+    /// A visit holds at most this many darts, but reaching it does not end the visit — only an explicit
+    /// EndOfTurn does. Turn order follows the physical takeout, which is what a detection source reports,
+    /// so the throwing player stays on the oche until the darts actually leave the board.
+    /// </summary>
+    private const int DartsPerVisit = 3;
+
     private enum LogEntryKind { Throw, EndOfTurn }
 
     private sealed record LogEntry(LogEntryKind Kind, DetectedThrow? Throw);
@@ -48,6 +55,7 @@ public sealed class CricketGame : IGame
     public Task ReceiveThrow(DetectedThrow detectedThrow, CancellationToken ct)
     {
         EnsureNotComplete();
+        EnsureVisitHasRoom();
         _log.Add(new LogEntry(LogEntryKind.Throw, detectedThrow));
         Rebuild();
         return Task.CompletedTask;
@@ -117,6 +125,18 @@ public sealed class CricketGame : IGame
             throw new GameRuleViolationException("The game has already finished.");
     }
 
+    /// <summary>
+    /// Nothing ends a visit on dart count any more, so a fourth dart would otherwise keep scoring for a
+    /// player whose three darts are already in the board — and stay invisible, since the visit is only
+    /// ever displayed three darts wide. Refusing it surfaces the missing takeout instead.
+    /// </summary>
+    private void EnsureVisitHasRoom()
+    {
+        if (_currentVisitThrows.Count >= DartsPerVisit)
+            throw new GameRuleViolationException(
+                "This visit already has three darts — end the turn before throwing again.");
+    }
+
     private void Rebuild()
     {
         var distinctGroups = _players.Select(id => _groupByPlayer[id]).Distinct();
@@ -130,27 +150,17 @@ public sealed class CricketGame : IGame
         _isComplete = false;
         _winnerPlayerIds = null;
 
-        // A visit can end two ways that both land in the log: an explicit EndOfTurn (from the UI or a
-        // detection source) or this loop noticing the 3rd dart on its own. Detection sources (e.g.
-        // AutoDarts) fire EndOfTurn unconditionally once the board is cleared, even for a visit this
-        // loop already ended — so an EndOfTurn immediately following an auto-ended visit must be a
-        // no-op, or the player would get advanced twice for the same physical turn.
-        var turnAlreadyEnded = false;
-
+        // EndOfTurn is the only thing that hands the oche over: no Cricket rule cuts a visit short, and
+        // dart count deliberately doesn't either. A detection source fires EndOfTurn once the board is
+        // cleared, so the player keeps the throw until their darts are physically out of the board.
         foreach (var entry in _log)
         {
             if (entry.Kind == LogEntryKind.EndOfTurn)
             {
-                if (!turnAlreadyEnded)
-                {
-                    AdvanceToNextPlayer();
-                    _currentVisitThrows = [];
-                }
-                turnAlreadyEnded = false;
+                AdvanceToNextPlayer();
+                _currentVisitThrows = [];
                 continue;
             }
-
-            turnAlreadyEnded = false;
 
             var detectedThrow = entry.Throw!;
             var throwingPlayerId = _players[_currentPlayerIndex];
@@ -166,13 +176,6 @@ public sealed class CricketGame : IGame
                 _isComplete = true;
                 _winnerPlayerIds = group.MemberPlayerIds;
                 break;
-            }
-
-            if (_currentVisitThrows.Count == 3)
-            {
-                turnAlreadyEnded = true;
-                AdvanceToNextPlayer();
-                _currentVisitThrows = [];
             }
         }
     }

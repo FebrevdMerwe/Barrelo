@@ -65,18 +65,40 @@ public class CricketGameProgressionTests
     }
 
     [Fact]
-    public async Task Turn_advances_after_three_darts()
+    public async Task Three_darts_do_not_hand_over_the_turn_on_their_own()
     {
         var p1 = Guid.NewGuid();
         var p2 = Guid.NewGuid();
         var game = await CricketTestGame.Create([p1, p2]);
 
+        // The oche changes hands when the darts come out of the board, not when the third one goes in —
+        // a detection source reports that takeout as EndOfTurn, and only that advances the player.
         await game.ReceiveThrow(TestThrow.Of(Ring.OuterSingle, 7), CancellationToken.None);
         await game.ReceiveThrow(TestThrow.Of(Ring.OuterSingle, 7), CancellationToken.None);
-        (await game.GetState()).CurrentPlayerId.Should().Be(p1);
         await game.ReceiveThrow(TestThrow.Of(Ring.OuterSingle, 7), CancellationToken.None);
 
+        (await game.GetState()).CurrentPlayerId.Should().Be(p1);
+        (await game.Payload()).CurrentVisitThrows.Should().HaveCount(3);
+
+        await game.ReceiveEndOfTurn(CancellationToken.None);
+
         (await game.GetState()).CurrentPlayerId.Should().Be(p2);
+    }
+
+    [Fact]
+    public async Task A_fourth_dart_before_end_of_turn_is_refused()
+    {
+        var p1 = Guid.NewGuid();
+        var game = await CricketTestGame.Create([p1, Guid.NewGuid()]);
+
+        await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
+        await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
+        await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
+
+        var act = () => game.ReceiveThrow(TestThrow.Of(Ring.Triple, 20), CancellationToken.None);
+
+        await act.Should().ThrowAsync<GameRuleViolationException>();
+        (await game.Payload()).GroupFor(p1).Marks[0].Should().Be(0); // and it scored nothing
     }
 
     [Fact]

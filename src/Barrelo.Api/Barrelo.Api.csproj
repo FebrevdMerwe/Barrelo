@@ -27,6 +27,7 @@
     <ProjectReference Include="..\Games\Barrelo.Games.X01\Barrelo.Games.X01.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Games\Barrelo.Games.Cricket\Barrelo.Games.Cricket.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Games\Barrelo.Games.Kickoff\Barrelo.Games.Kickoff.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Games\Barrelo.Games.AroundTheClock\Barrelo.Games.AroundTheClock.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!--

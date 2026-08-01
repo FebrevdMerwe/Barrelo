@@ -92,20 +92,39 @@ public class KickoffGameScoringRulesTests
     }
 
     [Fact]
-    public async Task Three_kicks_with_no_goal_or_out_ends_the_visit_and_alternates_sides()
+    public async Task Three_kicks_with_no_goal_or_out_keep_possession_until_end_of_turn()
     {
         var side0 = Guid.NewGuid();
         var side1 = Guid.NewGuid();
         var game = await KickoffTestGame.Create([side0, side1]);
 
+        // Only a rule (out of play, or a goal) or the physical takeout hands the ball over — kick count
+        // on its own does not.
         await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
         await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
-        (await game.GetState()).CurrentPlayerId.Should().Be(side0);
+        await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
 
-        await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None); // 3rd kick auto-advances
+        (await game.GetState()).CurrentPlayerId.Should().Be(side0);
+        (await game.Payload()).CurrentVisitThrows.Should().HaveCount(3);
+
+        await game.ReceiveEndOfTurn(CancellationToken.None);
 
         var state = await game.GetState();
         state.CurrentPlayerId.Should().Be(side1);
         (await game.Payload()).CurrentVisitThrows.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_fourth_kick_before_end_of_turn_is_refused()
+    {
+        var game = await KickoffTestGame.Create([Guid.NewGuid(), Guid.NewGuid()]);
+
+        await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
+        await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
+        await game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
+
+        var act = () => game.ReceiveThrow(TestThrow.Of(Ring.Miss), CancellationToken.None);
+
+        await act.Should().ThrowAsync<GameRuleViolationException>();
     }
 }

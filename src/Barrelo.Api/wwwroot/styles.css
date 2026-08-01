@@ -317,6 +317,9 @@ body{
 .pull-btn:focus-visible{ outline: 3px solid var(--brass-bright); outline-offset:2px; }
 .pull-btn.warn:hover{ border-color: var(--board-red); }
 .pull-btn.go:hover{ border-color: var(--board-green); }
+/* Matches #dartboard.disabled below — both go dead together once a visit is full and only End turn is left. */
+.pull-btn:disabled{ opacity:.45; cursor:default; }
+.pull-btn:disabled:hover{ border-color: var(--brass-dim); background: linear-gradient(180deg, #2a463c, #1a2e27); }
 
 /* ---------- per-game board region ---------- */
 .game-board-wrap{

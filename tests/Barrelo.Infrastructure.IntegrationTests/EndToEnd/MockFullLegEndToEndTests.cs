@@ -1,5 +1,6 @@
 using Barrelo.Application;
 using Barrelo.Application.Commands.Detection.RecordDetectedThrow;
+using Barrelo.Application.Commands.Detection.RecordEndOfTurn;
 using Barrelo.Application.Commands.Matches.StartMatch;
 using Barrelo.Application.Common.Dispatch;
 using Barrelo.Application.Common.Interfaces.Persistence;
@@ -76,36 +77,45 @@ public class MockFullLegEndToEndTests : IAsyncLifetime
         startResult.IsError.Should().BeFalse();
         var matchId = startResult.Value.MatchId;
 
+        // Every visit boundary is an explicit EndTurn: dart count alone never hands the oche over, so
+        // this mirrors the takeout a detection source reports once the board is cleared.
+
         // P1 visit 1: 501 -> 321
         await Throw(20, Ring.Triple);
         await Throw(20, Ring.Triple);
         await Throw(20, Ring.Triple);
+        await EndTurn();
 
         // P2 visit 1: all misses, irrelevant to who wins
         await Throw(0, Ring.Miss);
         await Throw(0, Ring.Miss);
         await Throw(0, Ring.Miss);
+        await EndTurn();
 
         // P1 visit 2: 321 -> 141
         await Throw(20, Ring.Triple);
         await Throw(20, Ring.Triple);
         await Throw(20, Ring.Triple);
+        await EndTurn();
 
         // P2 visit 2
         await Throw(0, Ring.Miss);
         await Throw(0, Ring.Miss);
         await Throw(0, Ring.Miss);
+        await EndTurn();
 
         // P1 visit 3: 141 -> 21 -> 20 (deliberately not a checkout dart, to set up the finish next visit)
         await Throw(20, Ring.Triple);
         await Throw(20, Ring.Triple);
         var afterVisit3 = await Throw(1, Ring.InnerSingle);
         afterVisit3.Payload.Should().NotBeNull();
+        await EndTurn();
 
         // P2 visit 3
         await Throw(0, Ring.Miss);
         await Throw(0, Ring.Miss);
         await Throw(0, Ring.Miss);
+        await EndTurn();
 
         // P1 visit 4: 20 -> 0 via Double10, a valid double-out checkout -> leg (and match) won
         var finalState = await Throw(10, Ring.Double);
@@ -120,6 +130,12 @@ public class MockFullLegEndToEndTests : IAsyncLifetime
             var result = await _dispatcher.Send(new RecordDetectedThrowCommand(segment, ring), CancellationToken.None);
             result.IsError.Should().BeFalse(because: string.Join(", ", result.ErrorsOrEmptyList.Select(e => e.Description)));
             return result.Value;
+        }
+
+        async Task EndTurn()
+        {
+            var result = await _dispatcher.Send(new RecordEndOfTurnCommand(), CancellationToken.None);
+            result.IsError.Should().BeFalse(because: string.Join(", ", result.ErrorsOrEmptyList.Select(e => e.Description)));
         }
     }
 }
