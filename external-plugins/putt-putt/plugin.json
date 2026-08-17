@@ -2,9 +2,17 @@
   "protocolVersion": 2,
   "gameId": "putt-putt",
   "displayName": "Putt Putt",
-  "description": "Nine holes of mini golf. The angle from the bull aims your putt, the distance from it is your power.",
+  "description": "Nine holes of mini golf, solo or in teams. The angle from the bull aims your putt, the distance from it is your power.",
   "stateOwner": "client",
   "settings": [
+    {
+      "kind": "playerGroup",
+      "key": "teams",
+      "displayName": "Teams",
+      "maxGroups": 8,
+      "maxPlayersPerGroup": 8,
+      "minGroups": 1
+    },
     {
       "kind": "gameMode",
       "key": "course",

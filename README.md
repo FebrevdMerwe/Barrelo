@@ -10,25 +10,204 @@
 ![Plugin architecture](https://img.shields.io/badge/games-plugin_architecture-c89b3c)
 ![Status](https://img.shields.io/badge/status-v1_in_progress-a5312a)
 
-**A dart platform, not a scoring app.** Detection is decoupled from game rules, and game rules are decoupled
-from the core — so new games (and new detectors) plug in without touching the platform.
+**A dart platform, not a scoring app.** Self-hosted, local-first, and playable with or without a real board.
 
-[Overview](#overview) · [Quick start](#quick-start) · [Running a release package](#running-a-release-package) ·
-[Playing without hardware](#playing-without-hardware) ·
-[Configuration](#configuration) · [Adding a game](#adding-a-new-game) ·
-[Adding a detector](#adding-a-new-dart-detector) · [Building your own package](#building-your-own-package) ·
-[Project layout](#project-layout) · [Testing](#testing) · [Roadmap](#roadmap)
+[Install](#install) · [Your first match](#your-first-match) ·
+[Playing without hardware](#playing-without-hardware) · [Configuration](#configuration) ·
+[Run it as a service](#keep-it-running-linux-systemd) · [Troubleshooting](#troubleshooting) ·
+[Contributing](#contributing)
 
 </div>
 
 ---
 
-## Overview
+## What you get
 
-Barrelo is a self-hosted dart platform built around one idea: **detecting a dart, running a game's rules, and
-showing a scoreboard are three separate concerns.** Any detector (a real board, a hand-drawn dartboard
-clicked in a browser, a mock stream) can drive any game, and any game can be added as a plugin without
-recompiling — or even restarting — the core.
+- 🎯 **Six games out of the box** — **X01** (301/501/701, double-out), **Cricket**, **Kickoff**,
+  **Around The Clock** (race 1→20, finish on the bull), **Killer** (hit your double, then take your
+  opponents' lives), and **Putt Putt** (mini golf — the angle from the bull aims your putt, the distance
+  from it is your power).
+- 📡 **Works with your real board** — connects to a local [Autodarts](https://autodarts.com) board manager
+  over its event stream. Any other detector is one small `IDetectionSource` away.
+- 🖱️ **Play with zero hardware** — click a virtual dartboard in the browser, or drive throws from the
+  bundled **Board Simulator**.
+- ⚡ **Live scoreboard** — every throw, undo, and turn change is pushed to every connected browser
+  instantly. Put a TV on the scoreboard and a tablet on the scoring page.
+- 👥 **Roster & teams** — drag-and-drop chalkboard for sorting players into teams and spectators.
+  Permanent players are saved; session-only "chalked" players disappear on restart.
+- 🏆 **Session leaderboard** — completed matches award placement points, shown in the win banner and
+  resettable per session.
+- 🗄️ **Local-first** — SQLite, no accounts, no cloud, no external services. Everything runs on the one
+  machine next to the board.
+- 🔌 **Plugin games** — a game is a folder dropped in `plugins/`. Add one without rebuilding Barrelo.
+
+## Install
+
+No .NET install, no clone, no build — download and run.
+
+### 1. Download
+
+Grab the latest release for your platform from [Releases](../../releases) and unzip it anywhere:
+
+| Platform | File |
+|---|---|
+| Windows | `Barrelo-*-win-x64.zip` |
+| Linux (x64) | `Barrelo-*-linux-x64.zip` |
+
+The package is self-contained (no separate .NET runtime needed) and bundles all six built-in games plus
+the Board Simulator tool.
+
+### 2. Run it
+
+**Windows** — double-click `Barrelo.Api.exe`, or run it from a terminal in that folder.
+
+**Linux** — zip archives don't preserve the executable bit, so make it runnable once:
+
+```bash
+chmod +x Barrelo.Api tools/BoardSimulator/Barrelo.BoardSimulator
+./Barrelo.Api
+```
+
+On first launch it creates its own `barrelo.db` (SQLite) next to the executable and applies migrations
+automatically. There is nothing to set up.
+
+### 3. Open it
+
+Go to **http://localhost:5295** in a browser. That's the chalkboard start screen — add players, pick a
+game, start a match. See [Configuration](#configuration) to change the port or reach it from other
+devices on your LAN.
+
+> **Prefer to build from source?** See [Building from source](#building-from-source) under Contributing.
+
+## Your first match
+
+1. Open **http://localhost:5295**.
+2. On the chalkboard, type a name and add a player. Repeat for everyone playing — or drag existing
+   players in from the saved list. Players you add on the fly are session-only and vanish on restart;
+   saved players persist.
+3. Drag players into teams if the game uses them, and anyone sitting out into spectators.
+4. Pick a game (X01, Cricket, Kickoff, Around The Clock, Killer, Putt Putt) and set its options —
+   starting score, course length, etc. Killer needs at least two players.
+5. Hit **Start match**.
+6. Score throws by clicking the on-screen dartboard. No hardware required — see
+   [Playing without hardware](#playing-without-hardware).
+
+Every screen pointed at the app updates live, so you can leave a TV on the scoreboard view while
+scoring from a phone or tablet.
+
+## Playing without hardware
+
+Barrelo is fully playable with no physical dartboard, in two ways.
+
+**Manual entry — always on.** The on-screen virtual dartboard records every click as a throw,
+regardless of which detector (if any) is configured. This is a first-class way to play, not a fallback.
+
+**Board Simulator — a stand-in detector.** A standalone app bundled with the release that behaves like a
+real board over WebSocket, so you can test the full detection path. Start it from the unzipped folder:
+
+- Windows: `tools\BoardSimulator\Barrelo.BoardSimulator.exe`
+- Linux: `./tools/BoardSimulator/Barrelo.BoardSimulator`
+
+It listens on **http://localhost:5250**. To have Barrelo consume it, set `Detection:Mode` to `Simulator`
+in `appsettings.json` next to `Barrelo.Api` and restart:
+
+```jsonc
+"Detection": {
+  "Mode": "Simulator",
+  "Simulator": { "Url": "ws://localhost:5250/stream" }
+}
+```
+
+Throws made in the simulator's own browser tab then appear live on the match.
+
+## Using a real board (Autodarts)
+
+Barrelo ships pointed at a local [Autodarts](https://autodarts.com) board manager (`Detection:Mode` is
+`AutoDarts` by default) — software you already run on your own machine. Barrelo doesn't bundle, replace,
+or redistribute it, and needs no Autodarts cloud account. Set `Detection:AutoDarts:Url` to your board
+manager's event stream — usually `ws://<board-manager-host>:3180/api/events` — in `appsettings.json`,
+then restart.
+
+The connection reconnects on its own with backoff; the board pill in the header shows whether it's
+currently up. Manual entry keeps working either way, so a board that drops out never blocks a match.
+
+## Configuration
+
+All settings live in `appsettings.json` next to the `Barrelo.Api` executable (or
+[`src/Barrelo.Api/appsettings.json`](src/Barrelo.Api/appsettings.json) when running from source). Standard
+ASP.NET Core conventions apply — override any key with an environment variable (`Detection__Mode=Mock`)
+or an `appsettings.Production.json`.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `Urls` | `https://localhost:7123;http://localhost:5295` | Addresses the Api binds to. Use `http://0.0.0.0:5295` to reach it from other devices on your LAN. |
+| `ConnectionStrings:BarreloDb` | `Data Source=barrelo.db` | SQLite connection string — where the database file lives. |
+| `Plugins:Directory` | `plugins` | Folder (relative to the Api's working directory) scanned for game plugins on startup. |
+| `Detection:Mode` | `AutoDarts` | Which detector to run: `AutoDarts` (a local Autodarts board manager), `Simulator` (Board Simulator over WebSocket), or `Mock` (in-process, driven only by tests/code). Manual entry works regardless. |
+| `Detection:AutoDarts:Url` | `ws://192.168.68.5:3180/api/events` | Event-stream endpoint of your Autodarts board manager. **Change this to your own board's address.** |
+| `Detection:Simulator:Url` | `ws://localhost:5250/stream` | WebSocket endpoint of a running Board Simulator. |
+
+## Keep it running (Linux, systemd)
+
+For a headless box next to the board — a Proxmox LXC, a Raspberry Pi — run the Api as a `systemd` service
+so it survives reboots and crashes:
+
+```ini
+# /etc/systemd/system/barrelo.service
+[Unit]
+Description=Barrelo dart platform
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/barrelo
+ExecStart=/opt/barrelo/Barrelo.Api
+Restart=always
+RestartSec=5
+Environment=ASPNETCORE_ENVIRONMENT=Production
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+systemctl daemon-reload && systemctl enable --now barrelo
+```
+
+By default the Api only binds to `localhost`. To reach it from other devices, add
+`"Urls": "http://0.0.0.0:5295"` to an `appsettings.Production.json` next to `Barrelo.Api`.
+
+Deploying over SSH to a home server? [`deploy/README.md`](deploy/README.md) has a one-command
+publish-and-restart script.
+
+## Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| Nothing at `http://localhost:5295` | Is the process still running? Look at its console output — a port already in use is reported there. Change the port with `Urls` in `appsettings.json`. |
+| Can't reach it from another device | The Api binds to `localhost` only by default. Set `"Urls": "http://0.0.0.0:5295"` and open the port in the firewall. |
+| Board pill shows disconnected | `Detection:AutoDarts:Url` still points at the shipped default address. Set it to your own board manager. Manual entry works meanwhile. |
+| Simulator throws don't show up | `Detection:Mode` must be `Simulator` — the shipped default is `AutoDarts`. Restart after changing it. |
+| A game is missing from the picker | Plugins are scanned once at startup — restart after adding one. For a client-owned game, the folder name must match its `gameId` exactly; the Api logs a warning on startup if it doesn't. |
+| Want a clean slate | Stop the Api and delete `barrelo.db`. It's recreated on next launch. |
+
+---
+
+# Contributing
+
+Everything below is for developing Barrelo itself, or extending it with your own games and detectors.
+
+[Architecture](#architecture) · [Building from source](#building-from-source) ·
+[Project layout](#project-layout) · [Testing](#testing) · [Adding a game](#adding-a-new-game) ·
+[Client-owned games](#client-owned-games-any-ui-engine-no-net) ·
+[Adding a detector](#adding-a-new-dart-detector) ·
+[Building your own package](#building-your-own-package)
+
+## Architecture
+
+Barrelo is built around one idea: **detecting a dart, running a game's rules, and showing a scoreboard are
+three separate concerns.** Any detector can drive any game, and any game can be added as a plugin without
+recompiling the core.
 
 ```mermaid
 flowchart LR
@@ -67,35 +246,12 @@ flowchart LR
   the core.
 - **Detector-agnostic** — every detector, real or simulated, speaks the same `IDetectionSource` contract.
 - **Fast & live** — every throw pushes an updated scoreboard over SignalR; no polling, no page refresh.
-- **Hardware-optional** — a full match is playable from a browser with no board at all, via a virtual
-  dartboard or the standalone Board Simulator.
+- **Hardware-optional** — a full match is playable from a browser with no board at all.
 
-## Features
+[`PLAN.md`](PLAN.md) has the full architectural rationale: why an in-house dispatcher instead of MediatR,
+why plugins load via a collectible `AssemblyLoadContext`, the detection-source design history.
 
-- 🎯 **Plugin-based games** — ships with **X01** (301/501/701, double-out), **Cricket**, **Kickoff** and
-  **Around The Clock** (race 1→20 then finish on the bull) today; see
-  [Adding a new game](#adding-a-new-game) to add your own.
-- 🖱️ **Play with zero hardware** — click a virtual SVG dartboard, or drive throws through the standalone
-  **Board Simulator** tool over WebSocket.
-- ⚡ **Live scoreboard** — every throw, undo, and turn change is pushed to every connected browser instantly
-  via SignalR.
-- 👥 **Roster & teams** — a drag-and-drop chalkboard for sorting players into teams/spectators, permanent
-  players (persisted) and session-only "chalked" players (memory-only, gone when the process restarts).
-  Deleted players can be undone within a few seconds.
-  <!-- <img src="docs/screenshot-start.png" width="720" alt="Start-match chalkboard screenshot"> -->
-- 🏆 **Session leaderboard** — every completed match awards placement points; a running leaderboard is shown
-  in the win banner and can be reset per session.
-  <!-- <img src="docs/screenshot-match.png" width="720" alt="Live match screenshot"> -->
-- 🔌 **Dynamic plugin loading** — game DLLs load into a collectible `AssemblyLoadContext` at startup; delete
-  or rebuild a plugin independently and the host picks it up without a solution-wide rebuild.
-- 🗄️ **Local-first** — SQLite, no external services, no accounts, no cloud. Runs entirely on one machine next
-  to the board.
-
-> Screenshots aren't checked in yet — run the app locally (see [Quick start](#quick-start)) to see the
-> chalkboard start screen and live scoreboard for yourself, or drop your own into `docs/` and update the
-> `<img>` tags above.
-
-## Quick start
+## Building from source
 
 ### Prerequisites
 
@@ -117,107 +273,59 @@ dotnet run --project src/Barrelo.Api
 ```
 
 The API starts at **http://localhost:5295** (see
-[`src/Barrelo.Api/Properties/launchSettings.json`](src/Barrelo.Api/Properties/launchSettings.json)) and serves
-the web UI itself — open that URL in a browser to reach the chalkboard start screen. In `Development`, an
-OpenAPI/Scalar reference is also available at `/scalar`.
+[`src/Barrelo.Api/Properties/launchSettings.json`](src/Barrelo.Api/Properties/launchSettings.json)) and
+serves the web UI itself. In `Development`, an OpenAPI/Scalar reference is available at `/scalar`.
 
 Every `dotnet build` of the solution copies each game plugin's compiled DLL and `ui/` assets into
-`src/Barrelo.Api/plugins/{gameId}/` automatically (see [`Directory.Build.targets`](src/Games/Directory.Build.targets)) —
-there's no separate "install a plugin" step for the games that ship in this repo.
+`src/Barrelo.Api/plugins/{gameId}/` automatically (see
+[`Directory.Build.targets`](src/Games/Directory.Build.targets)) — there's no separate "install a plugin"
+step for the games that ship in this repo.
 
-## Running a release package
+To run the Board Simulator alongside it:
 
-No .NET SDK, no clone, no build — just download and run:
+```bash
+# terminal 1 — the simulator (defaults to http://localhost:5250)
+dotnet run --project tools/Barrelo.BoardSimulator
 
-1. Grab the latest release for your platform from [Releases](../../releases) and unzip it anywhere:
-   - Windows: `Barrelo-*-win-x64.zip`
-   - Linux (x64): `Barrelo-*-linux-x64.zip`
-2. Run the Api:
-   - Windows: double-click `Barrelo.Api.exe`, or run it from a terminal in that folder.
-   - Linux: zip archives don't preserve the executable bit, so run
-     `chmod +x Barrelo.Api tools/BoardSimulator/Barrelo.BoardSimulator` once, then `./Barrelo.Api`.
-
-   It's self-contained — no separate .NET runtime install needed — and applies EF Core migrations to its own
-   `barrelo.db` automatically on first launch.
-3. Open **http://localhost:5295** in a browser to reach the chalkboard start screen (the same URL as a
-   from-source run — see [Configuration](#configuration) to change it).
-4. Optional — for board-simulator play, also run the Board Simulator from the unzipped folder (defaults to
-   **http://localhost:5250**); the Api is configured to talk to it out of the box:
-   - Windows: `tools\BoardSimulator\Barrelo.BoardSimulator.exe`
-   - Linux: `./tools/BoardSimulator/Barrelo.BoardSimulator`
-
-   Manual entry via the on-screen dartboard works either way, with or without the simulator running.
-
-The package bundles the built-in game plugins (`plugins/x01`, `plugins/cricket`, `plugins/kickoff`,
-`plugins/around-the-clock`) and the
-Board Simulator tool together, so a full match is playable immediately with zero real hardware. Published for
-win-x64 and linux-x64. To change ports, database location, or detection mode, edit `appsettings.json` next to
-the Api executable — see [Configuration](#configuration).
-
-### Running continuously on Linux (systemd)
-
-For a headless box (e.g. a Proxmox LXC or a Raspberry Pi sitting next to the board), run the Api as a
-`systemd` service so it survives reboots and crashes:
-
-```ini
-# /etc/systemd/system/barrelo.service
-[Unit]
-Description=Barrelo dart platform
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/opt/barrelo
-ExecStart=/opt/barrelo/Barrelo.Api
-Restart=always
-RestartSec=5
-Environment=ASPNETCORE_ENVIRONMENT=Production
-
-[Install]
-WantedBy=multi-user.target
+# terminal 2 — the API, with Detection:Mode set to Simulator
+dotnet run --project src/Barrelo.Api
 ```
 
-Then `systemctl daemon-reload && systemctl enable --now barrelo`. By default the Api only binds to
-`localhost`; to reach it from other devices on your LAN, add `"Urls": "http://0.0.0.0:5295"` to an
-`appsettings.Production.json` next to `Barrelo.Api` — see [Configuration](#configuration).
+## Project layout
 
-## Playing without hardware
+```
+src/
+  Barrelo.Domain              domain entities/value objects — no dependency on GameSdk
+  Barrelo.Application         commands/queries, in-house dispatcher, IDetectionSource/IGameCatalog contracts
+  Barrelo.Infrastructure       EF Core (SQLite), plugin loader (ALC), detection sources, SignalR notifier plumbing
+  Barrelo.Api                 minimal-API endpoints, SignalR hub, static wwwroot UI, plugin static-asset hosting
+  Barrelo.GameSdk              dependency-free plugin contracts — the entire boundary a game plugin sees
+  Games/
+    Barrelo.Games.X01          reference game: classic 301/501/701
+    Barrelo.Games.Cricket       reference game: standard Cricket
+    Barrelo.Games.Kickoff       reference game: one shared ball, two goals
+    Barrelo.Games.AroundTheClock  reference game: 1→20 then the bull, doubles/trebles jump
+tests/
+  Barrelo.*.UnitTests / .IntegrationTests   one per src/ project, plus tests/Games/* per game plugin
+tools/
+  Barrelo.BoardSimulator       standalone, zero-Barrelo-dependency stand-in for a real detector
+external-plugins/              vendored, prebuilt game plugins (no source) — Killer, Putt Putt; see its own README
+diagrams/                     architecture diagrams (Mermaid)
+docs/                         README assets
+```
 
-Barrelo is designed to be fully playable with no physical dartboard, in two ways:
+## Testing
 
-1. **Manual entry (always on).** The start screen's virtual SVG dartboard
-   ([`wwwroot/dartboard.js`](src/Barrelo.Api/wwwroot/dartboard.js)) posts every click to
-   `POST /api/detection/manual-throw`, independent of whichever streaming detector is configured. This is a
-   first-class way to play, not a fallback.
-2. **Board Simulator (`tools/Barrelo.BoardSimulator`).** A standalone, dependency-free app that stands in for
-   a real detector behind the exact same `IDetectionSource` contract a real board adapter would use. Run it
-   alongside the API to drive throws over the same WebSocket path a hardware detector eventually will:
+```bash
+dotnet test Barrelo.slnx
+```
 
-   ```bash
-   # terminal 1 — the simulator (defaults to http://localhost:5250)
-   dotnet run --project tools/Barrelo.BoardSimulator
-
-   # terminal 2 — the API, configured to consume it (see Configuration below)
-   dotnet run --project src/Barrelo.Api
-   ```
-
-   With `Detection:Mode` set to `Simulator` (the shipped default in
-   [`appsettings.json`](src/Barrelo.Api/appsettings.json)), throws made in the simulator's own browser tab
-   appear live on any match bound to the simulator board.
-
-## Configuration
-
-All configuration lives in [`src/Barrelo.Api/appsettings.json`](src/Barrelo.Api/appsettings.json) (and the
-`.Development.json` override), following standard ASP.NET Core conventions — override any key with an
-environment variable (`Detection__Mode=Mock`) or `appsettings.Production.json` for a real deployment.
-
-| Key | Default | Meaning |
-|---|---|---|
-| `ConnectionStrings:BarreloDb` | `Data Source=barrelo.db` | SQLite connection string. |
-| `Plugins:Directory` | `plugins` | Folder (relative to the Api's working directory) scanned for game plugin DLLs on startup. |
-| `Detection:Mode` | `AutoDarts` | Which streaming `IDetectionSource` to run: `AutoDarts` (a local AutoDarts board manager), `Simulator` (Board Simulator over WebSocket) or `Mock` (in-process, driven only by tests/code). Manual REST entry works regardless of this setting. |
-| `Detection:Simulator:Url` | `ws://localhost:5250/stream` | WebSocket endpoint of a running `Barrelo.BoardSimulator` instance. |
-| `Detection:AutoDarts:Url` | `ws://localhost:3180/api/events` | Event-stream endpoint of the local AutoDarts board manager. The connection reconnects with backoff on its own; the header pill shows whether it is currently up. |
+Test projects mirror the solution layout 1:1 — `Barrelo.Domain.UnitTests`, `Barrelo.Application.UnitTests`,
+`Barrelo.GameSdk.UnitTests`, `Barrelo.Infrastructure.IntegrationTests`, `Barrelo.Api.IntegrationTests`, and
+`tests/Games/Barrelo.Games.X01.UnitTests` / `Barrelo.Games.Cricket.UnitTests` /
+`Barrelo.Games.Kickoff.UnitTests` / `Barrelo.Games.AroundTheClock.UnitTests` for the rules engines. The
+integration tests script full matches end-to-end (mock stream and pure manual entry) through the real
+dispatcher/plugin-loader stack — the primary correctness gate before any UI change.
 
 ## Adding a new game
 
@@ -363,7 +471,7 @@ clear message instead of letting the match fail later. They aren't the last word
 roster in `Create` (`GameRuleViolationException`) for anything a minimum can't express, the way Kickoff also
 rejects *more* than two teams.
 
-### Client-owned games (any UI engine, no .NET)
+## Client-owned games (any UI engine, no .NET)
 
 The steps above load a game as a .NET DLL in-process. If you'd rather write your rules in TypeScript and
 render the board with Phaser, PixiJS, a Unity WebGL build, or anything else, use the **client-owned** path
@@ -377,7 +485,10 @@ showing the scoreboard.
 
 **Copy [`templates/barrelo-phaser-game`](templates/barrelo-phaser-game) as your starting point** — a
 TypeScript + Vite + Phaser skeleton with all the wiring in place and the rules/rendering left as TODOs.
-What follows is the contract it implements.
+What follows is the contract it implements. The two shipped client-owned games,
+[`external-plugins/killer`](external-plugins/killer) and
+[`external-plugins/putt-putt`](external-plugins/putt-putt), are built exactly this way — their manifests
+are worth a look as working examples (Killer for `minPlayers`, Putt Putt for a `gameMode` setting).
 
 1. **Drop a `plugin.json` manifest** in `plugins/{gameId}/` (same folder convention as an in-process
    plugin's DLL) — or, to vendor it into this repo instead of a running deployment,
@@ -425,7 +536,7 @@ What follows is the contract it implements.
    ```
 
    The log is grouped into **visits** — one player's turn at the board — rather than kept flat, because
-   that's the shape darts actually has, and because detectors like AutoDarts report a whole visit at a
+   that's the shape darts actually has, and because detectors like Autodarts report a whole visit at a
    time. A visit is open (`ended: false`) until the turn boundary arrives; only the last one can be open.
    Visits are created lazily, on the first dart, so an open-but-empty visit never appears.
 
@@ -678,46 +789,12 @@ dotnet publish src/Barrelo.Api/Barrelo.Api.csproj \
 - Deploying to a home server (e.g. a Proxmox LXC) over SSH? See [`deploy/README.md`](deploy/README.md) for a
   one-command `linux-x64` publish-and-restart script.
 
-## Project layout
-
-```
-src/
-  Barrelo.Domain              domain entities/value objects — no dependency on GameSdk
-  Barrelo.Application         commands/queries, in-house dispatcher, IDetectionSource/IGameCatalog contracts
-  Barrelo.Infrastructure       EF Core (SQLite), plugin loader (ALC), detection sources, SignalR notifier plumbing
-  Barrelo.Api                 minimal-API endpoints, SignalR hub, static wwwroot UI, plugin static-asset hosting
-  Barrelo.GameSdk              dependency-free plugin contracts — the entire boundary a game plugin sees
-  Games/
-    Barrelo.Games.X01          reference game: classic 301/501/701
-    Barrelo.Games.Cricket       reference game: standard Cricket
-    Barrelo.Games.Kickoff       reference game: one shared ball, two goals
-    Barrelo.Games.AroundTheClock  reference game: 1→20 then the bull, doubles/trebles jump
-tests/
-  Barrelo.*.UnitTests / .IntegrationTests   one per src/ project, plus tests/Games/* per game plugin
-tools/
-  Barrelo.BoardSimulator       standalone, zero-Barrelo-dependency stand-in for a real detector
-external-plugins/              vendored, prebuilt game plugin packages (no source) — see its own README
-diagrams/                     architecture diagrams (Mermaid)
-docs/                         README assets
-```
-
-See [`PLAN.md`](PLAN.md) for the full architectural rationale (why an in-house dispatcher instead of MediatR,
-why plugins load via a collectible `AssemblyLoadContext`, the detection-source design history, etc.) and
-[`SCOPE.md`](SCOPE.md) for the long-term product vision this v1 is scoped down from.
-
-## Testing
-
-```bash
-dotnet test Barrelo.slnx
-```
-
-Test projects mirror the solution layout 1:1 — `Barrelo.Domain.UnitTests`, `Barrelo.Application.UnitTests`,
-`Barrelo.GameSdk.UnitTests`, `Barrelo.Infrastructure.IntegrationTests`, `Barrelo.Api.IntegrationTests`, and
-`tests/Games/Barrelo.Games.X01.UnitTests` / `Barrelo.Games.Cricket.UnitTests` /
-`Barrelo.Games.Kickoff.UnitTests` / `Barrelo.Games.AroundTheClock.UnitTests` for the rules engines. The
-integration tests script full matches end-to-end (mock stream and pure manual entry) through the real
-dispatcher/plugin-loader stack — the primary correctness gate before any UI change.
-
 ## License
 
 Licensed under the [Apache License 2.0](LICENSE).
+
+## Trademarks
+
+Barrelo is an independent project. It is not affiliated with, endorsed by, or sponsored by Autodarts.
+"Autodarts" and any related marks are the property of their respective owners and are used here only to
+identify the third-party software Barrelo can connect to.
