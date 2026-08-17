@@ -4,5 +4,6 @@
   "displayName": "Killer",
   "description": "Hit your double to become the killer, then take your opponents' lives.",
   "stateOwner": "client",
+  "minPlayers": 2,
   "settings": []
 }

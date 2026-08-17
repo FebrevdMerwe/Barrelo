@@ -27,6 +27,15 @@ public class AroundTheClockGameFactoryTests
     }
 
     [Fact]
+    public void Describe_allows_a_solo_practice_match()
+    {
+        var descriptor = new AroundTheClockGameFactory().Describe();
+
+        descriptor.MinPlayers.Should().Be(1);
+        descriptor.Settings.OfType<PlayerGroupSetting>().Single().MinGroups.Should().Be(1);
+    }
+
+    [Fact]
     public async Task Create_throws_when_no_players_supplied()
     {
         var factory = new AroundTheClockGameFactory();

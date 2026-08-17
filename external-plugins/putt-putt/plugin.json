@@ -1,0 +1,20 @@
+{
+  "protocolVersion": 2,
+  "gameId": "putt-putt",
+  "displayName": "Putt Putt",
+  "description": "Nine holes of mini golf. The angle from the bull aims your putt, the distance from it is your power.",
+  "stateOwner": "client",
+  "settings": [
+    {
+      "kind": "gameMode",
+      "key": "course",
+      "displayName": "Course",
+      "defaultValue": "full",
+      "choices": [
+        { "value": "quick", "displayName": "Quick (3 holes)", "options": { "holes": "3" } },
+        { "value": "full", "displayName": "Full (9 holes)", "options": { "holes": "9" } },
+        { "value": "double", "displayName": "Double (18 holes)", "options": { "holes": "18" } }
+      ]
+    }
+  ]
+}

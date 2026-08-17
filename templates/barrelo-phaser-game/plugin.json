@@ -4,5 +4,13 @@
   "displayName": "Your Game",
   "description": "One-line description shown on the start screen.",
   "stateOwner": "client",
-  "settings": []
+  "settings": [
+    {
+      "kind": "playerGroup",
+      "key": "teams",
+      "displayName": "Teams",
+      "maxGroups": 4,
+      "maxPlayersPerGroup": 4
+    }
+  ]
 }

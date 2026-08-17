@@ -27,6 +27,15 @@ public class KickoffGameFactoryTests
     }
 
     [Fact]
+    public void Describe_requires_two_players_in_two_teams()
+    {
+        var descriptor = new KickoffGameFactory().Describe();
+
+        descriptor.MinPlayers.Should().Be(2);
+        descriptor.Settings.OfType<PlayerGroupSetting>().Single().MinGroups.Should().Be(2);
+    }
+
+    [Fact]
     public async Task Create_throws_when_no_players_supplied()
     {
         var factory = new KickoffGameFactory();

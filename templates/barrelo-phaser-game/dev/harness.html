@@ -55,6 +55,10 @@
       <button class="wide" id="undo">Undo</button>
       <button class="wide" id="reset">Reset match</button>
 
+      <h2>Roster</h2>
+      <button class="wide" id="toggleRoster">Switch to solo (4 teams of 1)</button>
+      <p class="sub" id="rosterLabel" style="margin-top:.5rem">Teams: A = Alex, Jo · B = Sam, Kim</p>
+
       <h2>Sent up by your game</h2>
       <pre id="outbound">(nothing yet)</pre>
     </aside>
@@ -73,9 +77,24 @@
       const PLAYER_IDS = [
         "11111111-1111-1111-1111-111111111111",
         "22222222-2222-2222-2222-222222222222",
+        "33333333-3333-3333-3333-333333333333",
+        "44444444-4444-4444-4444-444444444444",
       ];
-      const PLAYER_NAMES = { [PLAYER_IDS[0]]: "Alex", [PLAYER_IDS[1]]: "Sam" };
+      const PLAYER_NAMES = {
+        [PLAYER_IDS[0]]: "Alex",
+        [PLAYER_IDS[1]]: "Sam",
+        [PLAYER_IDS[2]]: "Jo",
+        [PLAYER_IDS[3]]: "Kim",
+      };
 
+      /* Barrelo's default is teams, so the harness starts there: two teams of two, interleaved in roster
+         order exactly the way the start screen submits them (Team A[0], Team B[0], Team A[1], ...). The
+         Roster button swaps in the solo roster — four teams of one — which is the same code path with
+         singleton groups, and is how you check both modes without editing this file. */
+      const TEAM_GROUPS = { [PLAYER_IDS[0]]: 0, [PLAYER_IDS[1]]: 1, [PLAYER_IDS[2]]: 0, [PLAYER_IDS[3]]: 1 };
+      const SOLO_GROUPS = { [PLAYER_IDS[0]]: 0, [PLAYER_IDS[1]]: 1, [PLAYER_IDS[2]]: 2, [PLAYER_IDS[3]]: 3 };
+
+      let teamMode = true;
       let visits = [];
       let ring = "OuterSingle";
 
@@ -156,7 +175,7 @@
                 seed: 12345,
                 playerIds: PLAYER_IDS,
                 options: {},
-                playerGroups: { [PLAYER_IDS[0]]: 0, [PLAYER_IDS[1]]: 1 },
+                playerGroups: teamMode ? TEAM_GROUPS : SOLO_GROUPS,
                 visits: visits,
               },
             },
@@ -195,6 +214,20 @@
       document.getElementById("endTurn").addEventListener("click", endTurn);
       document.getElementById("undo").addEventListener("click", undo);
       document.getElementById("reset").addEventListener("click", function () { visits = []; push(); });
+
+      /* Switching roster resets the log: the visits already thrown belong to a different set of sides,
+         and replaying them against the new one would attribute darts to whoever now holds that turn. */
+      document.getElementById("toggleRoster").addEventListener("click", function () {
+        teamMode = !teamMode;
+        visits = [];
+        document.getElementById("toggleRoster").textContent = teamMode
+          ? "Switch to solo (4 teams of 1)"
+          : "Switch to teams (2 teams of 2)";
+        document.getElementById("rosterLabel").textContent = teamMode
+          ? "Teams: A = Alex, Jo · B = Sam, Kim"
+          : "Solo: Alex · Sam · Jo · Kim";
+        push();
+      });
 
       document.getElementById("board").addEventListener("load", push);
     </script>

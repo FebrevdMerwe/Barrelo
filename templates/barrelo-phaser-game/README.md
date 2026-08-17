@@ -28,7 +28,43 @@ enough for rendering work.
 
 To actually play it, open **`dev/harness.html`** in a browser as well. It stands in for Barrelo: it keeps
 the visit log the same way the host does, posts the same `barrelo:gameState` message into your board, and
-shows you the messages your game sends back. Click segments to throw, and use End turn / Undo / Reset.
+shows you the messages your game sends back. Click segments to throw, and use End turn / Undo / Reset. It
+starts as two teams of two (Barrelo's default); the Roster button swaps to four solo players so you can
+check both without editing anything.
+
+## Teams are the default — read this one too
+
+Barrelo is a team platform first. A match is **N teams**, and a solo match is simply **N teams of one** —
+there is no separate solo mode, and no game should have a separate solo code path.
+
+So the template starts you on the team shape:
+
+- `plugin.json` declares a `playerGroup` setting. That's what makes Barrelo's start screen show the team
+  chalkboard instead of a flat "Playing" bucket — **delete it and your game becomes solo-only**, because
+  the host then never collects a team assignment and sends you an empty `playerGroups`.
+- `replay()` in `ui/src/rules.ts` folds the roster into teams (`buildTeams()`), scores per team, and
+  rotates one visit per team per round — each team rotating its own thrower. Rotating over the flat
+  roster instead would give a three-player team three visits a round against a two-player team's two,
+  which decides most games on roster size alone.
+- `BoardScene` draws one token per team, and marks the thrower within it.
+
+Solo needs no work from you: `effectiveGroupIndex()` falls a player with no assignment back to their own
+roster position — an implicit team of one — mirroring the host's `GameSetupExtensions.EffectiveGroupIndex`
+exactly. Four solo players are four teams of one, and every rule you wrote for teams already holds.
+
+`winnerPlayerIds` and `finalStandings` stay lists of *player* ids: a winning team contributes all of its
+members, and standings list each team's members together, best team first. That's what gets every member
+of a winning team their leaderboard points.
+
+Two things worth knowing before you change the setting:
+
+- Declaring a `playerGroup` setting makes team assignment **mandatory**, but it does *not* require an
+  opponent: one player in one team is a valid match, exactly as it is for X01, Cricket and Around The
+  Clock. If your game genuinely can't be played alone, say so — `"minPlayers": 2` at the manifest's top
+  level, and `"minGroups": 2` inside the `playerGroup` setting if the second player has to be on the
+  *other* team (Kickoff's case, since every dart is a kick at one of two goals). Both default to `1`.
+- `maxGroups`/`maxPlayersPerGroup` in the manifest are your game's real limits (the template ships 4 and
+  4). In-repo games range from 2 teams (X01, Kickoff) to 6 (Around The Clock).
 
 ## The determinism contract — read this one
 
@@ -52,9 +88,10 @@ fix is always in `replay()`.
 
 - **Rules** — `ui/src/rules.ts`. `replay(payload)` is a pure fold over the visit log and is the only place
   your rules live. It gets the roster (`payload.playerIds`, `payload.playerGroups`), the match options,
-  the seed, and every dart thrown so far; it returns whose turn it is, whatever your game tracks, and
-  whether anyone has won. Undo needs no code at all — Barrelo shortens the log and you re-derive.
-- **Rendering** — `ui/src/scenes/BoardScene.ts`. Draws one placeholder token per player; replace its
+  the seed, and every dart thrown so far; it returns the teams, whose turn it is, whatever your game
+  tracks per team, and who has won. Undo needs no code at all — Barrelo shortens the log and you
+  re-derive.
+- **Rendering** — `ui/src/scenes/BoardScene.ts`. Draws one placeholder token per team; replace its
   `render()` method with whatever your board actually needs. It renders the state `replay()` derived, not
   the raw payload.
 - **Wire types** — `shared/types.ts`. The shapes Barrelo sends and expects; don't redeclare them locally.
@@ -91,7 +128,9 @@ Barrelo serves `plugins/{gameId}/ui/index.html` as a static file with no build s
    cp -r ui/dist/. "$DEST/ui/"
    ```
 3. Update `plugin.json`'s `gameId`/`displayName`/`description` before shipping — the template ships with
-   placeholders (`your-game-id`, "Your Game").
+   placeholders (`your-game-id`, "Your Game"). Set the `teams` setting's `maxGroups`/`maxPlayersPerGroup`
+   to your game's real limits while you're there; keep the setting itself unless your game genuinely
+   cannot be played in teams (see "Teams are the default" above).
 
 That's the whole deployment: a manifest and a folder of static files. No `npm install` at the destination,
 no `node_modules`, no runtime dependencies.
@@ -104,13 +143,18 @@ dev server behind it.
 
 There's no real game to verify yet, but confirm the wiring works end to end:
 
-- [ ] `dev/harness.html` shows the placeholder board (tokens + names), and clicking segments moves the
-      turn ring and updates each player's score.
+- [ ] `dev/harness.html` shows the placeholder board — **two** tokens, each labelled with two names — and
+      clicking segments moves the turn ring and updates that team's score.
+- [ ] End turn passes the throw to the *other* team, and after a full round the first team's second member
+      is the one marked as throwing.
+- [ ] The Roster button switches to solo: four tokens, one name each, and everything else behaves the
+      same. (Same code path — this is the check that you haven't special-cased either mode.)
 - [ ] The harness's "Sent up by your game" panel shows a `barrelo:display` message with a
       `currentPlayerId` and a `stateHash` after each throw.
 - [ ] Undo in the harness reverts the last throw, and undo straight after "End turn" re-opens that visit
       rather than dropping a dart.
-- [ ] After deploying, your game appears in Barrelo's start-screen game picker.
+- [ ] After deploying, your game appears in Barrelo's start-screen game picker **with the team chalkboard**
+      (not a single "Playing" bucket) — that's what confirms the manifest's `playerGroup` setting parsed.
 - [ ] Starting a match shows the placeholder board, not a raw JSON dump, and throwing (manual entry is
       enough) updates it — that proves the whole path: dart → host log → `barrelo:gameState` → `replay()`
       → `BoardScene`.

@@ -86,13 +86,27 @@ window.addEventListener("message", (event: MessageEvent) => {
 // Dev-mode preview: when running standalone via `npm run dev` (no Barrelo host iframe around us), there's
 // nothing posting real snapshots in. Feed a canned payload so the board is visible while you iterate on
 // rendering. Never runs in a production build or when actually embedded.
+//
+// Two teams of two, because that's Barrelo's default shape — building against a two-solo-player fixture
+// is how a board ends up quietly assuming one player per side. For the solo case, give each player their
+// own group index (0,1,2,3) or drop playerGroups entirely; replay() treats both the same.
 if (import.meta.env.DEV && window.self === window.top) {
-  const samplePlayerIds = ["11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"];
+  const samplePlayerIds = [
+    "11111111-1111-1111-1111-111111111111",
+    "22222222-2222-2222-2222-222222222222",
+    "33333333-3333-3333-3333-333333333333",
+    "44444444-4444-4444-4444-444444444444",
+  ];
   const samplePayload: ClientGamePayload = {
     seed: 12345,
     playerIds: samplePlayerIds,
     options: {},
-    playerGroups: { [samplePlayerIds[0]]: 0, [samplePlayerIds[1]]: 1 },
+    playerGroups: {
+      [samplePlayerIds[0]]: 0,
+      [samplePlayerIds[1]]: 1,
+      [samplePlayerIds[2]]: 0,
+      [samplePlayerIds[3]]: 1,
+    },
     visits: [],
   };
 
@@ -103,6 +117,8 @@ if (import.meta.env.DEV && window.self === window.top) {
       playerNames: {
         [samplePlayerIds[0]]: "Alex",
         [samplePlayerIds[1]]: "Sam",
+        [samplePlayerIds[2]]: "Jo",
+        [samplePlayerIds[3]]: "Kim",
       },
     };
     gameStateEvents.emit(GAME_STATE_EVENT, latestUpdate);

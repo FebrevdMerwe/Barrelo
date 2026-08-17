@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { GAME_STATE_EVENT, gameStateEvents, getLatestUpdate, type BoardUpdate } from "../bridge";
 
-interface PlayerToken {
+interface TeamToken {
   container: Phaser.GameObjects.Container;
   sprite: Phaser.GameObjects.Image;
   ring: Phaser.GameObjects.Arc;
@@ -9,19 +9,23 @@ interface PlayerToken {
   lastScore: number;
 }
 
-const PLAYER_COLORS = [0xd98a3d, 0x4fa3c4, 0xc0546e, 0x6fae6a, 0xa88bc4];
+const TEAM_COLORS = [0xd98a3d, 0x4fa3c4, 0xc0546e, 0x6fae6a, 0xa88bc4];
 
 /**
  * TODO: this is the scene to replace with your actual game board. It's kept deliberately simple — one
- * token per player laid out in a row, a ring around whoever's turn it is, and a scale-pop tween whenever
- * a player's score changes — to prove the Scene lifecycle + replay bridge + a Tween all work end to end,
- * without pretending to be a real game.
+ * token per *team* laid out in a row, a ring around whichever team is throwing, and a scale-pop tween
+ * whenever a team's score changes — to prove the Scene lifecycle + replay bridge + a Tween all work end
+ * to end, without pretending to be a real game.
+ *
+ * A token per team rather than per player is the point: that's Barrelo's default shape, and a solo match
+ * renders identically because solo is just teams of one. The thrower's name is marked within the team's
+ * label, so a four-player team is still one token, not four.
  *
  * Note it renders the state derived by rules.ts, never the raw payload: Barrelo's snapshot deliberately
  * doesn't say whose turn it is, because that's a rule this game owns.
  */
 export class BoardScene extends Phaser.Scene {
-  private tokensByPlayerId = new Map<string, PlayerToken>();
+  private tokensByGroup = new Map<number, TeamToken>();
 
   constructor() {
     super("board");
@@ -53,37 +57,56 @@ export class BoardScene extends Phaser.Scene {
     // TODO: re-layout on resize once your board's positions depend on scale.width/scale.height.
   }
 
-  private render({ state, payload, playerNames }: BoardUpdate): void {
-    const playerIds = payload.playerIds;
+  /**
+   * "Alex" for a solo team; "> Alex / Sam" for a team, with the thrower marked. A one-member team reads
+   * exactly like a solo player, which is what keeps the two modes looking like one game.
+   */
+  private teamLabel(
+    playerIds: string[],
+    playerNames: Record<string, string>,
+    currentPlayerId: string | null
+  ): string {
+    return playerIds
+      .map((id) => {
+        const name = playerNames[id] ?? "Player";
+        return playerIds.length > 1 && id === currentPlayerId ? `> ${name}` : name;
+      })
+      .join(" / ");
+  }
+
+  private render({ state, playerNames }: BoardUpdate): void {
+    const { teams } = state;
     const { width, height } = this.scale;
 
-    playerIds.forEach((playerId, index) => {
-      const x = width * ((index + 1) / (playerIds.length + 1));
+    teams.forEach((team, index) => {
+      const x = width * ((index + 1) / (teams.length + 1));
       const y = height / 2;
-      const score = state.scoreByPlayer[playerId] ?? 0;
+      const score = state.scoreByGroup[team.groupIndex] ?? 0;
+      const text = `${this.teamLabel(team.playerIds, playerNames, state.currentPlayerId)} — ${score}`;
 
-      let token = this.tokensByPlayerId.get(playerId);
+      let token = this.tokensByGroup.get(team.groupIndex);
       if (!token) {
-        const sprite = this.add.image(0, 0, "token").setTint(PLAYER_COLORS[index % PLAYER_COLORS.length]);
+        const sprite = this.add.image(0, 0, "token").setTint(TEAM_COLORS[index % TEAM_COLORS.length]);
         const ring = this.add.circle(0, 0, 28).setStrokeStyle(3, 0xd9b23d, 0).setFillStyle(0, 0);
         const label = this.add
-          .text(0, 36, `${playerNames[playerId] ?? "Player"} — ${score}`, {
+          .text(0, 36, text, {
             fontFamily: "monospace",
             fontSize: "14px",
             color: "#e9e4d6",
+            align: "center",
           })
           .setOrigin(0.5, 0);
 
         const container = this.add.container(x, y, [ring, sprite, label]);
         token = { container, sprite, ring, label, lastScore: score };
-        this.tokensByPlayerId.set(playerId, token);
+        this.tokensByGroup.set(team.groupIndex, token);
       } else {
         token.container.setPosition(x, y);
-        token.label.setText(`${playerNames[playerId] ?? "Player"} — ${score}`);
+        token.label.setText(text);
       }
 
-      const isCurrentPlayer = playerId === state.currentPlayerId;
-      token.ring.setStrokeStyle(3, 0xd9b23d, isCurrentPlayer ? 1 : 0);
+      const isThrowing = team.groupIndex === state.currentGroupIndex;
+      token.ring.setStrokeStyle(3, 0xd9b23d, isThrowing ? 1 : 0);
 
       if (score !== token.lastScore) {
         token.lastScore = score;
@@ -96,11 +119,12 @@ export class BoardScene extends Phaser.Scene {
       }
     });
 
-    // Remove tokens for players no longer present (defensive — the template never removes players).
-    for (const [playerId, token] of this.tokensByPlayerId) {
-      if (!playerIds.includes(playerId)) {
+    // Remove tokens for teams no longer present (defensive — the template never removes teams).
+    const liveGroups = new Set(teams.map((team) => team.groupIndex));
+    for (const [groupIndex, token] of this.tokensByGroup) {
+      if (!liveGroups.has(groupIndex)) {
         token.container.destroy();
-        this.tokensByPlayerId.delete(playerId);
+        this.tokensByGroup.delete(groupIndex);
       }
     }
   }

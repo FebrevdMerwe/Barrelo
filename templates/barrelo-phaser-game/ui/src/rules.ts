@@ -4,6 +4,13 @@ import type { ClientGamePayload, DetectedThrow, Visit } from "../../shared/types
  * TODO: this is the only file your game's rules live in. Replace the state shape and the fold below;
  * leave the "pure function of the payload" property alone, because everything else depends on it.
  *
+ * TEAMS ARE THE DEFAULT UNIT
+ * --------------------------
+ * Barrelo is a team platform first: a match is N teams, and a solo match is simply N teams of one. So
+ * the fold below scores, rotates and ranks *teams*, never players — see `buildTeams()`. Writing it the
+ * other way round (per-player, teams bolted on later) means reworking every rule you write, so the
+ * template starts you on the shape that scales both ways.
+ *
  * WHY IT MUST BE PURE
  * -------------------
  * Barrelo keeps the log; every screen showing this match (the control tablet, the TV) replays it
@@ -20,13 +27,28 @@ import type { ClientGamePayload, DetectedThrow, Visit } from "../../shared/types
  * but the fix is always here.
  */
 
+/**
+ * One side in the match. A solo player is a team of one — nothing else in this file special-cases it,
+ * which is exactly why solo keeps working for free as you write team rules.
+ */
+export interface Team {
+  /** The group index from `payload.playerGroups`, or the player's own roster position when ungrouped. */
+  groupIndex: number;
+  /** Members in roster order. The order the team takes its turns in. */
+  playerIds: string[];
+}
+
 export interface GameState {
+  /** The match's teams, ordered by group index. Solo play yields one single-member team per player. */
+  teams: Team[];
   /** Whose turn it is. Barrelo can't know this — turn order is a rule — so the board reports it back up. */
   currentPlayerId: string | null;
+  /** Which team that player is throwing for, for the board's turn highlight. */
+  currentGroupIndex: number | null;
   /** Darts thrown in the visit currently in progress, for the shell's 1/2/3 slots. */
   currentVisitThrows: DetectedThrow[];
-  /** TODO: replace with whatever your game tracks — score, marks, lives, positions... */
-  scoreByPlayer: Record<string, number>;
+  /** TODO: replace with whatever your game tracks *per team* — score, marks, lives, positions... */
+  scoreByGroup: Record<number, number>;
   winnerPlayerIds: string[];
   /** Best-first ranking, reported to Barrelo when the match ends so it can award leaderboard points. */
   finalStandings: string[];
@@ -48,51 +70,99 @@ export function rng(seed: number): () => number {
   };
 }
 
+/**
+ * Resolves a player's team: their explicit assignment in `playerGroups` if present, otherwise their own
+ * roster position — an implicit team of one. Mirrors the host's `GameSetupExtensions.EffectiveGroupIndex`
+ * exactly, which is what makes a game written against teams still play correctly when Barrelo hands it an
+ * ungrouped roster.
+ */
+export function effectiveGroupIndex(payload: ClientGamePayload, playerId: string): number {
+  const assigned = payload?.playerGroups?.[playerId];
+  if (typeof assigned === "number") return assigned;
+  return (payload?.playerIds ?? []).indexOf(playerId);
+}
+
+/**
+ * Folds the roster into teams, ordered by group index and each holding its members in roster order.
+ * Only teams with at least one member exist — Barrelo's start screen hands over contiguous group
+ * indices, but an empty bucket would otherwise become a phantom side that can never throw.
+ */
+export function buildTeams(payload: ClientGamePayload): Team[] {
+  const playerIds = payload?.playerIds ?? [];
+  const byGroup = new Map<number, string[]>();
+
+  playerIds.forEach((playerId) => {
+    const groupIndex = effectiveGroupIndex(payload, playerId);
+    const members = byGroup.get(groupIndex);
+    if (members) members.push(playerId);
+    else byGroup.set(groupIndex, [playerId]);
+  });
+
+  return [...byGroup.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([groupIndex, memberIds]) => ({ groupIndex, playerIds: memberIds }));
+}
+
 /** A visit is over when the turn boundary arrived, or when three darts have been thrown. */
 function isVisitOver(visit: Visit): boolean {
   return visit.ended || visit.throws.length >= 3;
 }
 
 /**
- * TODO: your rules. This template just counts each player's score and rotates turns in player order,
- * never finishing — enough to prove the pipeline works, not enough to be a game.
+ * TODO: your rules. This template just counts each team's score and rotates turns — one visit per team
+ * per round, with each team rotating its own thrower — never finishing. Enough to prove the pipeline
+ * works, not enough to be a game.
+ *
+ * Note the rotation is over *teams*, not over the flat roster: a three-player team would otherwise get
+ * three visits a round against a two-player team's two, which decides most games on roster size alone.
+ * If your game genuinely wants the flat walk (Cricket does), that's a rules decision to make here —
+ * deliberately, not by accident.
  */
 export function replay(payload: ClientGamePayload): GameState {
   // Defaulted rather than destructured straight out: a board can be rendered before the first real
   // snapshot arrives (and the dev harness starts with an empty match), and a crash here is a blank
   // screen with a stack trace in a sandboxed iframe nobody is watching.
-  const playerIds = payload?.playerIds ?? [];
   const visits = payload?.visits ?? [];
+  const teams = buildTeams(payload);
 
-  const scoreByPlayer: Record<string, number> = {};
-  playerIds.forEach((id) => {
-    scoreByPlayer[id] = 0;
+  const scoreByGroup: Record<number, number> = {};
+  teams.forEach((team) => {
+    scoreByGroup[team.groupIndex] = 0;
   });
 
-  if (playerIds.length === 0) {
+  if (teams.length === 0) {
     return {
+      teams,
       currentPlayerId: null,
+      currentGroupIndex: null,
       currentVisitThrows: [],
-      scoreByPlayer,
+      scoreByGroup,
       winnerPlayerIds: [],
       finalStandings: [],
       isComplete: false,
     };
   }
 
-  let turnIndex = 0;
+  let teamIndex = 0;
+  // Which member each team throws next — a team's own rotation, so it survives the other teams' visits.
+  const memberIndexByGroup: Record<number, number> = {};
+  teams.forEach((team) => {
+    memberIndexByGroup[team.groupIndex] = 0;
+  });
   let currentVisitThrows: DetectedThrow[] = [];
 
   visits.forEach((visit) => {
-    const playerId = playerIds[turnIndex];
+    const team = teams[teamIndex];
     visit.throws.forEach((t) => {
-      scoreByPlayer[playerId] += t.score;
+      scoreByGroup[team.groupIndex] += t.score;
     });
 
     if (isVisitOver(visit)) {
-      // TODO: whose turn is next is a rules decision — an elimination game skips dead players, and a
+      // TODO: who throws next is a rules decision — an elimination game skips dead teams, and a
       // "hit a bull, throw again" game doesn't advance at all. Barrelo deliberately doesn't assume.
-      turnIndex = (turnIndex + 1) % playerIds.length;
+      memberIndexByGroup[team.groupIndex] =
+        (memberIndexByGroup[team.groupIndex] + 1) % team.playerIds.length;
+      teamIndex = (teamIndex + 1) % teams.length;
       currentVisitThrows = [];
     } else {
       currentVisitThrows = visit.throws;
@@ -100,15 +170,20 @@ export function replay(payload: ClientGamePayload): GameState {
   });
 
   // TODO: decide your win condition here, then populate winnerPlayerIds and finalStandings. Until
-  // isComplete goes true the match never ends and no leaderboard points are awarded.
+  // isComplete goes true the match never ends and no leaderboard points are awarded. Both lists are
+  // player ids — a winning *team* contributes all of its members, and standings list each team's
+  // members together, best team first.
   const winnerPlayerIds: string[] = [];
 
+  const currentTeam = teams[teamIndex];
   return {
-    currentPlayerId: playerIds[turnIndex],
+    teams,
+    currentPlayerId: currentTeam.playerIds[memberIndexByGroup[currentTeam.groupIndex]],
+    currentGroupIndex: currentTeam.groupIndex,
     currentVisitThrows,
-    scoreByPlayer,
+    scoreByGroup,
     winnerPlayerIds,
-    finalStandings: winnerPlayerIds.length > 0 ? [...playerIds] : [],
+    finalStandings: winnerPlayerIds.length > 0 ? teams.flatMap((team) => team.playerIds) : [],
     isComplete: winnerPlayerIds.length > 0,
   };
 }
@@ -127,7 +202,7 @@ function hash(canonical: string): string {
  */
 export function hashState(state: GameState): string {
   return hash(
-    JSON.stringify([state.currentPlayerId, state.scoreByPlayer, state.winnerPlayerIds, state.isComplete])
+    JSON.stringify([state.currentPlayerId, state.scoreByGroup, state.winnerPlayerIds, state.isComplete])
   );
 }
 

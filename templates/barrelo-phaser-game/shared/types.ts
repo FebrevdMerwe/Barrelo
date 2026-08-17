@@ -50,8 +50,18 @@ export interface Visit {
  */
 export interface ClientGamePayload {
   seed: number;
+  /** The roster in turn order. Barrelo interleaves team members here (A[0], B[0], A[1], B[1], ...). */
   playerIds: string[];
   options: Record<string, string>;
+  /**
+   * Player id → team index, from the team assignment the start screen collected. Teams are Barrelo's
+   * default unit and this is how you read them: solo play is the same shape with one player per index.
+   *
+   * A player missing from this map (or an empty map, when the match was started without the team setting)
+   * falls back to their own position in `playerIds` — an implicit team of one. Resolve it with
+   * `effectiveGroupIndex()` in `ui/src/rules.ts` rather than indexing directly, so that fallback is
+   * applied consistently; it mirrors the host's `GameSetupExtensions.EffectiveGroupIndex`.
+   */
   playerGroups: Record<string, number>;
   visits: Visit[];
 }
@@ -107,6 +117,10 @@ export interface BarreloDisplayMessage {
  * Sent up to Barrelo exactly once, when your rules say the match is over. Barrelo ends the session and
  * awards session-leaderboard points from `finalStandings` (best first). Both lists are validated against
  * the match roster and rejected if they don't match.
+ *
+ * Both are lists of *player* ids even though your rules rank teams: a winning team contributes every one
+ * of its members to `winnerPlayerIds`, and `finalStandings` lists each team's members together, best team
+ * first. That's how every member of a winning team gets their leaderboard points.
  */
 export interface BarreloMatchCompleteMessage {
   type: "barrelo:matchComplete";

@@ -16,8 +16,14 @@ public sealed class KickoffGameFactory : IGameFactory
                 Key: "teams",
                 DisplayName: "Teams",
                 MaxGroups: 2,
-                MaxPlayersPerGroup: 4),
-        });
+                MaxPlayersPerGroup: 4)
+            {
+                // Every dart is a kick toward one of two goals, so there is nothing to play alone against —
+                // the only game here that can't be a solo drill.
+                MinGroups = 2,
+            },
+        },
+        MinPlayers: 2);
 
     public Task<IGame> Create(GameSetup setup, CancellationToken ct)
     {

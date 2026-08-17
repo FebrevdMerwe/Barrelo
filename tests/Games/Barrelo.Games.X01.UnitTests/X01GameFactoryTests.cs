@@ -29,6 +29,15 @@ public class X01GameFactoryTests
     }
 
     [Fact]
+    public void Describe_allows_a_solo_practice_match()
+    {
+        var descriptor = new X01GameFactory().Describe();
+
+        descriptor.MinPlayers.Should().Be(1);
+        descriptor.Settings.OfType<PlayerGroupSetting>().Single().MinGroups.Should().Be(1);
+    }
+
+    [Fact]
     public async Task Create_with_no_options_uses_default_501_starting_score()
     {
         var factory = new X01GameFactory();

@@ -43,6 +43,24 @@ public class GamesAndMatchesEndpointsTests(BarreloApiFactory factory) : IClassFi
     }
 
     [Fact]
+    public async Task POST_api_matches_starts_a_solo_x01_match()
+    {
+        var client = factory.CreateClient();
+        var playerIds = await factory.SeedPlayers("Solo Sam");
+
+        // X01 declares teams but no minimum beyond one player, so a single player in a single team is a
+        // valid match — this is the case the old blanket two-player rule rejected.
+        var startResponse = await client.PostAsJsonAsync(
+            "/api/matches",
+            new StartMatchRequest("x01", playerIds, null, new Dictionary<Guid, int> { [playerIds[0]] = 0 }),
+            JsonTestOptions.Options);
+
+        startResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var started = await startResponse.Content.ReadFromJsonAsync<StartMatchResult>(JsonTestOptions.Options);
+        started!.InitialState.CurrentPlayerId.Should().Be(playerIds[0]);
+    }
+
+    [Fact]
     public async Task GET_api_matches_for_unknown_id_returns_not_found()
     {
         var client = factory.CreateClient();

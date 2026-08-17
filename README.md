@@ -261,7 +261,10 @@ implementations to copy from.
            {
                // Optional: a GameModeSetting (radio choices merged into GameSetup.Options)
                // and/or a PlayerGroupSetting (declares fixed team buckets, e.g. teams of up to 4).
-           });
+           },
+           // Optional: raise the roster floor if the game can't be played alone. Omit it and the
+           // game is solo-playable — see "Roster minimums" below.
+           MinPlayers: 1);
 
        public Task<IGame> Create(GameSetup setup, CancellationToken ct)
        {
@@ -328,6 +331,38 @@ implementations to copy from.
    `plugins/{gameId}/` automatically on every `dotnet build`/`dotnet run`/`dotnet publish` — no manual
    copying, no solution/project wiring, no source included.
 
+### Roster minimums
+
+Barrelo has no global "you need two players" rule — how small a match can be is the **game's** decision, and
+the default is one, so a game is solo-playable unless it says otherwise. Two numbers express it, both
+enforced host-side by `StartMatchCommandValidator` and mirrored by the start screen:
+
+| Declared on | Field | Default | Means |
+| --- | --- | --- | --- |
+| `GameDescriptor` | `MinPlayers` | `1` | Fewest players on the roster. Applies whether or not the game uses teams. |
+| `PlayerGroupSetting` | `MinGroups` | `1` | Fewest *occupied* teams — empty buckets don't count. Only meaningful for a game that declares teams. |
+
+```csharp
+// Solo practice is fine — say nothing.
+public GameDescriptor Describe() => new(GameId, "Around The Clock", "…", settings);
+
+// Needs a real opponent in a second team (Kickoff shoots at two goals).
+public GameDescriptor Describe() => new(
+    GameId,
+    "Kickoff",
+    "…",
+    [new PlayerGroupSetting("teams", "Teams", MaxGroups: 2, MaxPlayersPerGroup: 4) { MinGroups = 2 }],
+    MinPlayers: 2);
+```
+
+A client-owned game declares the same thing in `plugin.json` — `"minPlayers": 2` at the top level, and
+`"minGroups": 2` inside a `playerGroup` setting. Both are optional and both default to `1`.
+
+These two numbers are a convenience for the start screen: they let it refuse an unplayable roster with a
+clear message instead of letting the match fail later. They aren't the last word — a game can still reject a
+roster in `Create` (`GameRuleViolationException`) for anything a minimum can't express, the way Kickoff also
+rejects *more* than two teams.
+
 ### Client-owned games (any UI engine, no .NET)
 
 The steps above load a game as a .NET DLL in-process. If you'd rather write your rules in TypeScript and
@@ -360,7 +395,8 @@ What follows is the contract it implements.
    ```
 
    `settings` is the same `GameSettingDefinition` shape (`GameModeSetting`/`PlayerGroupSetting`) a .NET
-   `GameDescriptor` already uses — no separate schema.
+   `GameDescriptor` already uses — no separate schema. An optional `"minPlayers"` (default `1`) works here
+   exactly as it does on a .NET descriptor — see [Roster minimums](#roster-minimums).
 
    **The containing folder's name must match `gameId` exactly** (`plugins/yourgame/plugin.json` for
    `"gameId": "yourgame"`), because UI assets are fetched from `/plugins/{gameId}/...`. A mismatch
@@ -538,7 +574,7 @@ to hit a bullseye wins" — in one HTML file with no build step and no dependenc
    ```
 
    Open `http://localhost:5295` — the chalkboard start screen — and "Bullseye Duel" should appear in the
-   game picker. Add at least two players and click **Start match**.
+   game picker. Add a player — two, for a duel — and click **Start match**.
 
    Play it with **manual entry** — no Board Simulator needed — by clicking segments on the on-page
    dartboard, or by calling the same endpoint it uses:

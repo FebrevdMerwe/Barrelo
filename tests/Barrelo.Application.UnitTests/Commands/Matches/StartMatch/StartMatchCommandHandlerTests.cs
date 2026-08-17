@@ -170,6 +170,61 @@ public class StartMatchCommandHandlerTests
     }
 
     [Fact]
+    public async Task Solo_match_is_allowed_when_the_game_declares_no_higher_minimum()
+    {
+        var solo = Guid.NewGuid();
+        var playerIds = new List<Guid> { solo };
+        SetUpHappyPath(playerIds);
+        _factory.Setup(f => f.Describe()).Returns(new GameDescriptor(
+            "x01", "x01", "test", [new PlayerGroupSetting("teams", "Teams", MaxGroups: 2, MaxPlayersPerGroup: 4)]));
+        var command = new StartMatchCommand(
+            "x01", playerIds, new Dictionary<string, string>(), new Dictionary<Guid, int> { [solo] = 0 });
+
+        var result = await CreateHandler().Handle(command, CancellationToken.None);
+
+        result.IsError.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Game_declaring_a_two_player_minimum_rejects_a_solo_roster()
+    {
+        var solo = Guid.NewGuid();
+        var playerIds = new List<Guid> { solo };
+        SetUpHappyPath(playerIds);
+        _factory.Setup(f => f.Describe()).Returns(new GameDescriptor("x01", "x01", "test", [], MinPlayers: 2));
+        var command = new StartMatchCommand("x01", playerIds, new Dictionary<string, string>());
+
+        var result = await CreateHandler().Handle(command, CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        _sessionManager.Verify(s => s.StartSessionAsync(
+            It.IsAny<Guid>(), It.IsAny<IGame>(), It.IsAny<IReadOnlyDictionary<Guid, int>>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Game_declaring_a_two_group_minimum_rejects_a_roster_crammed_into_one_group()
+    {
+        var a1 = Guid.NewGuid();
+        var a2 = Guid.NewGuid();
+        var playerIds = new List<Guid> { a1, a2 };
+        SetUpHappyPath(playerIds);
+        _factory.Setup(f => f.Describe()).Returns(new GameDescriptor(
+            "x01",
+            "x01",
+            "test",
+            [new PlayerGroupSetting("teams", "Teams", MaxGroups: 2, MaxPlayersPerGroup: 4) { MinGroups = 2 }],
+            MinPlayers: 2));
+        var command = new StartMatchCommand(
+            "x01", playerIds, new Dictionary<string, string>(), new Dictionary<Guid, int> { [a1] = 0, [a2] = 0 });
+
+        var result = await CreateHandler().Handle(command, CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        _sessionManager.Verify(s => s.StartSessionAsync(
+            It.IsAny<Guid>(), It.IsAny<IGame>(), It.IsAny<IReadOnlyDictionary<Guid, int>>()), Times.Never);
+    }
+
+    [Fact]
     public async Task Empty_player_list_fails_validation_before_touching_the_catalog()
     {
         var command = new StartMatchCommand("x01", [], new Dictionary<string, string>());

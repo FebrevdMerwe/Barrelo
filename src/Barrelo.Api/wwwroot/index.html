@@ -299,8 +299,16 @@
   // still be manually benched even when the game itself has no team concept.
   function bucketSpec(game) {
     var setting = findSetting(game, "playerGroup");
-    if (setting) return { hasTeams: true, teamCount: setting.maxGroups, maxPerTeam: setting.maxPlayersPerGroup };
-    return { hasTeams: false, teamCount: 1, maxPerTeam: null };
+    if (setting) {
+      return {
+        hasTeams: true,
+        teamCount: setting.maxGroups,
+        maxPerTeam: setting.maxPlayersPerGroup,
+        // Older manifests / plugins don't send minGroups; one team is the floor when unstated.
+        minTeams: setting.minGroups || 1,
+      };
+    }
+    return { hasTeams: false, teamCount: 1, maxPerTeam: null, minTeams: 1 };
   }
 
   function bucketKeys(spec) {
@@ -952,10 +960,29 @@
     renderGroupColumns();
   }
 
+  // Mirrors StartMatchCommandValidator: the roster floor is whatever the game declares (default 1),
+  // never a fixed two. Kept client-side only to fail fast with a friendlier message — the API is the
+  // authority and re-checks both numbers.
   function validate() {
+    var game = currentGame();
+    var spec = bucketSpec(game);
+    var minPlayers = (game && game.minPlayers) || 1;
     var spectatorCount = bucketOrder.spectator ? bucketOrder.spectator.length : 0;
     var playingCount = visiblePlayers().length - spectatorCount;
-    if (playingCount < 2) return "Add at least two players who aren't spectating.";
+    if (playingCount < minPlayers) {
+      return minPlayers === 1
+        ? "Add at least one player who isn't spectating."
+        : "This game needs at least " + minPlayers + " players who aren't spectating.";
+    }
+
+    if (spec.hasTeams && spec.minTeams > 1) {
+      var occupiedTeams = bucketKeys(spec).filter(function (key) {
+        return key !== "spectator" && bucketOrder[key] && bucketOrder[key].length > 0;
+      }).length;
+      if (occupiedTeams < spec.minTeams) {
+        return "This game needs at least " + spec.minTeams + " teams with a player in each.";
+      }
+    }
     return null;
   }
 

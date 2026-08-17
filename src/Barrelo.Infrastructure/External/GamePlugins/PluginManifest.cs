@@ -31,5 +31,9 @@ public sealed class PluginManifest
 
     public List<GameSettingDefinition> Settings { get; set; } = [];
 
-    public GameDescriptor ToDescriptor() => new(GameId, DisplayName, Description, Settings);
+    /// <summary>Optional; mirrors <see cref="GameDescriptor.MinPlayers"/>. A manifest that omits it declares a
+    /// solo-playable game, which is the right default for a browser game nobody has to be scored against.</summary>
+    public int MinPlayers { get; set; } = 1;
+
+    public GameDescriptor ToDescriptor() => new(GameId, DisplayName, Description, Settings, MinPlayers);
 }

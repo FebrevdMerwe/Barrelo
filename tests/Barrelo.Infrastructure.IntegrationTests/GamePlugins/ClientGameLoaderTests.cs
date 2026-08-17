@@ -1,3 +1,4 @@
+using Barrelo.GameSdk;
 using Barrelo.Infrastructure.External.GamePlugins;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -57,6 +58,60 @@ public sealed class ClientGameLoaderTests : IDisposable
         descriptor.GameId.Should().Be("testgame");
         descriptor.DisplayName.Should().Be("Test Game");
         descriptor.Description.Should().Be("A game for tests.");
+        // A manifest that says nothing about roster size is solo-playable.
+        descriptor.MinPlayers.Should().Be(1);
+    }
+
+    [Fact]
+    public void LoadFactories_reads_a_manifests_declared_minimum_player_count()
+    {
+        WriteManifest("duel", ValidManifest("duel").Replace("\"settings\": []", "\"minPlayers\": 2, \"settings\": []"));
+        var loader = new ClientGameLoader(NullLoggerFactory.Instance);
+
+        var factories = loader.LoadFactories(_pluginsDirectory);
+
+        factories.Should().ContainSingle();
+        factories[0].Describe().MinPlayers.Should().Be(2);
+    }
+
+    [Fact]
+    public void LoadFactories_reads_a_manifests_declared_group_minimum()
+    {
+        WriteManifest("twoteams", ValidManifest("twoteams").Replace(
+            "\"settings\": []",
+            """
+            "settings": [
+                { "kind": "playerGroup", "key": "teams", "displayName": "Teams",
+                  "minGroups": 2, "maxGroups": 2, "maxPlayersPerGroup": 4 }
+              ]
+            """));
+        var loader = new ClientGameLoader(NullLoggerFactory.Instance);
+
+        var factories = loader.LoadFactories(_pluginsDirectory);
+
+        factories.Should().ContainSingle();
+        var groupSetting = factories[0].Describe().Settings.OfType<PlayerGroupSetting>().Single();
+        groupSetting.MinGroups.Should().Be(2);
+        groupSetting.MaxGroups.Should().Be(2);
+    }
+
+    [Fact]
+    public void LoadFactories_defaults_a_group_setting_without_minGroups_to_a_single_team()
+    {
+        WriteManifest("oneteam", ValidManifest("oneteam").Replace(
+            "\"settings\": []",
+            """
+            "settings": [
+                { "kind": "playerGroup", "key": "teams", "displayName": "Teams",
+                  "maxGroups": 4, "maxPlayersPerGroup": 4 }
+              ]
+            """));
+        var loader = new ClientGameLoader(NullLoggerFactory.Instance);
+
+        var factories = loader.LoadFactories(_pluginsDirectory);
+
+        factories.Should().ContainSingle();
+        factories[0].Describe().Settings.OfType<PlayerGroupSetting>().Single().MinGroups.Should().Be(1);
     }
 
     [Fact]
