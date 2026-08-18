@@ -1,0 +1,28 @@
+{
+  "protocolVersion": 2,
+  "gameId": "herd-the-sheep",
+  "displayName": "Herd The Sheep",
+  "description": "Every dart is a scare point. Push the flock through the funnel and into the pen — the bull is a whistle, and a miss is a wasted dart.",
+  "stateOwner": "client",
+  "settings": [
+    {
+      "kind": "playerGroup",
+      "key": "teams",
+      "displayName": "Teams",
+      "maxGroups": 4,
+      "maxPlayersPerGroup": 4,
+      "minGroups": 1
+    },
+    {
+      "kind": "gameMode",
+      "key": "flock",
+      "displayName": "Flock",
+      "defaultValue": "standard",
+      "choices": [
+        { "value": "quick", "displayName": "Quick", "options": { "flock": "quick" } },
+        { "value": "standard", "displayName": "Standard", "options": { "flock": "standard" } },
+        { "value": "long", "displayName": "Long", "options": { "flock": "long" } }
+      ]
+    }
+  ]
+}

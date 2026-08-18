@@ -1,0 +1,18 @@
+{
+  "protocolVersion": 2,
+  "gameId": "territory",
+  "displayName": "Territory",
+  "description": "Claim the board one number at a time. Shield what you hold, break through what you don't, and knock every other side off the map.",
+  "stateOwner": "client",
+  "minPlayers": 2,
+  "settings": [
+    {
+      "kind": "playerGroup",
+      "key": "teams",
+      "displayName": "Teams",
+      "minGroups": 2,
+      "maxGroups": 4,
+      "maxPlayersPerGroup": 4
+    }
+  ]
+}
