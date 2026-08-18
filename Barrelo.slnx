@@ -9,7 +9,6 @@
   <Folder Name="/src/Games/">
     <Project Path="src/Games/Barrelo.Games.X01/Barrelo.Games.X01.csproj" />
     <Project Path="src/Games/Barrelo.Games.Cricket/Barrelo.Games.Cricket.csproj" />
-    <Project Path="src/Games/Barrelo.Games.Kickoff/Barrelo.Games.Kickoff.csproj" />
     <Project Path="src/Games/Barrelo.Games.AroundTheClock/Barrelo.Games.AroundTheClock.csproj" />
   </Folder>
   <Folder Name="/tests/">

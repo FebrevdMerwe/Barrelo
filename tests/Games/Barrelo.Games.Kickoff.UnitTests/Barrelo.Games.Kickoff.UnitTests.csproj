@@ -19,8 +19,4 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\src\Games\Barrelo.Games.Kickoff\Barrelo.Games.Kickoff.csproj" />
-  </ItemGroup>
-
 </Project>

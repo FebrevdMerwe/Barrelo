@@ -26,7 +26,6 @@
          dynamic via the plugin loader, not a project reference. -->
     <ProjectReference Include="..\Games\Barrelo.Games.X01\Barrelo.Games.X01.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Games\Barrelo.Games.Cricket\Barrelo.Games.Cricket.csproj" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="..\Games\Barrelo.Games.Kickoff\Barrelo.Games.Kickoff.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Games\Barrelo.Games.AroundTheClock\Barrelo.Games.AroundTheClock.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
@@ -45,23 +44,17 @@
   <Target Name="CopyPluginsToOutput" AfterTargets="Build">
     <ItemGroup>
       <PluginFiles Include="$(MSBuildProjectDirectory)\plugins\**\*" />
-      <PluginFiles Include="$(MSBuildProjectDirectory)\..\..\external-plugins\**\*"
-                    Exclude="$(MSBuildProjectDirectory)\..\..\external-plugins\README.md;$(MSBuildProjectDirectory)\..\..\external-plugins\.gitkeep" />
+      <PluginFiles Include="$(MSBuildProjectDirectory)\..\..\external-plugins\**\*" Exclude="$(MSBuildProjectDirectory)\..\..\external-plugins\README.md;$(MSBuildProjectDirectory)\..\..\external-plugins\.gitkeep" />
     </ItemGroup>
-    <Copy SourceFiles="@(PluginFiles)"
-          DestinationFolder="$(OutDir)plugins\%(RecursiveDir)"
-          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(OutDir)plugins\%(RecursiveDir)" SkipUnchangedFiles="true" />
   </Target>
 
   <Target Name="CopyPluginsToPublishDir" AfterTargets="Publish">
     <ItemGroup>
       <PluginFilesForPublish Include="$(MSBuildProjectDirectory)\plugins\**\*" />
-      <PluginFilesForPublish Include="$(MSBuildProjectDirectory)\..\..\external-plugins\**\*"
-                              Exclude="$(MSBuildProjectDirectory)\..\..\external-plugins\README.md;$(MSBuildProjectDirectory)\..\..\external-plugins\.gitkeep" />
+      <PluginFilesForPublish Include="$(MSBuildProjectDirectory)\..\..\external-plugins\**\*" Exclude="$(MSBuildProjectDirectory)\..\..\external-plugins\README.md;$(MSBuildProjectDirectory)\..\..\external-plugins\.gitkeep" />
     </ItemGroup>
-    <Copy SourceFiles="@(PluginFilesForPublish)"
-          DestinationFolder="$(PublishDir)plugins\%(RecursiveDir)"
-          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(PluginFilesForPublish)" DestinationFolder="$(PublishDir)plugins\%(RecursiveDir)" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>
