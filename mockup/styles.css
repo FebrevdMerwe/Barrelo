@@ -317,7 +317,7 @@ body{
 .scene.is-ready .game-board-wrap{ opacity:1; transform:none; transition: opacity .7s ease .08s, transform .7s ease .08s; }
 
 /* Per-game board styling now lives with each plugin:
-   plugins/x01/style.css, plugins/cricket/style.css, plugins/kickoff/style.css.
+   plugins/x01/style.css, plugins/cricket/style.css, plugins/puttputt/style.css.
    Each plugin's render.js self-injects its own stylesheet — this file only
    owns shell chrome shared by every game. */
 

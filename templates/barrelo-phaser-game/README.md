@@ -62,9 +62,9 @@ Two things worth knowing before you change the setting:
   opponent: one player in one team is a valid match, exactly as it is for X01, Cricket and Around The
   Clock. If your game genuinely can't be played alone, say so — `"minPlayers": 2` at the manifest's top
   level, and `"minGroups": 2` inside the `playerGroup` setting if the second player has to be on the
-  *other* team (Kickoff's case, since every dart is a kick at one of two goals). Both default to `1`.
+  *other* team (a head-to-head game with no solo mode). Both default to `1`.
 - `maxGroups`/`maxPlayersPerGroup` in the manifest are your game's real limits (the template ships 4 and
-  4). In-repo games range from 2 teams (X01, Kickoff) to 6 (Around The Clock).
+  4). In-repo games range from 2 teams (X01) to 6 (Around The Clock).
 
 ## The determinism contract — read this one
 

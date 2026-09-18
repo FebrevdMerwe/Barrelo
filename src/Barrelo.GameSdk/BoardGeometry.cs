@@ -40,8 +40,8 @@ public static class BoardGeometry
     }
 
     /// <summary>Angular position of a segment's wedge center, clockwise from top (0deg = segment 20). Shared with
-    /// anything that needs the board's compass direction for a segment without a full board position, e.g.
-    /// Kickoff mapping a kick's segment to a direction across the pitch.</summary>
+    /// anything that needs the board's compass direction for a segment without a full board position, e.g. a
+    /// game mapping a throw's segment to a direction on its own playfield.</summary>
     public static double AngleDegreesForSegment(int segment) => AngleForSegment(segment);
 
     private static (double Inner, double Outer) RadialBand(Ring ring, int segment)

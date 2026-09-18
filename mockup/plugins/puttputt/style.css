@@ -1,4 +1,4 @@
-/* puttputt board: a green rendered like Kickoff's pitch (own SVG, own ball(s))
+/* puttputt board: a green rendered as its own playfield (own SVG, own ball(s))
    plus a compact scorecard table underneath for the 9-hole running totals. */
 .green-board{ display:flex; flex-direction:column; align-items:center; gap:14px; width:min(360px, 92vw); margin:0 auto; }
 .green-diagram{ width:100%; max-width:280px; height:auto; }

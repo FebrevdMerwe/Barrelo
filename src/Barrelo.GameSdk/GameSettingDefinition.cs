@@ -43,7 +43,7 @@ public sealed record PlayerGroupSetting(
 {
     /// <summary>Fewest *occupied* groups a match needs — empty buckets don't count. Defaults to 1, so
     /// declaring teams no longer implies "you need an opponent": a team game is playable by one team (even a
-    /// team of one) unless it raises this. Kickoff, which shoots at two goals, is the case that raises it.
+    /// team of one) unless it raises this. A head-to-head game with no solo mode is the case that raises it.
     /// An init property rather than a constructor parameter so existing plugins — and existing
     /// plugin.json manifests that omit the field — keep compiling and deserializing unchanged.</summary>
     public int MinGroups { get; init; } = 1;

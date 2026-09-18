@@ -1,8 +1,7 @@
-/* Darts.Games.PuttPutt — a mini-golf green rendered like Kickoff's pitch.
+/* Darts.Games.PuttPutt — a mini-golf green rendered as its own playfield.
    Every dart is a putt: segment sets direction (reusing the dartboard's own
-   angle order, same convention as Kickoff), ring sets how far the ball
-   travels. Unlike Kickoff's one shared ball, each player putts their own
-   ball on the same green — totals are compared per player, lowest wins.
+   angle order), ring sets how far the ball travels. Each player putts their
+   own ball on the same green — totals are compared per player, lowest wins.
    The green has no interior obstacles; the ball simply bounces off the four
    outer walls (see reflect01 below), and hole variety comes purely from
    each hole's tee/cup placement. */
@@ -27,8 +26,8 @@
   var CAPTURE_RADIUS = 0.055;
   var TRAIL_MAX = 6;
 
-  /* Same magnitude table as Kickoff — one learned mental model of "how hard
-     each ring hits" across every dart-driven plugin. */
+  /* Same shape as the magnitude tables in other dart-driven plugins — one
+     learned mental model of "how hard each ring hits" across all of them. */
   var MAGNITUDE = { InnerSingle: 0.16, OuterSingle: 0.26, Triple: 0.38, Double: 0.5 };
   function magnitudeFor(ring, segment) {
     return DartScoring.isBull(ring, segment) ? 0.08 : (MAGNITUDE[ring] || 0);

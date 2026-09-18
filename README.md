@@ -23,7 +23,7 @@
 
 ## What you get
 
-- 🎯 **Six games out of the box** — **X01** (301/501/701, double-out), **Cricket**, **Kickoff**,
+- 🎯 **Five games out of the box** — **X01** (301/501/701, double-out), **Cricket**,
   **Around The Clock** (race 1→20, finish on the bull), **Killer** (hit your double, then take your
   opponents' lives), and **Putt Putt** (mini golf — the angle from the bull aims your putt, the distance
   from it is your power).
@@ -54,7 +54,7 @@ Grab the latest release for your platform from [Releases](../../releases) and un
 | Windows | `Barrelo-*-win-x64.zip` |
 | Linux (x64) | `Barrelo-*-linux-x64.zip` |
 
-The package is self-contained (no separate .NET runtime needed) and bundles all six built-in games plus
+The package is self-contained (no separate .NET runtime needed) and bundles all five built-in games plus
 the Board Simulator tool.
 
 ### 2. Run it
@@ -86,7 +86,7 @@ devices on your LAN.
    players in from the saved list. Players you add on the fly are session-only and vanish on restart;
    saved players persist.
 3. Drag players into teams if the game uses them, and anyone sitting out into spectators.
-4. Pick a game (X01, Cricket, Kickoff, Around The Clock, Killer, Putt Putt) and set its options —
+4. Pick a game (X01, Cricket, Around The Clock, Killer, Putt Putt) and set its options —
    starting score, course length, etc. Killer needs at least two players.
 5. Hit **Start match**.
 6. Score throws by clicking the on-screen dartboard. No hardware required — see
@@ -104,9 +104,9 @@ this Barrelo, install a new one, or remove one — no restart needed.
   root, or inside a single top-level folder — however the author zipped it up) and makes it playable
   immediately; it shows up in the game picker on the start screen right away.
 - **Removing** deletes the game's files from this machine. It's only offered for games installed this
-  way — the built-in games (X01, Cricket, Kickoff, Around The Clock, and any other in-process .NET
-  plugin) are tagged **built-in** and can't be removed here, since they're loaded once when Barrelo
-  starts rather than read from disk on demand.
+  way — the built-in games (X01, Cricket, Around The Clock, and any other in-process .NET plugin) are
+  tagged **built-in** and can't be removed here, since they're loaded once when Barrelo starts rather
+  than read from disk on demand.
 - Installing a package with the same id as one already installed replaces it in place — this is how you
   pick up an update to a game you already have.
 
@@ -323,7 +323,6 @@ src/
   Games/
     Barrelo.Games.X01          reference game: classic 301/501/701
     Barrelo.Games.Cricket       reference game: standard Cricket
-    Barrelo.Games.Kickoff       reference game: one shared ball, two goals
     Barrelo.Games.AroundTheClock  reference game: 1→20 then the bull, doubles/trebles jump
 tests/
   Barrelo.*.UnitTests / .IntegrationTests   one per src/ project, plus tests/Games/* per game plugin
@@ -343,7 +342,7 @@ dotnet test Barrelo.slnx
 Test projects mirror the solution layout 1:1 — `Barrelo.Domain.UnitTests`, `Barrelo.Application.UnitTests`,
 `Barrelo.GameSdk.UnitTests`, `Barrelo.Infrastructure.IntegrationTests`, `Barrelo.Api.IntegrationTests`, and
 `tests/Games/Barrelo.Games.X01.UnitTests` / `Barrelo.Games.Cricket.UnitTests` /
-`Barrelo.Games.Kickoff.UnitTests` / `Barrelo.Games.AroundTheClock.UnitTests` for the rules engines. The
+`Barrelo.Games.AroundTheClock.UnitTests` for the rules engines. The
 integration tests script full matches end-to-end (mock stream and pure manual entry) through the real
 dispatcher/plugin-loader stack — the primary correctness gate before any UI change.
 
@@ -474,10 +473,10 @@ enforced host-side by `StartMatchCommandValidator` and mirrored by the start scr
 // Solo practice is fine — say nothing.
 public GameDescriptor Describe() => new(GameId, "Around The Clock", "…", settings);
 
-// Needs a real opponent in a second team (Kickoff shoots at two goals).
+// Needs a real opponent in a second team — a head-to-head game with no solo mode.
 public GameDescriptor Describe() => new(
     GameId,
-    "Kickoff",
+    "Head to Head",
     "…",
     [new PlayerGroupSetting("teams", "Teams", MaxGroups: 2, MaxPlayersPerGroup: 4) { MinGroups = 2 }],
     MinPlayers: 2);
@@ -488,8 +487,8 @@ A client-owned game declares the same thing in `plugin.json` — `"minPlayers": 
 
 These two numbers are a convenience for the start screen: they let it refuse an unplayable roster with a
 clear message instead of letting the match fail later. They aren't the last word — a game can still reject a
-roster in `Create` (`GameRuleViolationException`) for anything a minimum can't express, the way Kickoff also
-rejects *more* than two teams.
+roster in `Create` (`GameRuleViolationException`) for anything a minimum can't express, such as a
+head-to-head game that also needs to reject *more* than two teams.
 
 ## Client-owned games (any UI engine, no .NET)
 

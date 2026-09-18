@@ -21,7 +21,6 @@
   <Folder Name="/tests/Games/">
     <Project Path="tests/Games/Barrelo.Games.X01.UnitTests/Barrelo.Games.X01.UnitTests.csproj" />
     <Project Path="tests/Games/Barrelo.Games.Cricket.UnitTests/Barrelo.Games.Cricket.UnitTests.csproj" />
-    <Project Path="tests/Games/Barrelo.Games.Kickoff.UnitTests/Barrelo.Games.Kickoff.UnitTests.csproj" />
     <Project Path="tests/Games/Barrelo.Games.AroundTheClock.UnitTests/Barrelo.Games.AroundTheClock.UnitTests.csproj" />
   </Folder>
   <Folder Name="/tools/">

@@ -4,9 +4,9 @@ namespace Barrelo.Games.AroundTheClock;
 
 /// <summary>
 /// Around The Clock: every team climbs the same 21-rung ladder — 1 through 20, then the bull — and the
-/// first to hit the inner bull ends the match on the spot. Like X01/Cricket/Kickoff, undo works by
-/// replaying the full append-only event log from scratch rather than reversing deltas, so undoing the
-/// dart that won the match needs no special case of its own.
+/// first to hit the inner bull ends the match on the spot. Like X01/Cricket, undo works by replaying the
+/// full append-only event log from scratch rather than reversing deltas, so undoing the dart that won the
+/// match needs no special case of its own.
 ///
 /// Two rules here differ from the plain pub version and are worth stating outright:
 /// a double on your number advances you two rungs and a treble three, and that jump is *clamped* at the
@@ -18,8 +18,8 @@ namespace Barrelo.Games.AroundTheClock;
 /// roster). In a straight race to the bull, visit count is the whole game, so a three-player team taking
 /// three visits a round against a two-player team's two would be close to decisive. Each team therefore
 /// gets exactly one visit per round and rotates its own thrower via
-/// <see cref="AroundTheClockGroupState.NextMemberIndex"/> — the same shape as Kickoff's two sides,
-/// generalised to N.
+/// <see cref="AroundTheClockGroupState.NextMemberIndex"/> — a round-robin per team, generalised to N
+/// teams rather than just two.
 /// </summary>
 public sealed class AroundTheClockGame : IGame
 {
