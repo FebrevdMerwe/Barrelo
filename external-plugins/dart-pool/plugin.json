@@ -1,0 +1,29 @@
+{
+  "protocolVersion": 2,
+  "gameId": "dart-pool",
+  "displayName": "Dart Pool",
+  "description": "8-ball pool played with darts — throw direction, power and spin to build each shot.",
+  "stateOwner": "client",
+  "minPlayers": 2,
+  "settings": [
+    {
+      "kind": "playerGroup",
+      "key": "teams",
+      "displayName": "Teams",
+      "minGroups": 2,
+      "maxGroups": 2,
+      "maxPlayersPerGroup": 4
+    },
+    {
+      "kind": "gameMode",
+      "key": "difficulty",
+      "displayName": "Difficulty",
+      "defaultValue": "beginner",
+      "choices": [
+        { "value": "beginner", "displayName": "Beginner", "options": { "difficulty": "beginner" } },
+        { "value": "intermediate", "displayName": "Intermediate", "options": { "difficulty": "intermediate" } },
+        { "value": "advanced", "displayName": "Advanced", "options": { "difficulty": "advanced" } }
+      ]
+    }
+  ]
+}

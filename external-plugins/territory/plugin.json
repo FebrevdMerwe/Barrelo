@@ -13,6 +13,18 @@
       "minGroups": 2,
       "maxGroups": 4,
       "maxPlayersPerGroup": 4
+    },
+    {
+      "kind": "gameMode",
+      "key": "matchLength",
+      "displayName": "Match Length",
+      "defaultValue": "unlimited",
+      "choices": [
+        { "value": "unlimited", "displayName": "Unlimited", "options": {} },
+        { "value": "10", "displayName": "10 rounds", "options": { "maxRounds": "10" } },
+        { "value": "15", "displayName": "15 rounds", "options": { "maxRounds": "15" } },
+        { "value": "20", "displayName": "20 rounds", "options": { "maxRounds": "20" } }
+      ]
     }
   ]
 }

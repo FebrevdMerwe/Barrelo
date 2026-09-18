@@ -1,0 +1,17 @@
+{
+  "protocolVersion": 2,
+  "gameId": "zombie-horde",
+  "displayName": "Zombie Horde",
+  "description": "Co-op survival — kill the zombies by hitting the number above them before they reach the safehouse.",
+  "stateOwner": "client",
+  "minPlayers": 2,
+  "settings": [
+    {
+      "kind": "playerGroup",
+      "key": "teams",
+      "displayName": "Survivors",
+      "maxGroups": 1,
+      "maxPlayersPerGroup": 6
+    }
+  ]
+}
