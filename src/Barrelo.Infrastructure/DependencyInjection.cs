@@ -28,17 +28,25 @@ public static class DependencyInjection
         services.AddSingleton<ISessionPlayerStore, SessionPlayerStore>();
         services.AddSingleton<ISessionLeaderboardStore, SessionLeaderboardStore>();
         services.AddSingleton<IReplayDivergenceMonitor, ReplayDivergenceMonitor>();
-        services.AddSingleton<IGameCatalog>(sp =>
+        services.AddSingleton(sp =>
         {
             var pluginsDirectory = PluginsDirectoryResolver.Resolve(configuration);
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
 
             var pluginFactories = new PluginGameLoader(loggerFactory.CreateLogger<PluginGameLoader>())
                 .LoadFactories(pluginsDirectory);
-            var clientFactories = new ClientGameLoader(loggerFactory).LoadFactories(pluginsDirectory);
+            var catalog = new GameCatalog(pluginFactories);
 
-            return new GameCatalog(pluginFactories.Concat(clientFactories));
+            var clientFactories = new ClientGameLoader(loggerFactory).LoadFactories(pluginsDirectory);
+            catalog.ReloadClientGames(clientFactories);
+
+            return catalog;
         });
+        services.AddSingleton<IGameCatalog>(sp => sp.GetRequiredService<GameCatalog>());
+        services.AddSingleton<IGameInstaller>(sp => new ClientGameInstaller(
+            sp.GetRequiredService<GameCatalog>(),
+            PluginsDirectoryResolver.Resolve(configuration),
+            sp.GetRequiredService<ILoggerFactory>()));
 
         var detectionMode = configuration["Detection:Mode"] ?? "Mock";
         if (string.Equals(detectionMode, "Simulator", StringComparison.OrdinalIgnoreCase))

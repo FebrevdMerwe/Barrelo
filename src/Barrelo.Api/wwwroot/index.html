@@ -20,6 +20,7 @@
     <div class="meta">
       <span class="legmeta">a platform for interactive dart experiences</span>
       <button type="button" class="icon-btn" id="manageRosterBtn" aria-label="Manage roster" title="Manage roster">⚙</button>
+      <button type="button" class="icon-btn" id="manageGamesBtn" aria-label="Manage games" title="Manage games">🧩</button>
       <button type="button" class="icon-btn" id="resetLeaderboardBtn" aria-label="Reset session leaderboard" title="Reset session leaderboard">🏆</button>
     </div>
   </header>
@@ -70,6 +71,22 @@
         <input type="text" class="text-input" id="rosterAddInput" placeholder="Add a permanent player&hellip;" maxlength="40" aria-label="New permanent player name">
         <button class="pull-btn" type="submit">Add</button>
       </form>
+    </div>
+  </dialog>
+
+  <dialog class="roster-modal" id="manageGamesModal">
+    <div class="roster-modal-inner">
+      <header class="roster-modal-head">
+        <h2>Manage games</h2>
+        <button type="button" class="roster-modal-close" id="gamesModalClose" aria-label="Close">&times;</button>
+      </header>
+      <p class="hero-sub">Install a game someone else built by uploading its package — a .zip with a plugin.json at its root (or in a single top-level folder). Built-in games can't be removed.</p>
+      <div class="roster-list" id="gamesMgmtList"></div>
+      <form class="roster-add-row" id="gameInstallForm">
+        <input type="file" id="gameInstallFile" accept=".zip" aria-label="Game package (.zip)">
+        <button class="pull-btn" type="submit" id="gameInstallBtn">Install</button>
+      </form>
+      <p class="hero-sub start-error" id="gameInstallError" hidden></p>
     </div>
   </dialog>
 
@@ -942,6 +959,112 @@
     manageRosterModal.showModal();
   });
   rosterModalClose.addEventListener("click", function () { manageRosterModal.close(); });
+
+  // ---------- Manage games (install/remove client-owned game plugins) ----------
+
+  var manageGamesBtn = document.getElementById("manageGamesBtn");
+  var manageGamesModal = document.getElementById("manageGamesModal");
+  var gamesModalClose = document.getElementById("gamesModalClose");
+  var gamesMgmtListEl = document.getElementById("gamesMgmtList");
+  var gameInstallForm = document.getElementById("gameInstallForm");
+  var gameInstallFileEl = document.getElementById("gameInstallFile");
+  var gameInstallBtn = document.getElementById("gameInstallBtn");
+  var gameInstallErrorEl = document.getElementById("gameInstallError");
+
+  async function problemMessage(res, fallback) {
+    var problem = await res.json().catch(function () { return null; });
+    return (problem && (problem.title || problem.detail)) || fallback;
+  }
+
+  function renderGamesMgmtList(games) {
+    gamesMgmtListEl.innerHTML = "";
+    if (!games.length) {
+      var empty = document.createElement("p");
+      empty.className = "hero-sub";
+      empty.textContent = "No games installed.";
+      gamesMgmtListEl.appendChild(empty);
+      return;
+    }
+    games.forEach(function (game) {
+      var row = document.createElement("div");
+      row.className = "roster-row";
+      row.innerHTML =
+        '<span class="roster-name">' + game.displayName +
+          '<br><span class="hero-sub" style="font-size:12px;">' + game.description + '</span></span>' +
+        (game.removable
+          ? '<button type="button" class="pull-btn roster-delete-btn">Remove</button>'
+          : '<span class="roster-benched-tag">built-in</span>');
+      if (game.removable) {
+        row.querySelector(".roster-delete-btn").addEventListener("click", function () { removeInstalledGame(game); });
+      }
+      gamesMgmtListEl.appendChild(row);
+    });
+  }
+
+  async function fetchInstalledGames() {
+    try {
+      var res = await fetch("/api/games/installed");
+      if (!res.ok) throw new Error("GET /api/games/installed failed: " + res.status);
+      renderGamesMgmtList(await res.json());
+    } catch (err) {
+      console.error(err);
+      gamesMgmtListEl.innerHTML = "";
+      var errEl = document.createElement("p");
+      errEl.className = "hero-sub";
+      errEl.textContent = "Couldn't load installed games — is the API running?";
+      gamesMgmtListEl.appendChild(errEl);
+    }
+  }
+
+  async function removeInstalledGame(game) {
+    if (!confirm("Remove " + game.displayName + "? Players won't be able to start it until it's reinstalled.")) return;
+    try {
+      var res = await fetch("/api/games/installed/" + encodeURIComponent(game.gameId), { method: "DELETE" });
+      if (!res.ok) throw new Error(await problemMessage(res, "Request failed: " + res.status));
+      await fetchInstalledGames();
+      await fetchGames();
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't remove " + game.displayName + " — " + err.message);
+    }
+  }
+
+  gameInstallForm.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    gameInstallErrorEl.hidden = true;
+    var file = gameInstallFileEl.files[0];
+    if (!file) {
+      gameInstallErrorEl.textContent = "Choose a .zip package first.";
+      gameInstallErrorEl.hidden = false;
+      return;
+    }
+
+    gameInstallBtn.disabled = true;
+    gameInstallBtn.textContent = "Installing…";
+    try {
+      var formData = new FormData();
+      formData.append("file", file);
+      var res = await fetch("/api/games/installed", { method: "POST", body: formData });
+      if (!res.ok) throw new Error(await problemMessage(res, "Request failed: " + res.status));
+      gameInstallForm.reset();
+      await fetchInstalledGames();
+      await fetchGames();
+    } catch (err) {
+      console.error(err);
+      gameInstallErrorEl.textContent = err.message;
+      gameInstallErrorEl.hidden = false;
+    } finally {
+      gameInstallBtn.disabled = false;
+      gameInstallBtn.textContent = "Install";
+    }
+  });
+
+  manageGamesBtn.addEventListener("click", async function () {
+    gameInstallErrorEl.hidden = true;
+    await fetchInstalledGames();
+    manageGamesModal.showModal();
+  });
+  gamesModalClose.addEventListener("click", function () { manageGamesModal.close(); });
 
   var resetLeaderboardBtn = document.getElementById("resetLeaderboardBtn");
   resetLeaderboardBtn.addEventListener("click", async function () {

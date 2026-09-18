@@ -95,6 +95,26 @@ devices on your LAN.
 Every screen pointed at the app updates live, so you can leave a TV on the scoreboard view while
 scoring from a phone or tablet.
 
+## Installing games from other people
+
+The **🧩 Manage games** button in the header opens a panel where you can see every game installed on
+this Barrelo, install a new one, or remove one — no restart needed.
+
+- **Installing** takes a `.zip` package someone else built and shared with you (a `plugin.json` at its
+  root, or inside a single top-level folder — however the author zipped it up) and makes it playable
+  immediately; it shows up in the game picker on the start screen right away.
+- **Removing** deletes the game's files from this machine. It's only offered for games installed this
+  way — the built-in games (X01, Cricket, Kickoff, Around The Clock, and any other in-process .NET
+  plugin) are tagged **built-in** and can't be removed here, since they're loaded once when Barrelo
+  starts rather than read from disk on demand.
+- Installing a package with the same id as one already installed replaces it in place — this is how you
+  pick up an update to a game you already have.
+
+This only covers **client-owned** games — ones whose rules run entirely in the browser (see
+[Client-owned games](#client-owned-games-any-ui-engine-no-net) below). A built-in .NET plugin still has to
+be added by dropping its files under `plugins/` (or `external-plugins/` in this repo) and restarting; see
+[Adding a new game](#adding-a-new-game).
+
 ## Playing without hardware
 
 Barrelo is fully playable with no physical dartboard, in two ways.
