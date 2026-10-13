@@ -54,19 +54,43 @@ jobs:
           -p:Version=${{ env.VERSION }}
           -o ./stage/linux-x64/Barrelo/tools/BoardSimulator
 
+      - name: Publish Barrelo.Api (linux-arm64)
+        run: >
+          dotnet publish src/Barrelo.Api/Barrelo.Api.csproj
+          -c Release -r linux-arm64 --self-contained true
+          -p:Version=${{ env.VERSION }}
+          -o ./stage/linux-arm64/Barrelo
+
+      - name: Publish BoardSimulator (linux-arm64)
+        run: >
+          dotnet publish tools/Barrelo.BoardSimulator/Barrelo.BoardSimulator.csproj
+          -c Release -r linux-arm64 --self-contained true
+          -p:Version=${{ env.VERSION }}
+          -o ./stage/linux-arm64/Barrelo/tools/BoardSimulator
+
       - name: Add README and LICENSE
         shell: pwsh
         run: |
-          Copy-Item README.md ./stage/win-x64/Barrelo/README.md
-          Copy-Item LICENSE ./stage/win-x64/Barrelo/LICENSE
-          Copy-Item README.md ./stage/linux-x64/Barrelo/README.md
-          Copy-Item LICENSE ./stage/linux-x64/Barrelo/LICENSE
+          foreach ($rid in "win-x64", "linux-x64", "linux-arm64") {
+            Copy-Item README.md ./stage/$rid/Barrelo/README.md
+            Copy-Item LICENSE ./stage/$rid/Barrelo/LICENSE
+          }
 
-      - name: Create zips
+      - name: Create win-x64 zip
         shell: pwsh
+        run: Compress-Archive -Path ./stage/win-x64/Barrelo/* -DestinationPath ./Barrelo-${{ env.VERSION }}-win-x64.zip
+
+      # Linux archives are tarballs, not zips: Compress-Archive writes backslash entry names that
+      # Linux `unzip` can't split into directories, and zip drops the executable bit. Windows
+      # runners ship GNU tar + Git Bash, so build them here and keep the installer's checksums alongside.
+      - name: Create linux tarballs and checksums
+        shell: bash
         run: |
-          Compress-Archive -Path ./stage/win-x64/Barrelo/* -DestinationPath ./Barrelo-${{ env.VERSION }}-win-x64.zip
-          Compress-Archive -Path ./stage/linux-x64/Barrelo/* -DestinationPath ./Barrelo-${{ env.VERSION }}-linux-x64.zip
+          for rid in linux-x64 linux-arm64; do
+            tar -czf "Barrelo-${VERSION}-${rid}.tar.gz" -C "stage/${rid}/Barrelo" .
+          done
+          sha256sum Barrelo-*-linux-*.tar.gz > SHA256SUMS
+          cat SHA256SUMS
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -74,4 +98,6 @@ jobs:
           generate_release_notes: true
           files: |
             ./Barrelo-${{ env.VERSION }}-win-x64.zip
-            ./Barrelo-${{ env.VERSION }}-linux-x64.zip
+            ./Barrelo-${{ env.VERSION }}-linux-x64.tar.gz
+            ./Barrelo-${{ env.VERSION }}-linux-arm64.tar.gz
+            ./SHA256SUMS

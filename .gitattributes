@@ -1,0 +1,2 @@
+# Shell scripts run on Linux; CRLF breaks them (e.g. "bash\r: No such file").
+*.sh text eol=lf

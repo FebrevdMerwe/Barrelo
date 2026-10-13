@@ -1,5 +1,11 @@
 # Deploying to the Proxmox LXC
 
+> **Just want to install it?** On the box itself, run the one-line installer instead of the steps below:
+> `curl -fsSL https://raw.githubusercontent.com/FebrevdMerwe/Barrelo/main/deploy/install.sh | sudo bash`
+> ([`install.sh`](install.sh); see the [main README](../README.md#quick-install)). The rest of this page is the
+> dev-machine push workflow. `install.sh` embeds the same unit files as `barrelo.service` /
+> `barrelo-boardsimulator.service` here, so keep them in sync.
+
 Manual, on-demand deploy of `Barrelo.Api` (and, by default, the Board Simulator) from a Windows dev
 machine to a Barrelo LXC container on the local network, over SSH. No GitHub Actions involved — this all
 runs locally, and mirrors the same `linux-x64` publish layout the [release workflow](../.github/workflows/release.yml)

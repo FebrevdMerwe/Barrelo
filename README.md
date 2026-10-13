@@ -52,7 +52,10 @@ Grab the latest release for your platform from [Releases](../../releases) and un
 | Platform | File |
 |---|---|
 | Windows | `Barrelo-*-win-x64.zip` |
-| Linux (x64) | `Barrelo-*-linux-x64.zip` |
+| Linux (x64) | `Barrelo-*-linux-x64.tar.gz` |
+| Linux (arm64, e.g. Raspberry Pi) | `Barrelo-*-linux-arm64.tar.gz` |
+
+On Linux you can skip this and use the [one-line installer](#quick-install) instead.
 
 The package is self-contained (no separate .NET runtime needed) and bundles all five built-in games plus
 the Board Simulator tool.
@@ -61,10 +64,10 @@ the Board Simulator tool.
 
 **Windows** — double-click `Barrelo.Api.exe`, or run it from a terminal in that folder.
 
-**Linux** — zip archives don't preserve the executable bit, so make it runnable once:
+**Linux** — extract the tarball and run it:
 
 ```bash
-chmod +x Barrelo.Api tools/BoardSimulator/Barrelo.BoardSimulator
+mkdir barrelo && tar -xzf Barrelo-*-linux-x64.tar.gz -C barrelo && cd barrelo
 ./Barrelo.Api
 ```
 
@@ -168,6 +171,22 @@ or an `appsettings.Production.json`.
 | `Detection:Simulator:Url` | `ws://localhost:5250/stream` | WebSocket endpoint of a running Board Simulator. |
 
 ## Keep it running (Linux, systemd)
+
+### Quick install
+
+On any x64 or arm64 Linux box with systemd (Debian, Ubuntu, Raspberry Pi OS, a Proxmox LXC...):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/FebrevdMerwe/Barrelo/main/deploy/install.sh | sudo bash
+```
+
+This downloads the latest release, verifies its checksum, installs it to `/opt/barrelo`, and starts
+it as a `barrelo` systemd service on port 5295. Re-run the same command to upgrade (your `barrelo.db`
+is kept). Extra options go after `bash -s --`, e.g. `... | sudo bash -s -- --version 1.2.3 --with-simulator`;
+`--uninstall` removes the services (add `--purge` to delete `/opt/barrelo` too). As with any
+`curl | bash`, you can [read the script](deploy/install.sh) first.
+
+### Manual setup
 
 For a headless box next to the board — a Proxmox LXC, a Raspberry Pi — run the Api as a `systemd` service
 so it survives reboots and crashes:
