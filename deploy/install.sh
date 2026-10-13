@@ -37,7 +37,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ "$(id -u)" -ne 0 ]; then
-    fail "must run as root - pipe into 'sudo bash' (curl ... | sudo bash)"
+    fail "must run as root - pipe into 'sudo bash' (curl ... | sudo bash), or run as root directly"
 fi
 [ -d /run/systemd/system ] || fail "systemd not detected; this installer only supports systemd hosts"
 
@@ -85,7 +85,7 @@ curl -fSL --progress-bar -o "$TMP/$ASSET" "$BASE_URL/$ASSET" || fail "download f
 curl -fsSL -o "$TMP/SHA256SUMS" "$BASE_URL/SHA256SUMS" || fail "download failed: $BASE_URL/SHA256SUMS"
 
 log "Verifying checksum"
-( cd "$TMP" && grep -F " $ASSET" SHA256SUMS | sha256sum -c - >/dev/null ) \
+( cd "$TMP" && grep -E "[ *]$ASSET\$" SHA256SUMS | sha256sum -c - >/dev/null ) \
     || fail "checksum mismatch for $ASSET - aborting"
 
 for svc in barrelo barrelo-boardsimulator; do
