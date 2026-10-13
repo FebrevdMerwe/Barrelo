@@ -97,7 +97,7 @@ done
 
 log "Installing to $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
-tar -xzf "$TMP/$ASSET" -C "$INSTALL_DIR"
+tar --no-same-owner -xzf "$TMP/$ASSET" -C "$INSTALL_DIR"
 chmod +x "$INSTALL_DIR/Barrelo.Api"
 [ -f "$INSTALL_DIR/tools/BoardSimulator/Barrelo.BoardSimulator" ] \
     && chmod +x "$INSTALL_DIR/tools/BoardSimulator/Barrelo.BoardSimulator"

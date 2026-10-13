@@ -87,7 +87,7 @@ jobs:
         shell: bash
         run: |
           for rid in linux-x64 linux-arm64; do
-            tar -czf "Barrelo-${VERSION}-${rid}.tar.gz" -C "stage/${rid}/Barrelo" .
+            tar --owner=0 --group=0 --numeric-owner -czf "Barrelo-${VERSION}-${rid}.tar.gz" -C "stage/${rid}/Barrelo" .
           done
           sha256sum Barrelo-*-linux-*.tar.gz > SHA256SUMS
           cat SHA256SUMS
