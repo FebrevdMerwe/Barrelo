@@ -12,15 +12,17 @@ namespace Barrelo.Infrastructure.External.Detection;
 /// and surviving a bad message are all <see cref="WebSocketDetectionSource"/>'s job — this type is nothing
 /// but the mapping.
 ///
-/// AutoDarts sends the *cumulative* set of darts for the current visit on every "Throw detected" event
+/// AutoDarts sends the *cumulative* set of darts for the current visit on every "Throw detected" /
+/// "throwDetected" event
 /// (numThrows/throws grows to up to 3), not one message per dart. This adapter passes that through as-is,
 /// as a VisitUpdated event carrying the whole visit — working out which darts are new is
 /// DetectionListenerService's VisitDiffer's job. Keeping the adapter stateless is deliberate: a
 /// reconnect-and-resend then self-corrects, whereas an adapter holding its own "darts emitted so far"
 /// count silently swallowed a whole visit whenever a reconnect straddled a takeout.
 ///
-/// Turn boundary is the "Takeout finished" event (board cleared, numThrows back to 0) rather than
-/// "Takeout started", so EndOfTurn only fires once the visit is fully wrapped up.
+/// A "Takeout finished" / "takeoutFinished" event with no throws marks the turn boundary. If it carries
+/// throws, it is a visit snapshot rather than a boundary; this can happen alongside a new throw and must
+/// not advance the player before the following throwDetected snapshot.
 /// </summary>
 public sealed class AutoDartsDetectionSource(Uri eventsUri, string boardId, ILogger<AutoDartsDetectionSource> logger)
     : WebSocketDetectionSource(eventsUri, boardId, "AutoDarts board manager", logger)
@@ -48,15 +50,26 @@ public sealed class AutoDartsDetectionSource(Uri eventsUri, string boardId, ILog
         switch (data.Event)
         {
             case "Throw detected":
+            case "throwDetected":
                 var visit = (data.Throws ?? []).Select(BuildThrow).ToList();
                 yield return new DetectionEvent(DetectionEventType.VisitUpdated, BoardId, null, visit);
                 break;
 
             case "Takeout finished":
-                yield return new DetectionEvent(DetectionEventType.EndOfTurn, BoardId, null);
+            case "takeoutFinished":
+                if (data.Throws is { Count: > 0 })
+                {
+                    var finalVisit = data.Throws.Select(BuildThrow).ToList();
+                    yield return new DetectionEvent(DetectionEventType.VisitUpdated, BoardId, null, finalVisit);
+                }
+                else
+                {
+                    yield return new DetectionEvent(DetectionEventType.EndOfTurn, BoardId, null);
+                }
                 break;
 
             case "Takeout started":
+            case "takeoutStarted":
                 break;
 
             default:
@@ -67,9 +80,16 @@ public sealed class AutoDartsDetectionSource(Uri eventsUri, string boardId, ILog
 
     private DetectedThrow BuildThrow(AutoDartsThrow dart)
     {
-        var segment = dart.Segment.Number;
-        var ring = MapRing(dart.Segment.Bed, segment);
-        var position = dart.Coords is { } c ? new BoardPosition(c.X, c.Y) : BoardGeometry.CenterOf(segment, ring);
+        var segment = dart.SegmentNumber ?? dart.Segment?.Number
+            ?? throw new InvalidOperationException("AutoDarts throw is missing its segment number.");
+        var bed = dart.Bed ?? dart.Segment?.Bed
+            ?? throw new InvalidOperationException("AutoDarts throw is missing its bed.");
+        var ring = MapRing(bed, segment);
+        var position = dart.CoordsX is { } x && dart.CoordsY is { } y
+            ? new BoardPosition(x, y)
+            : dart.Coords is { } c
+                ? new BoardPosition(c.X, c.Y)
+                : BoardGeometry.CenterOf(segment, ring);
 
         return new DetectedThrow(
             ThrowId: Guid.NewGuid(), Segment: segment, Ring: ring,
@@ -101,7 +121,15 @@ public sealed class AutoDartsDetectionSource(Uri eventsUri, string boardId, ILog
     private sealed record AutoDartsData(
         bool Connected, bool Running, string? Status, string? Event, int NumThrows, IReadOnlyList<AutoDartsThrow>? Throws);
 
-    private sealed record AutoDartsThrow(AutoDartsSegment Segment, AutoDartsCoords? Coords);
+    private sealed record AutoDartsThrow(
+        AutoDartsSegment? Segment,
+        AutoDartsCoords? Coords,
+        string? Bed,
+        int? SegmentNumber,
+        string? SegmentName,
+        int? Multiplier,
+        double? CoordsX,
+        double? CoordsY);
 
     private sealed record AutoDartsSegment(string Name, int Number, string Bed, int Multiplier);
 

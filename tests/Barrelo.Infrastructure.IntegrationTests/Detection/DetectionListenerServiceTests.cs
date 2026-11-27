@@ -106,6 +106,31 @@ public class DetectionListenerServiceTests : IAsyncLifetime
         await WaitUntil(async () => (await StateOf(matchId)).CurrentPlayerId == _p2);
     }
 
+    [Fact]
+    public async Task Repeated_visit_snapshots_after_takeout_do_not_end_the_new_players_turn()
+    {
+        var matchId = await StartMatch();
+
+        var p1Throw = Dart(20, Ring.Triple);
+        SimulateVisit(p1Throw, p1Throw, p1Throw);
+        await WaitUntil(async () => (await StateOf(matchId)).RecentThrows.Count == 3);
+
+        _detectionSource.SimulateEndOfTurn(WellKnownBoardIds.Manual);
+        await WaitUntil(async () => (await StateOf(matchId)).CurrentPlayerId == _p2);
+
+        // AutoDarts can report the new dart in takeoutFinished, then resend that same visit in
+        // throwDetected. The visit differ must accept it only once and leave P2 at the oche.
+        var p2Throw = Dart(11, Ring.InnerSingle);
+        SimulateVisit(p2Throw);
+        SimulateVisit(p2Throw);
+
+        await WaitUntil(async () => (await StateOf(matchId)).RecentThrows.Count == 4);
+
+        var state = await StateOf(matchId);
+        state.CurrentPlayerId.Should().Be(_p2);
+        state.RecentThrows.Should().HaveCount(4);
+    }
+
     /// <summary>
     /// The reconnect failure that stalled whole evenings. A board manager that drops and comes back can
     /// lose the takeout that happened in between: the next thing the host sees is a visit with *fewer*
